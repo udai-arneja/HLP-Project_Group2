@@ -80,17 +80,16 @@ Note also that the order in which elements are put onto a canvas matters. the *l
 and not passed through to the underlying svg circles. Therefore the skeleton dragging does not work. 
 The solution is to use bounding boxes and determine which object is clicke dprogrammatically.
 
-## Keyboard Interface Gotcha
+## INTERFACES
+
+
+### Keyboard Interface Gotcha
 
 The SVG window is not focussed to receive key presses - electron does not therefore support them directly, and the `OnKeyPress`, 
 `OnKeyDown` DOM attributes will now work. Instead you can use a subscription and define electron global shortcuts for 
 the keys you need in (perhaps invisible) electron menus as in the skeleton code.
 
-
-
-## SVG Geometry
-
-## Mouse Interface
+### Mouse Interface
 
 All mouse interactions will be observed by sheet. Sheet will then analyse and propagate the relevant information to buswire and symbol. 
 In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
@@ -111,7 +110,7 @@ can be ignored when writing all other SVG code.
 
 The skeleton code has working zoom, but does not quite do this perfectly. It would need to 
 
-
+### SVG Geometry
 
 ### Bounding boxes
 
