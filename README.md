@@ -82,6 +82,12 @@ The solution is to use bounding boxes and determine which object is clicke dprog
 
 ## INTERFACES
 
+### Deleting Things
+
+Message sent to BusWire, indicating the wires to be deleted (message needs to be added to BusWire messages - contains Symbol UUID? and ports?). Note this 
+can be for deleting individual wires, or all wires connected to a symbol.
+
+Message sent to Symbol, indicating the component to be deleted (message needs to be added to Symbol messages - only needs to contain UUID)
 
 ### Keyboard Interface Gotcha
 
