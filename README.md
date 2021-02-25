@@ -96,6 +96,8 @@ All mouse interactions will be observed by sheet. Sheet will then analyse and pr
 In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
 movements.
 
+If this has performance degradation, listeners/other methods of mouse interactions will be considered.
+
 ### Zoom
 
 The skeleton code uses a fixed size SVG canvas of 1000X1000 pixels. This is then transformed by zoom. Possibly 1000X1000
