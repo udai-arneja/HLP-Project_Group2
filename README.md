@@ -50,15 +50,13 @@ These have a parent child relationship:
 
 So the `BusWire` module can have a view function that depends on the `Symbol` module state (`Symbol.model`). The `Symbol` view 
 function cannot depend on anything except `Symbol.model`. This dependence is needed because wire endpoints are defined 
-by symbol and port positions. The alternative, keeping `BusWire` and `Symbol` as separate children of `Sheet`:
+by symbol and port positions.
 
-```
-Sheet --> BusWire 
-      --> Symbol
-```
+Considering strucutre of:
 
-would require 
-everything that updated port positions to also send a message to `Wire` to update wire endpoints. Thus the endpoint data is  effectively duplicated. That might sometimes be required for performance reasons, but is bad practice unless forced because it makes it more difficult to write correct code.
+`Sheet --> BusWire --> Symbol` and `Sheet --> Symbol`
+
+Thus only one endpoint, but faster performance - hence this will be implemented if performance problems found.
 
 
 Good overview of how Elmish large-scale structure is supported by various built-in Elmish functions. This is written in the context
@@ -89,7 +87,14 @@ The SVG window is not focussed to receive key presses - electron does not theref
 the keys you need in (perhaps invisible) electron menus as in the skeleton code.
 
 
+
 ## SVG Geometry
+
+## Mouse Interface
+
+All mouse interactions will be observed by sheet. Sheet will then analyse and propagate the relevant information to buswire and symbol. 
+In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
+movements.
 
 ### Zoom
 
