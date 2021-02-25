@@ -52,7 +52,7 @@ So the `BusWire` module can have a view function that depends on the `Symbol` mo
 function cannot depend on anything except `Symbol.model`. This dependence is needed because wire endpoints are defined 
 by symbol and port positions.
 
-Considering strucutre of:
+Considering structure of:
 
 `Sheet --> BusWire --> Symbol` and `Sheet --> Symbol`
 
