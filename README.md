@@ -84,27 +84,46 @@ The solution is to use bounding boxes and determine which object is clicke dprog
 
 ## Interfaces Simi Picked just for dummy:
 -> add symbols: sheet sends position, inputno and outputno to symbol (would also send type but I didn't go into much detail)  then also adds boundary box
+
 -> delete symbols: sheet holds a list of selected symbols then sends the component ID list to symbol to remove
+
 -> select symbols: once again done on sheet but sends component id list to symbol 
+
 -> add wire: sheet sends input port id and output port id to buswire to create connection (only one at a time because the user draws it on)
+
 -> delete wires: list of input port ids and output port ids (search through inputports and outports for each wire to see which ones need to go)
+
 -> select symbol: once again sheet sends the component id list 
+
 -> showports: component id list for which component ports need to show ports
+
 -> show valid ports: sheet sends "input" or "output", portId of selected port and XY position of cursor used to show the dragging line 
 
 symbols has a lot of changes:
-            LastDragPos = {X=0.;Y=0.}
-            IsDragging = false
-            Id = CommonTypes.ComponentId (Helpers.uuid())
-            Type = CommonTypes.ComponentType.Not
-            InputPorts = [] ---> _list of ports_
-            OutputPorts = [] ---> _list of ports_
-            Pos = start ---> _position of top left corner _
-            H = 65. + float (max inputno outputno)*40. ---> _adjustable height by number of ports_ 
-            W = 100.   ---> _set width_
-            IsSelected = false --> _bool to tell me if the symbol is highlighted_
-            PortStatus = "invisible" ---> _invisible = dont show ports, visible = show ports, input = show valid outputs as input port has been selected, output = the opposite_
-            IsSliding = (false, "input" , 0, {X=0.; Y=0.}) ---> _this is for when the port slides so it tells me 1) whether it's sliding, 2) whether the port is input or output, 3) what port number it is and 4) where the mouse is _
+
+      LastDragPos = {X=0.;Y=0.}
+
+      IsDragging = false
+
+      Id = CommonTypes.ComponentId (Helpers.uuid())
+
+      Type = CommonTypes.ComponentType.Not
+
+      InputPorts = [] ---> _list of ports_
+
+      OutputPorts = [] ---> _list of ports_
+
+      Pos = start ---> _position of top left corner _
+
+      H = 65. + float (max inputno outputno)*40. ---> _adjustable height by number of ports_ 
+
+      W = 100.   ---> _set width_
+
+      IsSelected = false --> _bool to tell me if the symbol is highlighted_
+
+      PortStatus = "invisible" ---> _invisible = dont show ports, visible = show ports, input = show valid outputs as input port has been selected, output = the opposite_
+
+      IsSliding = (false, "input" , 0, {X=0.; Y=0.}) ---> _this is for when the port slides so it tells me 1) whether it's sliding, 2) whether the port is input or output, 3) what port number it is and 4) where the mouse is _
 
 **still need to create boundaries for wires so any ideas would be appreciated**
 ### Deleting Things
