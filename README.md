@@ -82,7 +82,12 @@ The solution is to use bounding boxes and determine which object is clicke dprog
 
 ## INTERFACES
 
+### Port Type
+
+Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the Symbol module - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
+
 ## Interfaces Simi Picked just for dummy:
+
 -> add symbols: sheet sends position, inputno and outputno to symbol (would also send type but I didn't go into much detail)  then also adds boundary box
 
 -> delete symbols: sheet holds a list of selected symbols then sends the component ID list to symbol to remove
