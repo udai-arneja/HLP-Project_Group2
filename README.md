@@ -88,17 +88,17 @@ Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updat
 
 ## Interfaces Simi Picked just for dummy:
 
--> add symbols: sheet sends position, inputno and outputno to symbol (would also send type but I didn't go into much detail)  then also adds boundary box
+-> add symbols: sheet sends position, inputno and outputno to symbol (would also send type but I didn't go into much detail) 
 
--> delete symbols: sheet holds a list of selected symbols then sends the component ID list to symbol to remove
+-> delete symbols: sheet holds a list of selected symbol bounding boxes index then sends to symbol to remove (if the symbol list and the symbol bounding box list always have the corresponding indexes then this should be easy to remove)
 
--> select symbols: once again done on sheet but sends component id list to symbol 
+-> select symbols: once again done on sheet but sends bounding box index list to symbol 
 
--> add wire: sheet sends input port id and output port id to buswire to create connection (only one at a time because the user draws it on)
+-> add wire: sheet sends input port x,y and output port x,y to buswire to create connection (only one at a time because the user draws it on)
 
--> delete wires: list of input port ids and output port ids (search through inputports and outports for each wire to see which ones need to go)
+-> delete wires: list of bounding boxes selected sent to buswire (search through bounding boxes for a match then remove from WX list and bounding Box by identifying their index)
 
--> select symbol: once again sheet sends the component id list 
+-> select symbol: once again sheet sends the bounding box index 
 
 -> showports: component id list for which component ports need to show ports
 
@@ -129,6 +129,7 @@ symbols has a lot of changes:
       PortStatus = "invisible" ---> _invisible = dont show ports, visible = show ports, input = show valid outputs as input port has been selected, output = the opposite_
 
       IsSliding = (false, "input" , 0, {X=0.; Y=0.}) ---> _this is for when the port slides so it tells me 1) whether it's sliding, 2) whether the port is input or output, 3) what port number it is and 4) where the mouse is _
+      
 
 **still need to create boundaries for wires so any ideas would be appreciated**
 ### Deleting Things
