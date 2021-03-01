@@ -80,11 +80,24 @@ Note also that the order in which elements are put onto a canvas matters. the *l
 and not passed through to the underlying svg circles. Therefore the skeleton dragging does not work. 
 The solution is to use bounding boxes and determine which object is clicke dprogrammatically.
 
-## INTERFACES
+## CHANGES TO COMMON TYPES
 
 ### Port Type
 
 Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the Symbol module - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
+
+## CURRENT INTERFACES
+
+## FUTURE INTERFACES
+
+### Mouse Interface
+
+All mouse interactions will be observed by sheet. Sheet will then analyse and propagate the relevant information to buswire and symbol. 
+In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
+movements.
+
+If this has performance degradation, listeners/other methods of mouse interactions will be considered.
+
 
 ## Interfaces Simi Picked just for dummy:
 
@@ -129,9 +142,7 @@ symbols has a lot of changes:
       PortStatus = "invisible" ---> _invisible = dont show ports, visible = show ports, input = show valid outputs as input port has been selected, output = the opposite_
 
       IsSliding = (false, "input" , 0, {X=0.; Y=0.}) ---> _this is for when the port slides so it tells me 1) whether it's sliding, 2) whether the port is input or output, 3) what port number it is and 4) where the mouse is _
-      
 
-**still need to create boundaries for wires so any ideas would be appreciated**
 ### Deleting Things
 
 Message sent to BusWire, indicating the wires to be deleted (message needs to be added to BusWire messages - contains Symbol UUID? and ports?). Note this 
@@ -144,14 +155,6 @@ Message sent to Symbol (called: DeleteSymbol), indicating the component to be de
 The SVG window is not focussed to receive key presses - electron does not therefore support them directly, and the `OnKeyPress`, 
 `OnKeyDown` DOM attributes will now work. Instead you can use a subscription and define electron global shortcuts for 
 the keys you need in (perhaps invisible) electron menus as in the skeleton code.
-
-### Mouse Interface
-
-All mouse interactions will be observed by sheet. Sheet will then analyse and propagate the relevant information to buswire and symbol. 
-In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
-movements.
-
-If this has performance degradation, listeners/other methods of mouse interactions will be considered.
 
 ### Zoom
 
