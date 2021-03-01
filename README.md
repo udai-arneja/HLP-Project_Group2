@@ -86,21 +86,37 @@ The solution is to use bounding boxes and determine which object is clicke dprog
 
 Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the Symbol module - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
 
+## CHANGES TO COMMON TYPES
+
+### Port Type
+
+Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the Symbol module - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
+
 ## CURRENT INTERFACES
+
+### Overall Interfaces
+
+#### Mouse Interface
+
+Each module current interfaces with the mouse separately.
 
 ### Sheet -> Symbol
 
+#### Deleting Things
+
+Message sent to Symbol (called: DeleteSymbol), indicating the component to be deleted (only contains UUID)
+
 ### Sheet -> BusWire
+
+#### Deleting Things
+
+Message sent to BusWire, indicating the wires to be deleted.
 
 ### Buswire -> Symbol
 
 ## FUTURE INTERFACES
 
-### Sheet -> Symbol
-
-### Sheet -> BusWire
-
-### Buswire -> Symbol
+### Overall Interfaces
 
 #### Mouse Interface
 
@@ -110,13 +126,11 @@ movements.
 
 If this has performance degradation, listeners/other methods of mouse interactions will be considered.
 
+### Sheet -> Symbol
 
-### Deleting Things
+### Sheet -> BusWire
 
-Message sent to BusWire, indicating the wires to be deleted (message needs to be added to BusWire messages - contains Symbol UUID? and ports?). Note this 
-can be for deleting individual wires, or all wires connected to a symbol. Provisionally calling this deletewire? NEED TO DISCUSS!
-
-Message sent to Symbol (called: DeleteSymbol), indicating the component to be deleted (only contains UUID)
+### Buswire -> Symbol
 
 ### Keyboard Interface Gotcha
 
