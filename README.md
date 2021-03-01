@@ -88,9 +88,21 @@ Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updat
 
 ## CURRENT INTERFACES
 
+### Sheet -> Symbol
+
+### Sheet -> BusWire
+
+### Buswire -> Symbol
+
 ## FUTURE INTERFACES
 
-### Mouse Interface
+### Sheet -> Symbol
+
+### Sheet -> BusWire
+
+### Buswire -> Symbol
+
+#### Mouse Interface
 
 All mouse interactions will be observed by sheet. Sheet will then analyse and propagate the relevant information to buswire and symbol. 
 In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
