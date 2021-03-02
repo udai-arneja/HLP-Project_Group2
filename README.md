@@ -108,6 +108,20 @@ Message sent to Symbol (called: DeleteSymbol), indicating the component to be de
 
 ### Sheet -> BusWire
 
+AddWire message : Tuple of 2 Port Ids - BusWire can then interface with symbol to find the XYPos of the Ports
+
+DeleteWire : List of WireIds
+
+HighlightWire : List of WireIds
+
+SelectWire : an XYPos or WireID given 
+
+-  - 
+- SelectWire - XYPos of mouse
+- MoveWire? - for manual routing, not needed yet 
+
+- Sheet is checking if the Wire is Valid to be routed. 
+
 #### Deleting Things
 
 Message sent to BusWire, indicating the wires to be deleted.
@@ -129,6 +143,22 @@ If this has performance degradation, listeners/other methods of mouse interactio
 ### Sheet -> Symbol
 
 ### Sheet -> BusWire
+
+The BusWire module will contain a list of bounding boxes which can be viewed and accessed by Sheet. *Sheet* will then send the following messages to the BusWire module
+
+AddWire message : Tuple of 2 Port Ids - BusWire can then interface with symbol to find the XYPos of the Ports
+
+DeleteWire : List of WireIds
+
+HighlightWire : List of WireIds
+
+SelectWire : an XYPos or WireID given 
+
+-  - 
+- SelectWire - XYPos of mouse
+- MoveWire? - for manual routing, not needed yet 
+
+- Sheet is checking if the Wire is Valid to be routed.
 
 ### Buswire -> Symbol
 
