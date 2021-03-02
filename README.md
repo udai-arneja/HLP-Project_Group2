@@ -90,7 +90,7 @@ Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updat
 
 ### Port Type
 
-Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the _Symbol_ - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
+Adding the XYPos to **CommonTypes** of Port Type. This is to be intialised and updated by the **Symbol** - any updates should be calculated by **Symbol** through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
 
 ## CURRENT INTERFACES
 
@@ -104,11 +104,11 @@ Each module current interfaces with the mouse separately.
 
 #### Deleting Things
 
-Message sent to Symbol (called: DeleteSymbol), indicating the component to be deleted (only contains UUID)
+Message sent to **Symbol** (called: DeleteSymbol), indicating the component to be deleted (only contains UUID)
 
 ### Sheet -> BusWire
 
-AddWire message : Tuple of 2 Port Ids - BusWire can then interface with symbol to find the XYPos of the Ports
+AddWire message : Tuple of 2 Port Ids - **BusWire** can then interface with **Symbol** to find the XYPos of the Ports
 
 DeleteWire : List of WireIds
 
@@ -134,8 +134,8 @@ Message sent to BusWire, indicating the wires to be deleted.
 
 #### Mouse Interface
 
-All mouse interactions will be observed by sheet. Sheet will then analyse and propagate the relevant information to buswire and symbol. 
-In this propagation, the zoom of the canvas will be included - enables symbol and buswire entity movements to be matched with sheet (and mouse) cursor
+All mouse interactions will be observed by **Sheet**. **Sheet** will then analyse and propagate the relevant information to **buswire** and **symbol**. 
+In this propagation, the zoom of the canvas will be included - enables **symbol** and **buswire** entity movements to be matched with sheet (and mouse) cursor
 movements.
 
 If this has performance degradation, listeners/other methods of mouse interactions will be considered.
@@ -144,21 +144,17 @@ If this has performance degradation, listeners/other methods of mouse interactio
 
 ### Sheet -> BusWire
 
-The BusWire module will contain a list of bounding boxes which can be viewed and accessed by Sheet. Sheet will then send the following messages to the BusWire module
+The **BusWire** module will contain a list of bounding boxes for the wires which can be viewed and accessed by **Sheet**. **Sheet** will send the following messages to the **BusWire** module, based on this. **Sheet** is checking if the Wire is Valid to be routed.
 
-AddWire message : Tuple of 2 Port Ids - BusWire can then interface with symbol to find the XYPos of the Ports
+AddWire message : Tuple of 2 Port Ids - **BusWire** can interface with **Symbol** to find the XYPos of the Ports
 
-DeleteWire : List of WireIds
+DeleteWires : List of WireIds
 
-HighlightWire : List of WireIds
+HighlightWires : List of WireIds
 
-SelectWire : an XYPos or WireID given 
+SelectWires : List of WireIds
 
--  - 
-- SelectWire - XYPos of mouse
-- MoveWire? - for manual routing, not needed yet 
-
-- Sheet is checking if the Wire is Valid to be routed.
+MoveWire : for manual routing, not needed yet - potentially requiring XYPos/XYPos difference
 
 ### Buswire -> Symbol
 
