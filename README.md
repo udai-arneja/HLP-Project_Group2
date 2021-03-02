@@ -90,7 +90,7 @@ Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updat
 
 ### Port Type
 
-Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the Symbol module - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
+Adding the XYPos to CommonTypes of Port Type. This is to be intialised and updated by the _Symbol_ - any updates should be calculated by symbol through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
 
 ## CURRENT INTERFACES
 
@@ -144,7 +144,7 @@ If this has performance degradation, listeners/other methods of mouse interactio
 
 ### Sheet -> BusWire
 
-The BusWire module will contain a list of bounding boxes which can be viewed and accessed by Sheet. *Sheet* will then send the following messages to the BusWire module
+The BusWire module will contain a list of bounding boxes which can be viewed and accessed by Sheet. Sheet will then send the following messages to the BusWire module
 
 AddWire message : Tuple of 2 Port Ids - BusWire can then interface with symbol to find the XYPos of the Ports
 
