@@ -82,8 +82,6 @@ The solution is to use bounding boxes and determine which object is clicke dprog
 
 ## CHANGES TO COMMON TYPES
 
-## CHANGES TO COMMON TYPES
-
 ### Port Type
 
 Adding the XYPos to **CommonTypes** of Port Type. This is to be intialised and updated by the **Symbol** - any updates should be calculated by **Symbol** through the given XYPos diff when a symbol is being moved. All other modules can access this updated XYPos.
