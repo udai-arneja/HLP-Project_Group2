@@ -100,8 +100,10 @@ If this has performance degradation, listeners/other methods of mouse interactio
 ### Sheet -> Symbol
 
 AddSymbol : Tuple of (SymbolId, (Position: XYPos), Symbol Type, (NoOfInputPorts: int), (NoOfOutputPorts: int) ) :
-*(Considering changing this to a Record for better Type Protection and Readability)
-*This also indicates that **Sheet** makes the UUID - this can be moved to **Symbol** if **Symbol** makes bounding boxes for symbols rather than **Sheet**.
+
+* Considering changing this to a Record for better Type Protection and Readability
+* This also indicates that **Sheet** makes the UUID - this can be moved to **Symbol** if **Symbol** makes bounding boxes for symbols rather than **Sheet**.
+
 
 DeleteSymbol : SymbolId list
 
