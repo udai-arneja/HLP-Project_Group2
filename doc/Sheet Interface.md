@@ -53,3 +53,24 @@ SelectWires (WireIdList : CommonTypes.ConnectionId list)
 ```
 Further messages will need to be defined when manual routing is implemented. 
 ####MoveWire : for manual routing - potentially requiring XYPos/XYPos difference
+
+### Simi Individual Interface Symbol Sheet
+Very similar to above apart from a few features and the fact that indicies lists are used instead of Ids for some but these are interchangeable very easily 
+Works on the basis that the wire/symbol list and wire/symbol bounding box list correspond so matching components and bounding boxes have the same index 
+The bounding box is a part of the model for wire/ symbol but the bounding box calculations are done in sheet
+The Wire bounding box calculation for whether the point is in a wire bounding box was done by Priya but the other calculations (point in symbol box and whether selecting encompasses symbol/wire box) was done by me 
+
+    | ShowPorts of int list
+     Show ports when mouse near the symbol bounding box -> int is index of symbol in symbol list
+    | ShowValidPorts of string*string*XYPos
+     When wiring, show ports that can be connected to so two inputs arent selected etc
+    | EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
+    | DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
+      Both uses to move sections of components, keeping the relative distance
+
+### Simi Individual Interface BusWire Sheet
+    | HighlightSingleWire of int list
+      Same as above but uses a list of selected indices
+
+
+
