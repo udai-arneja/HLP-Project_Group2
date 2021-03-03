@@ -66,7 +66,7 @@ The Wire bounding box calculation for whether the point is in a wire bounding bo
      When wiring, show ports that can be connected to so two inputs arent selected etc
     | EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
     | DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
-      Both uses to move sections of components, keeping the relative distance
+      Both used to move sections of components, keeping the relative distance
 
 ### Simi Individual Interface BusWire Sheet
     | HighlightSingleWire of int list
