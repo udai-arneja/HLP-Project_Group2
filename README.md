@@ -1,3 +1,4 @@
+<!---
 # SVG Draw Application Project Skeleton Code For HLP Project 2021
 
 See [The SVG Demo README](https://github.com/tomcl/hlp21-svg-elmish-demo/blob/master/README.md) for 
@@ -34,7 +35,7 @@ fully working schematic draw program, and some initial messages most of which wi
 change message types as you like within  a group. Messages or functions `Symbol:symbolPos` owned by any component
 used to communicate with other components should not be changed in a way that alters their specification without 
 consultation with those affected.
-
+-->
 
 ## Information on Elmish & Code Structure
 
@@ -58,7 +59,7 @@ Considering structure of:
 
 Thus only one endpoint, but faster performance - hence this will be implemented if performance problems found.
 
-
+<!---
 Good overview of how Elmish large-scale structure is supported by various built-in Elmish functions. This is written in the context
 of a web application with (effectively) multiple pages written as a SPA (single-page application). The sections on Commands are helpful, some other parts less so.
 * [Working with Elmish](https://medium.com/@MangelMaxime/my-tips-for-working-with-elmish-ab8d193d52fd). 
@@ -80,6 +81,8 @@ Note also that the order in which elements are put onto a canvas matters. the *l
 and not passed through to the underlying svg circles. Therefore the skeleton dragging does not work. 
 The solution is to use bounding boxes and determine which object is clicke dprogrammatically.
 
+-->
+
 ## CHANGES TO COMMON TYPES
 
 ### Port Type
@@ -98,38 +101,58 @@ movements.
 If this has performance degradation, listeners/other methods of mouse interactions will be considered.
 
 ### Sheet -> Symbol
-
-AddSymbol : Tuple of (SymbolId, (Position: XYPos), Symbol Type, (NoOfInputPorts: int), (NoOfOutputPorts: int) ) :
-
+As above, **Sheet** sends messages to **Symbol**. The messages are as below:
+```
+AddSymbol (SymbolId: CommonTypes.ComponentId) (Position: XYPos) (SymbolType: Component.ComponentType) (NoOfInputPorts: int) (NoOfOutputPorts: int) :
+```
 * Considering changing this to a Record for better Type Protection and Readability
 * This also indicates that **Sheet** makes the UUID - this can be moved to **Symbol** if **Symbol** makes bounding boxes for symbols rather than **Sheet**.
 
+```
+DeleteSymbol (SymbolIdList : CommonTypes.ComponentId List)
+```
+```
+StartDragging (SymbolId : CommonTypes.ComponentId) (pagePos: XYPos)
+Dragging (rank :CommonTypes.ComponentId) (pagePos: XYPos)
+EndDragging (SymbolId : CommonTypes.ComponentId)
+```
+```
+SymbolSelection (SymbolIdList : CommonTypes.ComponentId List)
+```
 
-DeleteSymbol : SymbolId list
-
-StartDragging : 
-Dragging :
-EndDragging :
-
-SymbolSelection : SymbolId list
-
-### Sheet -> BusWire
+### Sheet -> BusWire 
 
 The **BusWire** module will contain a list of bounding boxes for the wires which can be viewed and accessed by **Sheet**. **Sheet** will send the following messages to the **BusWire** module, based on this. **Sheet** is checking if the Wire is Valid to be routed.
+```
+AddWire (InputPortId : CommonTypes.Port.Id) (OutputPortId: CommonTypes.Port.Id)
+```
+**BusWire** can interface with **Symbol** to find the XYPos of the Ports
+```
+DeleteWires (WireIdList : CommonTypes.ConnectionId list)
+```
+```
+HighlightWires (WireIdList : CommonTypes.ConnectionId list)
+```
+```
+SelectWires (WireIdList : CommonTypes.ConnectionId list)
+```
+Further messages will need to be defined when manual routing is implemented. 
+####MoveWire : for manual routing - potentially requiring XYPos/XYPos difference
 
-AddWire message : Tuple of 2 Port Ids - **BusWire** can interface with **Symbol** to find the XYPos of the Ports
 
-DeleteWires : List of WireIds
+### Symbol -> BusWire
+The Symbol module can be accessed by BusWire. 
+```
+getPortLocation (portId: CommonTypes.Port.Id) : XYPos 
+```
+This interface function allows **BusWire** to pass in a PortId and obtain the XYPos of that Port. This enables BusWire to easily route between the 2 XY positions of the Ports. 
+```
+getBusWidth (portId: CommonTypes.Port.Id) : int
+```
+This function passes in a PortId to **Symbol**, and **Symbol** returns an integer for the number of bits of the given Port. 
 
-HighlightWires : List of WireIds
-
-SelectWires : List of WireIds
-
-MoveWire : for manual routing, not needed yet - potentially requiring XYPos/XYPos difference
-
-### Buswire -> Symbol
-
-### Keyboard Interface Gotcha
+<!---
+### Keyboard Interface 
 
 The SVG window is not focussed to receive key presses - electron does not therefore support them directly, and the `OnKeyPress`, 
 `OnKeyDown` DOM attributes will now work. Instead you can use a subscription and define electron global shortcuts for 
@@ -207,6 +230,8 @@ unions.
 One way to find useful code examples is the [Issie application](https://github.com/tomcl/ISSIE). The files under `src/renderer/UI`
 all contain code using the electron framework. Fork and clone (or clone) the Issie repo to get a copy of the files. 
 Build them once to get fully working intellisense and view the code (with type information and documentation) in an IDE.
+
+-->
 
 
 ## Interfaces Simi Picked just for dummy:
