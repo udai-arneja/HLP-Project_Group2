@@ -37,7 +37,9 @@ used to communicate with other components should not be changed in a way that al
 consultation with those affected.
 -->
 
-## Information on Elmish & Code Structure
+## Interface documentation 
+
+You can find individual module documentation in the docs folder, for Symbol, BusWire and Sheet. However, most of the interface functions are listed below. 
 
 In the demo code the three modules each have views that create objects on the SVG canvas:
 * Symbol: the component outlines
