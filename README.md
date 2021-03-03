@@ -1,45 +1,4 @@
-<!---
-# SVG Draw Application Project Skeleton Code For HLP Project 2021
-
-See [The SVG Demo README](https://github.com/tomcl/hlp21-svg-elmish-demo/blob/master/README.md) for 
-code structure and how to build the dev environment: this is the same as the WS 3 SVG demo.
-
-You should already have looked at the SVG Demo code and have some understanding of how an Elmish application works, using
-a `model`, `view`, and `update` function with messages used to update the model. The project skeleton code 
-illustrates a more complex example of Elmish code, 
-with three separate modules: `Symbol`, `BusWire`, `Sheet` each operating as individual Elmish components.
-
-Fork, clone, and build this repo. Look at the code in an IDE with intellisense.
-
-In order to see the functionality currently used by [Issie](https://github.com/tomcl/ISSIE) you can 
-download the Issie binaries and try it out. There is a video which introduces the project objectives and explains
-what is good and bad about the current (Draw2D) Issie Draw block functionality. You can also fork and clone the Issie repo, 
-and build its code. The build is very similar to the project skeleton
-but a lot more complex (10K lines of F#).
-
-The project work specification contains details of expected work during individual work phase in each of the three modules.
-
-## Introduction
-
-The skeleton code draws circles and (random) lines on an svg canvas. It is interactive; circles can be moved as in the WS 3 demo.
-In addition lines are drawn between circles that move with the circles; this is similar to the functionality needed for symbols and
-wires. The given implementation will need to be modified even for this basic functionality because:
-* The skeleton drag mechanism does not use programmatic bounding boxes, but instead HTML to determine which circle is clicked.
-* The skeleton `Symbol` code does not used correctly compensated coordinates. Try it setting zoom=3. How does dragging of circles
-go wrong?
-* The skeleton code does not understand ports - connection points on the edge of symbols.
-* The skeleton wires are not right-angled multi-segment.
-
-The skeleton introduces a modular structure which can be used to combine individual coding from 3 people into a single 
-fully working schematic draw program, and some initial messages most of which will be useful in project code. You are free to
-change message types as you like within  a group. Messages or functions `Symbol:symbolPos` owned by any component
-used to communicate with other components should not be changed in a way that alters their specification without 
-consultation with those affected.
--->
-
-This is the up-to-date documentation for Group 2's project in developing an interactive digital circuit design - with future compatability with Issie (Interactive Schematic Simulator with Integrated Editor). 
-
-Below an overview of the project is highlighted, with focus on the interfacing the three main modules ( **Symbol**,  **BusWire**,  **Sheet** ). For further information about individual modules, in particular their functions, see the individual documentation (docs folder).
+### Below an overview of the project is highlighted, with focus on the interfacing the three main modules ( **Symbol**,  **BusWire**,  **Sheet** ). For further information about individual modules, in particular their functions, see the individual documentation (docs folder).
 
 ## Interface documentation 
 
