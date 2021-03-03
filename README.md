@@ -37,9 +37,11 @@ used to communicate with other components should not be changed in a way that al
 consultation with those affected.
 -->
 
-## Interface documentation 
+This is the up-to-date documentation for Group 2's project in developing an interactive digital circuit design - with future compatability with Issie (Interactive Schematic Simulator with Integrated Editor). 
 
-You can find individual module documentation in the docs folder, for Symbol, BusWire and Sheet. However, most of the interface functions are listed below. 
+Below an overview of the project is highlighted, with focus on the interfacing the three main modules ( **Symbol**,  **BusWire**,  **Sheet** ). For further information about individual modules, in particular their functions, see the individual documentation (docs folder).
+
+## Interface documentation 
 
 In the demo code the three modules each have views that create objects on the SVG canvas:
 * Symbol: the component outlines
