@@ -71,6 +71,5 @@ segmentList (vertexList: XYPos list) : (XYPos * XYPos) list
 ```
 segmentList takes in a list of Vertices and returns a tuple of XYPos, describing each segment. Note that the list of vertices passed in include the source and target port locations. This is a useful helper function. 
 
-Notes:
-In Priya Chhaya (pmc18) code, there are some slight differences from the interface functions we intend to use. Instead of adding an XYPos to the Port type, a tuple of floats is used to describe the port location instead. 
+
 
