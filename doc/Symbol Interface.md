@@ -1,6 +1,3 @@
-<!---
-# SVG Draw Application Project Skeleton Code For HLP Project 2021
-
 ## CHANGES TO COMMON TYPES
 
 ### Port Type
