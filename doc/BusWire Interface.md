@@ -33,7 +33,7 @@ getBusWidth (portId: CommonTypes.Port.Id) : int
 ```
 This function passes in a PortId to **Symbol**, and **Symbol** returns an integer for the number of bits of the given Port. 
 
-**Priya Chhaya - pmc18 BusWire additional Documentation**
+## Priya Chhaya - pmc18 BusWire additional Documentation
 ```
 createNewWire (sourcePortId:string) (targetPortId:string) (busWidth: int) (model:Model) : Wire
 ```
