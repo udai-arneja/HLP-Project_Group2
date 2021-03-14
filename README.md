@@ -111,6 +111,7 @@ Wednesday 25th: **Potential Group Call**
 
 | Delete
 - No type -> just delete the selected wires
+- when you delete a symbol, you must delete its associated wires by checking the ports around the selected symbols and seeing if the Ids are in any wires (Simi has most of this code in sheet but it needs some tweaking to work for you)
 
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
