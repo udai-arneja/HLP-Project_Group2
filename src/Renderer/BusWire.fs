@@ -178,10 +178,10 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 match inOut with 
                 |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
                       |>List.head
-                      |>tupleToXYPos 
+                      //|>tupleToXYPos 
                 |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
                       |>List.head
-                      |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
+                      //|>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
             let start = convertIdToXYPos 1 w.SrcPort
             let final = convertIdToXYPos 0 w.TargetPort
             let vertex = newWireRoute final start
@@ -218,10 +218,10 @@ let createNewWire (sourcePortId:string) (targetPortId:string) (busWidth: int) (m
         |1 -> printfn "bottomup %A %A" model.Symbol.Symbols id
               List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |>List.head
-              |>tupleToXYPos 
+              //|>tupleToXYPos 
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |>List.head
-              |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
+              //|>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
     let wireId = CommonTypes.ConnectionId (Helpers.uuid())
 
     {
@@ -248,10 +248,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match inOut with 
         |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> (string y.Id) = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |> List.head
-              |> tupleToXYPos
+              //|> tupleToXYPos
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> (string y.Id) = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |>List.head
-              |> tupleToXYPos
+              //|> tupleToXYPos
 
     match msg with
     | Symbol sMsg -> 
