@@ -91,9 +91,9 @@ let tupleToXYPos (a,b) : Helpers.XYPos =
 let createportlist (mainS)(t)(compId)(x:int) =
     let portPos no pType =
         if pType = "Input" then
-            (mainS.Pos.X,(mainS.Pos.Y + 65. + (float no)*40.))
+            {X = mainS.Pos.X; Y = mainS.Pos.Y + 65. + (float no)*40.}
         else
-            (mainS.Pos.X+mainS.W  - 10.,(mainS.Pos.Y + 65. + (float no)*40.))
+            {X = mainS.Pos.X+mainS.W  - 10.; Y = (mainS.Pos.Y + 65. + (float no)*40.)}
     [{
         CommonTypes.Port.Id = Helpers.uuid() 
         CommonTypes.Port.PortNumber = Some x 
