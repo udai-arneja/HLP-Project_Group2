@@ -88,19 +88,17 @@ let tupleToXYPos (a,b) : Helpers.XYPos =
 //-----------------------------Skeleton Model Type for symbols----------------//
 
 
-let createportlist (mainS)(t)(compId)(x:int) =
-    let portPos no pType =
-        if pType = "Input" then
-            (mainS.Pos.X,(mainS.Pos.Y + 65. + (float no)*40.))
-        else
-            (mainS.Pos.X+mainS.W  - 10.,(mainS.Pos.Y + 65. + (float no)*40.))
-    [{
+let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int): CommonTypes.Port =
+    let portPos =
+        if portType = CommonTypes.Input then {X=comp.Pos.X;Y=(comp.Pos.Y+65.+(float portNumber)*40.)}
+        else {X=(comp.Pos.X+comp.W-10.);Y=(comp.Pos.Y+65.+(float portNumber)*40.)}
+    {
         CommonTypes.Port.Id = Helpers.uuid() 
-        CommonTypes.Port.PortNumber = Some x 
-        CommonTypes.Port. PortType = t 
-        CommonTypes. Port. HostId = compId
-        CommonTypes.Port.PortPos = portPos x (string t)
-    }]
+        CommonTypes.Port.PortNumber = Some portNumber 
+        CommonTypes.Port.PortType = portType 
+        CommonTypes.Port.HostId = string(comp.Id)
+        CommonTypes.Port.PortPos = portPos
+    }
 
 //-----------------------Skeleton Message type for symbols---------------------//
 
@@ -139,9 +137,9 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
                 //PortStatus = "invisible"
                 //IsSliding = (false, "input" , 0, {X=0.; Y=0.})
               //}          
-    let InputPortsList = List.collect (fun x -> createportlist mainSymbol CommonTypes.PortType.Input (string mainSymbol.Id) x) [0..(inputno-1)]
-    let OutputPortsList = List.collect (fun x -> createportlist mainSymbol CommonTypes.PortType.Output (string mainSymbol.Id) x) [0..(outputno-1)] 
-    {mainSymbol with InputPorts = InputPortsList; OutputPorts = OutputPortsList}
+    let InputPortsList = List.map (fun index -> createportlist mainSymbol CommonTypes.PortType.Input index) [0..(inputno-1)]
+    let OutputPortsList = List.map (fun index -> createportlist mainSymbol CommonTypes.PortType.Output index) [0..(outputno-1)] 
+    {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
  
 
 let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
@@ -149,23 +147,18 @@ let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
 
 let portmove portId inputYes model =
     let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with 
-                                                                      |1 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.InputPorts |> function |Some a -> [a] |None -> []) acc
-                                                                      |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
+                                                               |1 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.InputPorts |> function |Some a -> [a] |None -> []) acc
+                                                               |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
+                                                               | _ -> failwithf "not implemented - findPort Function, Symbol line 152"
     let portReturn = match inputYes with //haaate this 
-                    | "input" -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol 
-                    | "output" -> List.fold (findPort 0) [] model |> List.head
+                     | "input" -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol 
+                     | "output" -> List.fold (findPort 0) [] model |> List.head
+                     | _ -> failwithf "not implemented - portReturn Function, Symbol line 155"
     let symbolReturn = List.find (fun x -> x.Id = CommonTypes.ComponentId portReturn.HostId) model    
     let portNumber = match portReturn.PortNumber with 
                      |Some a -> a
+                     | _ -> failwithf "not implemented - portNumber Function, Symbol line 159" 
     (symbolReturn, portReturn, portNumber)
-    
-
-/// Dummy function for test. The real init would probably have no symbols.
-//let init () =
-//    List.allPairs [1;5] [3]
-//    |> List.map (fun (x,y) -> {X = float (x*64+30); Y=float (y*64+30)})
-//    |> List.map createNewSymbol
-//    , Cmd.none
 
 let init() =
     {Symbols=[]; sBB =[]}, Cmd.none
@@ -303,7 +296,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             model.Symbols
             |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
-    | MouseMsg _ -> model, Cmd.none // allow unused mouse messags
+    | _ -> failwith "Not Implemented, Symbol Update Function, Symbol line 299" // allow unused mouse messags
 
 type Gates = //one for each unique shape
     | Not 
