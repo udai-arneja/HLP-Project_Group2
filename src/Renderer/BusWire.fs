@@ -71,7 +71,7 @@ type WireRenderProps = {
 /// look up wire in WireModel
 let wire (wModel: Model)(wId: CommonTypes.ConnectionId): Option<Wire> =
     wModel.WX
-    |> List.tryPick (function {Id = wId} as x -> Some x | _ ->  None) 
+    |> List.tryPick (function {Id = wId} as x -> Some x) 
 
 /// newWireRoute calculates the wire route between 2 port positions. It returns a list of XY Positions, which are in the 
 /// form of vertices, including the source port and target port positions. It calculates how many segments the wire
@@ -178,10 +178,11 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 match inOut with 
                 |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
                       |>List.head
-                      |>tupleToXYPos 
+                    //   |>Symbol.tupleToXYPos 
                 |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
                       |>List.head
-                      |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
+                    //   |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
+                | _ -> failwithf "Not implemented - view, BusWire line 185"
             let start = convertIdToXYPos 1 w.SrcPort
             let final = convertIdToXYPos 0 w.TargetPort
             let vertex = newWireRoute final start
@@ -218,10 +219,11 @@ let createNewWire (sourcePortId:string) (targetPortId:string) (busWidth: int) (m
         |1 -> printfn "bottomup %A %A" model.Symbol.Symbols id
               List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |>List.head
-              |>tupleToXYPos 
+            //   |>tupleToXYPos 
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |>List.head
-              |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
+            //   |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
+        | _ -> failwithf "Not implemented - createNewWire function, BusWire line 226"
     let wireId = CommonTypes.ConnectionId (Helpers.uuid())
 
     {
@@ -248,10 +250,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match inOut with 
         |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> (string y.Id) = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |> List.head
-              |> tupleToXYPos
+            //   |> tupleToXYPos
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> (string y.Id) = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
               |>List.head
-              |> tupleToXYPos
+            //   |> tupleToXYPos
+        | _ -> failwithf "Not implemented - update function, BusWire line 257"
 
     match msg with
     | Symbol sMsg -> 
@@ -284,6 +287,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             [0..(defaultList.Length-1)]
             |> List.map checker
         {model with WX = selectedWireList}, Cmd.none
+    | _ -> failwithf "Not implemented - BusWire update"
 
     
 
