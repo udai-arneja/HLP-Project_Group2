@@ -35,7 +35,7 @@ Wednesday 25th: **Potential Group Call**
 - Due to drage and drop, the inital position should always be set to 10.;10.
 - You create your own SymbolIds as sheet has no need to 
 - The first int list is a list of the buswidths of the input ports and second is buswidths of output ports
-- All buswidths are stores in the port type for BusWire to access 
+- All buswidths are stored in the port type for BusWire to access --> common types needs to add int to port type for the buswidth
 - Any custom type information will be sent alongside the ComponentType part 
 
 | Drag of (XYPos, XYPos)
