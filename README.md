@@ -1,3 +1,147 @@
+## New and Pretty Much Final Interfaces 
+### To discuss/ for everyone to think about:
+- Snap To Grid
+- Issie Interface
+- Custom Components
+- Zoom
+- Manual Routing
+- Any additional functionality for the sections
+- Each group please add any information on the model states and bouding boxes used at the bottom of this 
+- Any issues ask the group chat 
+
+### Progress Deadlines:
+Wednesday 17th: 
+  - Sheet: all messages done, zoom with keeping centre of page done, snap to grid plan 
+  - BusWire: manual routing and functionality near completion
+  - Symbol: functionality near completion especially regarding 
+  
+Thursday 18th: **Potential Group Call** 
+  - All intefaces checked and compatible with clean code throughout 
+  
+Saturday Evening 20th: **Potential Group Call** 
+ - Issie Interfacing start 
+ 
+Wednesday 25th:
+ - A good draft that could be submitted (Issie interface not necessary for this)
+
+### A Note on States:
+- Bounding boxes are a part of BusWire and Symbol models and therefore they must be updated when necessary 
+- BusWire has some messages to send to symbol (Simi will write at end of BusWire code)
+- BusWire and Symbol: it is worth reading each other's sections as there is a lot more interconnectivity than before 
+
+### Symbol Messages:
+| AddSymbol of (ComponentType, int list, int list)
+- Bounding box should be 10. bigger than the symbol and made up of 2 points (top left; bottom right)
+- Due to drage and drop, the inital position should always be set to 10.;10.
+- You create your own SymbolIds as sheet has no need to 
+- The first int list is a list of the buswidths of the input ports and second is buswidths of output ports
+- All buswidths are stores in the port type for BusWire to access 
+- Any custom type information will be sent alongside the ComponentType part 
+
+| Drag of (XYPos, XYPos)
+- There are 2 dragging elements: dragging a list of symbols and dragging a symbol 
+- This depends on how many symbols are selected which is noe information stored in your model by the IsSelected bool 
+- If only one symbol is selected -> The first XYPos and initial dragging interface can be used to move it so ignore the second XYPos hwoever you will have to remove the "rank" part as we no longer send the component Id 
+- Note on aboce: you can also use the second XYPos to calculate the difference and add to the Pos of the selected symbol (your choice) 
+- If multiple symbols are selected -> The first XYPos shows last mouse position and second XYPos is the current position: using differences you can move all the elements selected, keeping their relative distance (my code on this is messy as always but it could be a good starting point if needed)
+- Also neceassry to update port position here 
+- This will also be sent when dropping a new symbol to its new location
+
+| ToggleSelect of (ComponentId list)
+- This is sent as a message from BusWire
+- It is select/deselect symbol and will be a list of the necessary Ids 
+- Usually it will just be one but when you drag to select many then it'll be a list 
+- We don't currently highlight symbol but this may change 
+- All of the selected symbols information is stored within symbol now 
+- Toggle between IsSelected = true or false 
+- If you're sent an empty list it means deselect everything (Simi has a defaultlist function to make it all false if you want)
+
+| ShowValidPorts of (string, string, XYPos)
+- This is for the first stage of wiring when we have selected a port and are now moving it to the next port 
+- You get whether this intial port is an input or outpur, the portId and the XYPos of the cursor for moving the port 
+- This is also the point where you show any of the valid ports on other symbols 
+- Simi did a port status for visinle, invisible, slidingport, validports for the different stages but there's definitely a much better way 
+- Also need to reset the port position of the "sliding" port after this message stops sending 
+
+| Hovering of (ComponentId list)
+- This is for when the mouse moves over a component and you need to show the ports on it 
+- Component ID list will only be one Id 
+
+| UpdateBBoxes (ComponentId List)
+- For the dragging or moving of a component so we only update the bounding boxes when movement has stopped
+- Message comes from buswire 
+- The Pos of the symbol would be changing as it is moved so the bounding box is from the symbol's last posiiton
+
+| Delete
+- This has no inputs -> it just means delete all the symbols that have been selected 
+
+### BusWire Messages
+| AddWire of (PortId, PortId)
+- Input port Id then output port Id (the opposite of your source and target)
+- BusWidth will be taken from symbol ports
+- Highlight wire in Ok Red if buswidths don't match and None if anything else 
+
+| ToggleSelect of (ComponentId list, WireId list)
+- Take the second list and toggle IsSelected for all those wires 
+- Send a message onto Symbol with the first id list -> message is ToggleSelect of (ComponentId list)
+- All the selected information is stored with BusWire
+- If you're sent an empty list it means deselect everything (Simi has a defaultlist function to make it all false if you want)
+- Potential to send message ToggleSelect of (ComponentId list, PortId list) to symbol if a wire is selected to highlight the associated ports but this can be done later
+
+| MoveSegment of (WireId list, int, XYPos)
+- WireId of the moving wire, the index of the segment being moved and the XYPos of the mouse 
+- You are doing the difference calculations for the XYPos just like when symbol moves -> there is a function for it in symbol
+- Only middle 3 segments for 5 segment wires and 1 segment for 3 segment wires move
+- Even index is horizontal segment; odd is vertical segment
+- Need to discuss with symbol about whether the enable port will be on the bottom so it maye be necessary to check the "input"/target port wire but that can be dine later 
+- Horizontal only moves up/down and vertical only moves left/right 
+- Autoroute as you would first then make the adjustments to the final vertices 
+
+| UpdateBBoxes of (ComponentId list, WireId list)
+- Same function as in symbol and once again you send the same message to symbol but with only the componentID list 
+- When a symbol is being dragged it is likely that there is no wire selected but obviously you will still be autorouting as its position changes
+- On this message update the bounding boxes of the wires for the only time apart from when moving segment  
+
+| Delete
+- No type -> just delete the selected wires
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 ### Below an overview of the project is highlighted, with focus on the interfacing the three main modules ( **Symbol**,  **BusWire**,  **Sheet** ). For further information about individual modules, in particular their functions, see the individual documentation (doc folder).
 
 ## Interface documentation 
