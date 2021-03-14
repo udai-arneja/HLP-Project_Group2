@@ -77,12 +77,6 @@ let posAdd a b =
 
 let posOf x y = {X=x;Y=y}
 
-let tupleToXYPos (a,b) : Helpers.XYPos = 
-    let XY = {
-        X = a
-        Y = b
-    }  
-    {XY with X = a ; Y = b}
 
 
 //-----------------------------Skeleton Model Type for symbols----------------//
@@ -184,10 +178,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | Dragging (rank, pagePos) ->
         let updatePorts pType xy mainS no= 
-            if pType = "Input" then
-                (fst xy,(snd xy + 65. + (float no)*40.))
-            else
-                (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
+            if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
+            else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
         let dSymbols = 
             model.Symbols
             |> List.map (fun sym ->
@@ -213,10 +205,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | DraggingList (rank, pagePos, prevPagePos) ->
         let updatePorts pType xy mainS no= 
-            if pType = "Input" then
-                (fst xy,(snd xy + 65. + (float no)*40.))
-            else
-                (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
+            if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
+            else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
         let newSym sym =
             let diff = posDiff pagePos prevPagePos
             { sym with
@@ -356,7 +346,8 @@ let renderGate =
                     ]
                 let slideRect =
                     let portList =
-                        if IO = "input" then props.Gate.InputPorts.[(int num)].PortPos else props.Gate.OutputPorts.[(int num)].PortPos
+                        if IO = "input" then props.Gate.InputPorts.[(int num)].PortPos 
+                        else props.Gate.OutputPorts.[(int num)].PortPos
                     [
                         rect [
                               X (xSlide)
@@ -368,8 +359,8 @@ let renderGate =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
+                            X1 portList.X
+                            Y1 portList.Y //(snd portList)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -381,8 +372,8 @@ let renderGate =
                 let inPorts = 
                     [
                       circle [
-                            Cx (fst props.Gate.InputPorts.[int num].PortPos)
-                            Cy (snd props.Gate.InputPorts.[int num].PortPos)
+                            Cx props.Gate.InputPorts.[int num].PortPos.X
+                            Cy props.Gate.InputPorts.[int num].PortPos.Y
                             SVGAttr.R 10.
                             SVGAttr.Fill "black"
                             SVGAttr.Stroke "black"
@@ -392,8 +383,8 @@ let renderGate =
                 let outPorts=
                     [
                         circle [
-                            Cx (fst props.Gate.OutputPorts.[int num].PortPos)
-                            Cy (snd props.Gate.OutputPorts.[int num].PortPos)
+                            Cx props.Gate.OutputPorts.[int num].PortPos.X    //(fst props.Gate.OutputPorts.[int num].PortPos)
+                            Cy props.Gate.OutputPorts.[int num].PortPos.Y   //(snd props.Gate.OutputPorts.[int num].PortPos)
                             SVGAttr.R 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -539,8 +530,8 @@ let renderMux =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
+                            X1 portList.X //(fst portList)
+                            Y1 portList.Y //(snd portList)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -552,8 +543,8 @@ let renderMux =
                 let inPorts = 
                     [
                       rect [
-                            X (fst props.Mux.InputPorts.[int num].PortPos)
-                            Y (snd props.Mux.InputPorts.[int num].PortPos)
+                            X props.Mux.InputPorts.[int num].PortPos.X    //(fst props.Mux.InputPorts.[int num].PortPos)
+                            Y props.Mux.InputPorts.[int num].PortPos.Y  // (snd props.Mux.InputPorts.[int num].PortPos)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -564,8 +555,8 @@ let renderMux =
                 let outPorts=
                     [
                         rect [
-                            X (fst props.Mux.OutputPorts.[int num].PortPos)
-                            Y (snd props.Mux.OutputPorts.[int num].PortPos)
+                            X props.Mux.OutputPorts.[int num].PortPos.X // (fst props.Mux.OutputPorts.[int num].PortPos)
+                            Y props.Mux.OutputPorts.[int num].PortPos.Y // (snd props.Mux.OutputPorts.[int num].PortPos)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -683,8 +674,8 @@ let renderCustom =
 
                             ]
                         ] [if inOrOutText = 20. then str <| (string (match (props.Custom.Type) with
-                                                                     | x -> x.Type.InputLabels
-                                                                     | _ -> CommonTypes.ComponentType.Nor ))
+                                                                     | CommonTypes.Custom customSymbol -> customSymbol.InputLabels
+                                                                     | _ -> failwithf "Not Implemented - Custom Component, Symbol line 678"))
                            else if inOrOutText = 70. then str <| (string (props.Custom.Type))]
                     ]
                 let slideRect =
@@ -701,8 +692,8 @@ let renderCustom =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
+                            X1 portList.X   //fst portList)
+                            Y1 portList.Y   //(snd portList)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -714,8 +705,8 @@ let renderCustom =
                 let inPorts = 
                     [
                       rect [
-                            X (fst props.Custom.InputPorts.[int num].PortPos)
-                            Y (snd props.Custom.InputPorts.[int num].PortPos)
+                            X props.Custom.InputPorts.[int num].PortPos.X   //(fst props.Custom.InputPorts.[int num].PortPos)
+                            Y props.Custom.InputPorts.[int num].PortPos.Y   //(snd props.Custom.InputPorts.[int num].PortPos)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -726,8 +717,8 @@ let renderCustom =
                 let outPorts=
                     [
                         rect [
-                            X (fst props.Custom.OutputPorts.[int num].PortPos)
-                            Y (snd props.Custom.OutputPorts.[int num].PortPos)
+                            X props.Custom.OutputPorts.[int num].PortPos.X  //(fst props.Custom.OutputPorts.[int num].PortPos)
+                            Y props.Custom.OutputPorts.[int num].PortPos.Y  //(snd props.Custom.OutputPorts.[int num].PortPos)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -849,7 +840,8 @@ let renderSquare =
                     ]
                 let slideRect =
                     let portList =
-                        if IO = "input" then props.Square.InputPorts.[(int num)].PortPos else props.Square.OutputPorts.[(int num)].PortPos
+                        if IO = "input" then props.Square.InputPorts.[(int num)].PortPos 
+                        else props.Square.OutputPorts.[(int num)].PortPos
                     [
                         rect [
                               X (xSlide)
@@ -861,8 +853,8 @@ let renderSquare =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
+                            X1 portList.X
+                            Y1 portList.Y
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -874,8 +866,8 @@ let renderSquare =
                 let inPorts = 
                     [
                       rect [
-                            X (fst props.Square.InputPorts.[int num].PortPos)
-                            Y (snd props.Square.InputPorts.[int num].PortPos)
+                            X props.Square.InputPorts.[int num].PortPos.X   //(fst props.Square.InputPorts.[int num].PortPos)
+                            Y props.Square.InputPorts.[int num].PortPos.Y   //(snd props.Square.InputPorts.[int num].PortPos)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -886,8 +878,8 @@ let renderSquare =
                 let outPorts=
                     [
                         rect [
-                            X (fst props.Square.OutputPorts.[int num].PortPos)
-                            Y (snd props.Square.OutputPorts.[int num].PortPos)
+                            X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
+                            Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -1019,14 +1011,12 @@ let inputPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (pId: CommonTy
 
     List.find (fun (por:CommonTypes.Port) -> por.Id = string pId) portList
     |> (fun por -> por.PortPos)
-    |> tupleToXYPos
 
 let outputPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (pId: CommonTypes.OutputPortId) : XYPos =
     let portList = outputPortList symModel sId
 
     List.find (fun (por:CommonTypes.Port) -> por.Id = string pId) portList
     |> (fun por -> por.PortPos)
-    |> tupleToXYPos    
 
 /// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
 let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) =
