@@ -21,7 +21,7 @@ Thursday 18th: **Potential Group Call**
 Saturday Evening 20th: **Potential Group Call** 
  - Issie Interfacing start 
  
-Wednesday 25th:
+Wednesday 25th: **Potential Group Call**
  - A good draft that could be submitted (Issie interface not necessary for this)
 
 ### A Note on States:
