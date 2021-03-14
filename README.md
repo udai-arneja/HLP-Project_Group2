@@ -46,7 +46,10 @@ Wednesday 25th: **Potential Group Call**
 - Note on aboce: you can also use the second XYPos to calculate the difference and add to the Pos of the selected symbol (your choice) 
 - If multiple symbols are selected -> The first XYPos shows last mouse position and second XYPos is the current position: using differences you can move all the elements selected, keeping their relative distance (my code on this is messy as always but it could be a good starting point if needed)
 - Also neceassry to update port position here 
-- If selected is all false then the last symbol in the symbol list is being dropped on the page -> it has just been created and it moving to its new location
+
+| DropNewSymbol of XYPos
+- Works like the original drag interface but without the ID (we know the Id is the last one in the symbols list)
+- Used to drop the symbol on the page
 
 | ToggleSelect of (string list)
 - This is a list of componentIds sent as a message from BusWire
