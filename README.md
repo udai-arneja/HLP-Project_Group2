@@ -28,6 +28,7 @@ Wednesday 25th: **Potential Group Call**
 - Bounding boxes are a part of BusWire and Symbol models and therefore they must be updated when necessary 
 - BusWire has some messages to send to symbol (Simi will write at end of BusWire code)
 - BusWire and Symbol: it is worth reading each other's sections as there is a lot more interconnectivity than before 
+- All wireId, portId or ComponentId are sent as strings for now but can be changed after discussion
 
 ### Symbol Messages:
 | AddSymbol of (ComponentType, int list, int list)
@@ -47,8 +48,8 @@ Wednesday 25th: **Potential Group Call**
 - Also neceassry to update port position here 
 - This will also be sent when dropping a new symbol to its new location
 
-| ToggleSelect of (ComponentId list)
-- This is sent as a message from BusWire
+| ToggleSelect of (string list)
+- This is a list of componentIds sent as a message from BusWire
 - It is select/deselect symbol and will be a list of the necessary Ids 
 - Usually it will just be one but when you drag to select many then it'll be a list 
 - We don't currently highlight symbol but this may change 
@@ -63,32 +64,34 @@ Wednesday 25th: **Potential Group Call**
 - Simi did a port status for visinle, invisible, slidingport, validports for the different stages but there's definitely a much better way 
 - Also need to reset the port position of the "sliding" port after this message stops sending 
 
-| Hovering of (ComponentId list)
+| Hovering of (string list)
 - This is for when the mouse moves over a component and you need to show the ports on it 
-- Component ID list will only be one Id 
+- It is a list of ComponentIDs but will only be one Id 
 
-| UpdateBBoxes (ComponentId List)
+| UpdateBBoxes (string List)
 - For the dragging or moving of a component so we only update the bounding boxes when movement has stopped
 - Message comes from buswire 
+- It is a ComponentId list 
 - The Pos of the symbol would be changing as it is moved so the bounding box is from the symbol's last posiiton
 
 | Delete
 - This has no inputs -> it just means delete all the symbols that have been selected 
 
 ### BusWire Messages
-| AddWire of (PortId, PortId)
+| AddWire of (string, string)
 - Input port Id then output port Id (the opposite of your source and target)
 - BusWidth will be taken from symbol ports
 - Highlight wire in Ok Red if buswidths don't match and None if anything else 
 
-| ToggleSelect of (ComponentId list, WireId list)
+| ToggleSelect of (string list, string list)
+- Component Id list and wire Id list 
 - Take the second list and toggle IsSelected for all those wires 
 - Send a message onto Symbol with the first id list -> message is ToggleSelect of (ComponentId list)
 - All the selected information is stored with BusWire
 - If you're sent an empty list it means deselect everything (Simi has a defaultlist function to make it all false if you want)
 - Potential to send message ToggleSelect of (ComponentId list, PortId list) to symbol if a wire is selected to highlight the associated ports but this can be done later
 
-| MoveSegment of (WireId list, int, XYPos)
+| MoveSegment of (string list, int, XYPos)
 - WireId of the moving wire, the index of the segment being moved and the XYPos of the mouse 
 - You are doing the difference calculations for the XYPos just like when symbol moves -> there is a function for it in symbol
 - Only middle 3 segments for 5 segment wires and 1 segment for 3 segment wires move
@@ -97,7 +100,8 @@ Wednesday 25th: **Potential Group Call**
 - Horizontal only moves up/down and vertical only moves left/right 
 - Autoroute as you would first then make the adjustments to the final vertices 
 
-| UpdateBBoxes of (ComponentId list, WireId list)
+| UpdateBBoxes of (string list, string list)
+- (ComponentId list, WireId list)
 - Same function as in symbol and once again you send the same message to symbol but with only the componentID list 
 - When a symbol is being dragged it is likely that there is no wire selected but obviously you will still be autorouting as its position changes
 - On this message update the bounding boxes of the wires for the only time apart from when moving segment  
