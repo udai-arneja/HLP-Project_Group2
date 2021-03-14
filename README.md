@@ -39,14 +39,14 @@ Wednesday 25th: **Potential Group Call**
 - All buswidths are stored in the port type for BusWire to access --> common types needs to add int to port type for the buswidth
 - Any custom type information will be sent alongside the ComponentType part 
 
-| Drag of (XYPos, XYPos)
+| Drag of (XYPos, XYPos) 
 - There are 2 dragging elements: dragging a list of symbols and dragging a symbol 
 - This depends on how many symbols are selected which is noe information stored in your model by the IsSelected bool 
 - If only one symbol is selected -> The first XYPos and initial dragging interface can be used to move it so ignore the second XYPos hwoever you will have to remove the "rank" part as we no longer send the component Id 
 - Note on aboce: you can also use the second XYPos to calculate the difference and add to the Pos of the selected symbol (your choice) 
 - If multiple symbols are selected -> The first XYPos shows last mouse position and second XYPos is the current position: using differences you can move all the elements selected, keeping their relative distance (my code on this is messy as always but it could be a good starting point if needed)
 - Also neceassry to update port position here 
-- This will also be sent when dropping a new symbol to its new location
+- If selected is all false then the last symbol in the symbol list is being dropped on the page -> it has just been created and it moving to its new location
 
 | ToggleSelect of (string list)
 - This is a list of componentIds sent as a message from BusWire
