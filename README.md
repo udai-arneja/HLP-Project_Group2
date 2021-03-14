@@ -105,41 +105,7 @@ Wednesday 25th:
 | Delete
 - No type -> just delete the selected wires
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 ### Below an overview of the project is highlighted, with focus on the interfacing the three main modules ( **Symbol**,  **BusWire**,  **Sheet** ). For further information about individual modules, in particular their functions, see the individual documentation (doc folder).
