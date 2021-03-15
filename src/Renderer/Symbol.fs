@@ -36,7 +36,7 @@ type Symbol =
 
 type Model = {
     Symbols: Symbol list
-    SymBBoxes: (XYPos*XYPos)  List
+    sBB: (float*float) list List
     }
 
 
@@ -77,22 +77,30 @@ let posAdd a b =
 
 let posOf x y = {X=x;Y=y}
 
+let tupleToXYPos (a,b) : Helpers.XYPos = 
+    let XY = {
+        X = a
+        Y = b
+    }  
+    {XY with X = a ; Y = b}
 
 
 //-----------------------------Skeleton Model Type for symbols----------------//
 
 
-let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int): CommonTypes.Port =
-    let portPos =
-        if portType = CommonTypes.Input then {X=comp.Pos.X;Y=(comp.Pos.Y+65.+(float portNumber)*40.)}
-        else {X=(comp.Pos.X+comp.W-10.);Y=(comp.Pos.Y+65.+(float portNumber)*40.)}
-    {
+let createportlist (mainS)(t)(compId)(x:int) =
+    let portPos no pType =
+        if pType = "Input" then
+            {X=mainS.Pos.X; Y=(mainS.Pos.Y + 65. + (float no)*40.)}
+        else
+            {X=mainS.Pos.X+mainS.W  - 10.; Y=(mainS.Pos.Y + 65. + (float no)*40.)}
+    [{
         CommonTypes.Port.Id = Helpers.uuid() 
-        CommonTypes.Port.PortNumber = Some portNumber 
-        CommonTypes.Port.PortType = portType 
-        CommonTypes.Port.HostId = string(comp.Id)
-        CommonTypes.Port.PortPos = portPos
-    }
+        CommonTypes.Port.PortNumber = Some x 
+        CommonTypes.Port. PortType = t 
+        CommonTypes. Port. HostId = compId
+        CommonTypes.Port.PortPos = portPos x (string t)
+    }]
 
 //-----------------------Skeleton Message type for symbols---------------------//
 
@@ -131,40 +139,42 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
                 //PortStatus = "invisible"
                 //IsSliding = (false, "input" , 0, {X=0.; Y=0.})
               //}          
-    let InputPortsList = List.map (fun index -> createportlist mainSymbol CommonTypes.PortType.Input index) [0..(inputno-1)]
-    let OutputPortsList = List.map (fun index -> createportlist mainSymbol CommonTypes.PortType.Output index) [0..(outputno-1)] 
-    {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
+    let InputPortsList = List.collect (fun x -> createportlist mainSymbol CommonTypes.PortType.Input (string mainSymbol.Id) x) [0..(inputno-1)]
+    let OutputPortsList = List.collect (fun x -> createportlist mainSymbol CommonTypes.PortType.Output (string mainSymbol.Id) x) [0..(outputno-1)] 
+    {mainSymbol with InputPorts = InputPortsList; OutputPorts = OutputPortsList}
  
 
 let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
-    ({X=start.X-10.;Y=start.Y-10.},{X=75.+float(max inputno outputno)*40.;Y=75.+float (max inputno outputno)*40.})
-    // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
+    [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
 
 let portmove portId inputYes model =
     let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with 
-                                                               |1 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.InputPorts |> function |Some a -> [a] |None -> []) acc
-                                                               |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
-                                                               | _ -> failwithf "not implemented - findPort Function, Symbol line 152"
+                                                                      |1 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.InputPorts |> function |Some a -> [a] |None -> []) acc
+                                                                      |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
     let portReturn = match inputYes with //haaate this 
-                     | "input" -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol 
-                     | "output" -> List.fold (findPort 0) [] model |> List.head
-                     | _ -> failwithf "not implemented - portReturn Function, Symbol line 155"
+                    | "input" -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol 
+                    | "output" -> List.fold (findPort 0) [] model |> List.head
     let symbolReturn = List.find (fun x -> x.Id = CommonTypes.ComponentId portReturn.HostId) model    
     let portNumber = match portReturn.PortNumber with 
                      |Some a -> a
-                     | _ -> failwithf "not implemented - portNumber Function, Symbol line 159" 
     (symbolReturn, portReturn, portNumber)
+    
+
+/// Dummy function for test. The real init would probably have no symbols.
+//let init () =
+//    List.allPairs [1;5] [3]
+//    |> List.map (fun (x,y) -> {X = float (x*64+30); Y=float (y*64+30)})
+//    |> List.map createNewSymbol
+//    , Cmd.none
 
 let init() =
-    {Symbols=[]; SymBBoxes =[]}, Cmd.none
+    {Symbols=[]; sBB =[]}, Cmd.none
 
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | AddSymbol(pos, inputno, outputno, comp) -> 
-        let newSymbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols)
-        let newSymbolsBoundingBoxes = List.rev (createNewBoundingBox pos inputno outputno :: model.SymBBoxes)
-        {model with Symbols=newSymbols; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+       {model with Symbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols); sBB = List.rev (createNewBoundingBox pos inputno outputno :: model.sBB)} , Cmd.none
     | StartDragging (sId, pagePos) ->
         let sdSymbols = 
             model.Symbols
@@ -180,9 +190,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         {model with Symbols = sdSymbols}, Cmd.none
 
     | Dragging (rank, pagePos) ->
-        let updatePorts pType xy mainS no= 
-            if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
-            else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
+        let updatePorts pType (xy:XYPos) mainS no= 
+            if pType = "Input" then
+                {xy with Y = xy.Y + 65. + (float no)*40.}
+            else
+                {xy with X = xy.X+mainS.W - 10.; Y = xy.Y + 65. + (float no)*40.}
+                
         let dSymbols = 
             model.Symbols
             |> List.map (fun sym ->
@@ -193,54 +206,48 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                     { sym with
                         Pos = posAdd sym.Pos diff
                         LastDragPos = pagePos
-                        InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-                        OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
+                        InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" {X=(posAdd sym.Pos diff).X; Y = (posAdd sym.Pos diff).Y} sym num}) sym.InputPorts
+                        OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" {X=(posAdd sym.Pos diff).X; Y =(posAdd sym.Pos diff).Y} sym num}) sym.OutputPorts
                     }
             )
-
-        //this is going to be a separate function that will be called by Sheet:
-
-        // let updateSymBBoxesox =
-        //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Symbols
-        //     let updateBBox index boxList =
-        //         let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-        //         let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2 
-        //         if index = indexforBbox 
-        //         then [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] 
-        //         else boxList
-        //     List.mapi (fun i p -> updateBBox i p) model.SymBBoxes
-
-        {model with Symbols = dSymbols}, Cmd.none       //; SymBBoxes = updateSymBBoxesox
+        let updatesBbox =
+            let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Symbols
+            let updateBBox index boxList =
+                let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
+                let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2 
+                if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] else boxList
+            List.mapi (fun i p -> updateBBox i p) model.sBB
+        {model with Symbols = dSymbols; sBB = updatesBbox}, Cmd.none
 
     | DraggingList (rank, pagePos, prevPagePos) ->
-        let updatePorts pType xy mainS no= 
-            if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
-            else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
+        let updatePorts pType (xy:XYPos) mainS no= 
+            if pType = "Input" then
+                {xy with Y = xy.Y + 65. + (float no)*40.}
+            else
+                {xy with X = xy.X+mainS.W - 10.; Y = xy.Y + 65. + (float no)*40.}
         let newSym sym =
             let diff = posDiff pagePos prevPagePos
             { sym with
                 Pos = posAdd sym.Pos diff
                 LastDragPos = pagePos
-                InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-                OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
+                InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" {X=(posAdd sym.Pos diff).X; Y = (posAdd sym.Pos diff).Y} sym num}) sym.InputPorts
+                OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" {X=(posAdd sym.Pos diff).X; Y =(posAdd sym.Pos diff).Y} sym num}) sym.OutputPorts
             }
         let dSymbols = 
             model.Symbols
             |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) rank) |> function |Some a -> newSym sym |None -> sym)
 
             
-        //this is going to be a separate function that will be called by Sheet:
-
-        // let updateSymBBoxesox =
-        //     let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Symbols) rank
-        //     let updateBBox index boxList =
-        //         let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-        //         let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2
-        //         List.tryFind (fun k -> k = index) indexforBbox 
-        //         |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] |None -> boxList
-        //     List.mapi (fun i p -> updateBBox i p) model.SymBBoxes
+        let updatesBbox =
+            let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Symbols) rank
+            let updateBBox index boxList =
+                let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
+                let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2
+                List.tryFind (fun k -> k = index) indexforBbox 
+                |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] |None -> boxList
+            List.mapi (fun i p -> updateBBox i p) model.sBB
             
-        {model with Symbols = dSymbols}, Cmd.none           //; SymBBoxes = updateSymBBoxesox
+        {model with Symbols = dSymbols; sBB = updatesBbox}, Cmd.none
 
     | EndDragging sId ->
         let edSymbols = 
@@ -267,9 +274,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
              symbolsToKeepIndex ((model.Symbols.Length)- 1)
              |> List.map (fun i -> model.Symbols.[i]) // (fun index value ->  List.tryFind (fun x -> x = index) sIdList |> function |Some a -> [] |None -> [value]) 
         let dBbox =
-            symbolsToKeepIndex ((model.SymBBoxes.Length)- 1)
-            |> List.map (fun i -> model.SymBBoxes.[i])
-        {model with Symbols = dSymbols; SymBBoxes = dBbox}, Cmd.none
+            symbolsToKeepIndex ((model.sBB.Length)- 1)
+            |> List.map (fun i -> model.sBB.[i])
+        {model with Symbols = dSymbols; sBB = dBbox}, Cmd.none
     | SelectSymbol (sId) -> 
         let selectedSymbolList =
             let defaultList = List.map (fun x -> {x with IsSelected = false; IsDragging = false}) model.Symbols
@@ -292,12 +299,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             match portmove portId iO model.Symbols with 
             | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
-    | MouseMsg {Pos = {X=posX; Y=posY}; Op = Down} -> 
+    | MouseMsg {Pos = {X = posX; Y=posY}; Op = Down} -> 
         let showPorts = 
             model.Symbols
             |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
-    | _ -> failwith "Not Implemented, Symbol Update Function, Symbol line 299" // allow unused mouse messags
+    | MouseMsg _ -> model, Cmd.none // allow unused mouse messags
 
 type Gates = //one for each unique shape
     | Not 
@@ -357,8 +364,7 @@ let renderGate =
                     ]
                 let slideRect =
                     let portList =
-                        if IO = "input" then props.Gate.InputPorts.[(int num)].PortPos 
-                        else props.Gate.OutputPorts.[(int num)].PortPos
+                        if IO = "input" then props.Gate.InputPorts.[(int num)].PortPos else props.Gate.OutputPorts.[(int num)].PortPos
                     [
                         rect [
                               X (xSlide)
@@ -370,8 +376,8 @@ let renderGate =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 portList.X
-                            Y1 portList.Y //(snd portList)
+                            X1 (portList.X)
+                            Y1 (portList.Y)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -383,8 +389,8 @@ let renderGate =
                 let inPorts = 
                     [
                       circle [
-                            Cx props.Gate.InputPorts.[int num].PortPos.X
-                            Cy props.Gate.InputPorts.[int num].PortPos.Y
+                            Cx (props.Gate.InputPorts.[int num].PortPos.X)
+                            Cy (props.Gate.InputPorts.[int num].PortPos.Y)
                             SVGAttr.R 10.
                             SVGAttr.Fill "black"
                             SVGAttr.Stroke "black"
@@ -394,8 +400,8 @@ let renderGate =
                 let outPorts=
                     [
                         circle [
-                            Cx props.Gate.OutputPorts.[int num].PortPos.X    //(fst props.Gate.OutputPorts.[int num].PortPos)
-                            Cy props.Gate.OutputPorts.[int num].PortPos.Y   //(snd props.Gate.OutputPorts.[int num].PortPos)
+                            Cx (props.Gate.OutputPorts.[int num].PortPos.X)
+                            Cy (props.Gate.OutputPorts.[int num].PortPos.Y)
                             SVGAttr.R 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -541,8 +547,8 @@ let renderMux =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 portList.X //(fst portList)
-                            Y1 portList.Y //(snd portList)
+                            X1 (portList.X)
+                            Y1 (portList.Y)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -554,8 +560,8 @@ let renderMux =
                 let inPorts = 
                     [
                       rect [
-                            X props.Mux.InputPorts.[int num].PortPos.X    //(fst props.Mux.InputPorts.[int num].PortPos)
-                            Y props.Mux.InputPorts.[int num].PortPos.Y  // (snd props.Mux.InputPorts.[int num].PortPos)
+                            X (props.Mux.InputPorts.[int num].PortPos.X)
+                            Y (props.Mux.InputPorts.[int num].PortPos.Y)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -566,8 +572,8 @@ let renderMux =
                 let outPorts=
                     [
                         rect [
-                            X props.Mux.OutputPorts.[int num].PortPos.X // (fst props.Mux.OutputPorts.[int num].PortPos)
-                            Y props.Mux.OutputPorts.[int num].PortPos.Y // (snd props.Mux.OutputPorts.[int num].PortPos)
+                            X (props.Mux.OutputPorts.[int num].PortPos.X)
+                            Y (props.Mux.OutputPorts.[int num].PortPos.Y)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -684,10 +690,13 @@ let renderCustom =
                                 Fill "Black" // demo font color
 
                             ]
-                        ] [if inOrOutText = 20. then str <| (string (match (props.Custom.Type) with
-                                                                     | CommonTypes.Custom customSymbol -> customSymbol.InputLabels
+                        ] 
+                           [if inOrOutText = 20. then str <| (string (match (props.Custom.Type) with
+                                                                     | CommonTypes.Custom customSymbol -> fst customSymbol.InputLabels.[int num]
                                                                      | _ -> failwithf "Not Implemented - Custom Component, Symbol line 678"))
-                           else if inOrOutText = 70. then str <| (string (props.Custom.Type))]
+                           else if inOrOutText = 70. then str <| (string (match (props.Custom.Type) with
+                                                                     | CommonTypes.Custom customSymbol -> fst customSymbol.OutputLabels.[int num]
+                                                                     | _ -> failwithf "Not Implemented - Custom Component, Symbol line 678"))]                                          
                     ]
                 let slideRect =
                     let portList =
@@ -703,8 +712,8 @@ let renderCustom =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 portList.X   //fst portList)
-                            Y1 portList.Y   //(snd portList)
+                            X1 (portList.X)
+                            Y1 (portList.Y)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -716,8 +725,8 @@ let renderCustom =
                 let inPorts = 
                     [
                       rect [
-                            X props.Custom.InputPorts.[int num].PortPos.X   //(fst props.Custom.InputPorts.[int num].PortPos)
-                            Y props.Custom.InputPorts.[int num].PortPos.Y   //(snd props.Custom.InputPorts.[int num].PortPos)
+                            X (props.Custom.InputPorts.[int num].PortPos.X)
+                            Y (props.Custom.InputPorts.[int num].PortPos.Y)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -728,8 +737,8 @@ let renderCustom =
                 let outPorts=
                     [
                         rect [
-                            X props.Custom.OutputPorts.[int num].PortPos.X  //(fst props.Custom.OutputPorts.[int num].PortPos)
-                            Y props.Custom.OutputPorts.[int num].PortPos.Y  //(snd props.Custom.OutputPorts.[int num].PortPos)
+                            X (props.Custom.OutputPorts.[int num].PortPos.X)
+                            Y (props.Custom.OutputPorts.[int num].PortPos.Y)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -851,8 +860,7 @@ let renderSquare =
                     ]
                 let slideRect =
                     let portList =
-                        if IO = "input" then props.Square.InputPorts.[(int num)].PortPos 
-                        else props.Square.OutputPorts.[(int num)].PortPos
+                        if IO = "input" then props.Square.InputPorts.[(int num)].PortPos else props.Square.OutputPorts.[(int num)].PortPos
                     [
                         rect [
                               X (xSlide)
@@ -864,8 +872,8 @@ let renderSquare =
                               SVGAttr.StrokeWidth 1
                           ][]
                         line [
-                            X1 portList.X
-                            Y1 portList.Y
+                            X1 (portList.X)
+                            Y1 (portList.Y)
                             X2 xSlide
                             Y2 ySlide
                             SVGAttr.StrokeDasharray "4"
@@ -877,8 +885,8 @@ let renderSquare =
                 let inPorts = 
                     [
                       rect [
-                            X props.Square.InputPorts.[int num].PortPos.X   //(fst props.Square.InputPorts.[int num].PortPos)
-                            Y props.Square.InputPorts.[int num].PortPos.Y   //(snd props.Square.InputPorts.[int num].PortPos)
+                            X (props.Square.InputPorts.[int num].PortPos.X)
+                            Y (props.Square.InputPorts.[int num].PortPos.Y)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -889,8 +897,8 @@ let renderSquare =
                 let outPorts=
                     [
                         rect [
-                            X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
-                            Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
+                            X (props.Square.OutputPorts.[int num].PortPos.X)
+                            Y (props.Square.OutputPorts.[int num].PortPos.Y)
                             SVGAttr.Width 10.
                             SVGAttr.Height 10.
                             SVGAttr.Fill "black"
@@ -981,16 +989,6 @@ type private RenderCircleProps =
 /// View for one symbol with caching for efficient execution when input does not change
 /// View function for symbol layer of SVG
 let view (model : Model) (dispatch : Msg -> unit) = 
-    //model
-    //|> List.map (fun ({Id = CommonTypes.ComponentId id} as circle) ->
-    //    renderCircle 
-    //        {
-    //            Circle = circle
-    //            Dispatch = dispatch
-    //            key = id
-    //        }
-    //)
-    //|> ofList
     model.Symbols
     |> List.map (fun ({Id = CommonTypes.ComponentId ii} as custom) -> //match each symbol with its t
         renderCustom 
@@ -1022,12 +1020,13 @@ let inputPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (pId: CommonTy
 
     List.find (fun (por:CommonTypes.Port) -> por.Id = string pId) portList
     |> (fun por -> por.PortPos)
-
+  
 let outputPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (pId: CommonTypes.OutputPortId) : XYPos =
     let portList = outputPortList symModel sId
 
     List.find (fun (por:CommonTypes.Port) -> por.Id = string pId) portList
     |> (fun por -> por.PortPos)
+       
 
 /// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
 let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) =
@@ -1052,4 +1051,3 @@ let extractComponent
 
 let extractComponents (symModel: Model) : CommonTypes.Component list = 
     failwithf "Not implemented"
-
