@@ -36,7 +36,7 @@ type Symbol =
 
 type Model = {
     Symbols: Symbol list
-    sBB: (float*float) list List
+    SymBBoxes: (XYPos*XYPos)  List
     }
 
 
@@ -137,7 +137,8 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
  
 
 let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
-    [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
+    ({X=start.X-10.;Y=start.Y-10.},{X=75.+float(max inputno outputno)*40.;Y=75.+float (max inputno outputno)*40.})
+    // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
 
 let portmove portId inputYes model =
     let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with 
@@ -155,13 +156,15 @@ let portmove portId inputYes model =
     (symbolReturn, portReturn, portNumber)
 
 let init() =
-    {Symbols=[]; sBB =[]}, Cmd.none
+    {Symbols=[]; SymBBoxes =[]}, Cmd.none
 
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | AddSymbol(pos, inputno, outputno, comp) -> 
-       {model with Symbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols); sBB = List.rev (createNewBoundingBox pos inputno outputno :: model.sBB)} , Cmd.none
+        let newSymbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols)
+        let newSymbolsBoundingBoxes = List.rev (createNewBoundingBox pos inputno outputno :: model.SymBBoxes)
+        {model with Symbols=newSymbols; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
     | StartDragging (sId, pagePos) ->
         let sdSymbols = 
             model.Symbols
@@ -194,14 +197,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                         OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
                     }
             )
-        let updatesBbox =
-            let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Symbols
-            let updateBBox index boxList =
-                let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-                let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2 
-                if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] else boxList
-            List.mapi (fun i p -> updateBBox i p) model.sBB
-        {model with Symbols = dSymbols; sBB = updatesBbox}, Cmd.none
+
+        //this is going to be a separate function that will be called by Sheet:
+
+        // let updateSymBBoxesox =
+        //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Symbols
+        //     let updateBBox index boxList =
+        //         let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
+        //         let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2 
+        //         if index = indexforBbox 
+        //         then [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] 
+        //         else boxList
+        //     List.mapi (fun i p -> updateBBox i p) model.SymBBoxes
+
+        {model with Symbols = dSymbols}, Cmd.none       //; SymBBoxes = updateSymBBoxesox
 
     | DraggingList (rank, pagePos, prevPagePos) ->
         let updatePorts pType xy mainS no= 
@@ -220,16 +229,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) rank) |> function |Some a -> newSym sym |None -> sym)
 
             
-        let updatesBbox =
-            let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Symbols) rank
-            let updateBBox index boxList =
-                let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-                let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2
-                List.tryFind (fun k -> k = index) indexforBbox 
-                |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] |None -> boxList
-            List.mapi (fun i p -> updateBBox i p) model.sBB
+        //this is going to be a separate function that will be called by Sheet:
+
+        // let updateSymBBoxesox =
+        //     let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Symbols) rank
+        //     let updateBBox index boxList =
+        //         let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
+        //         let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2
+        //         List.tryFind (fun k -> k = index) indexforBbox 
+        //         |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] |None -> boxList
+        //     List.mapi (fun i p -> updateBBox i p) model.SymBBoxes
             
-        {model with Symbols = dSymbols; sBB = updatesBbox}, Cmd.none
+        {model with Symbols = dSymbols}, Cmd.none           //; SymBBoxes = updateSymBBoxesox
 
     | EndDragging sId ->
         let edSymbols = 
@@ -256,9 +267,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
              symbolsToKeepIndex ((model.Symbols.Length)- 1)
              |> List.map (fun i -> model.Symbols.[i]) // (fun index value ->  List.tryFind (fun x -> x = index) sIdList |> function |Some a -> [] |None -> [value]) 
         let dBbox =
-            symbolsToKeepIndex ((model.sBB.Length)- 1)
-            |> List.map (fun i -> model.sBB.[i])
-        {model with Symbols = dSymbols; sBB = dBbox}, Cmd.none
+            symbolsToKeepIndex ((model.SymBBoxes.Length)- 1)
+            |> List.map (fun i -> model.SymBBoxes.[i])
+        {model with Symbols = dSymbols; SymBBoxes = dBbox}, Cmd.none
     | SelectSymbol (sId) -> 
         let selectedSymbolList =
             let defaultList = List.map (fun x -> {x with IsSelected = false; IsDragging = false}) model.Symbols
@@ -281,7 +292,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             match portmove portId iO model.Symbols with 
             | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
-    | MouseMsg {Pos = {X = posX; Y=posY}; Op = Down} -> 
+    | MouseMsg {Pos = {X=posX; Y=posY}; Op = Down} -> 
         let showPorts = 
             model.Symbols
             |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
