@@ -25,8 +25,8 @@ type Wire = {
     Id: CommonTypes.ConnectionId 
     SrcSymbol: CommonTypes.ComponentId // source symbol
     TargetSymbol: CommonTypes.ComponentId // target symbol
-    SrcPort: string
-    TargetPort: string
+    SrcPort: CommonTypes.Port
+    TargetPort: CommonTypes.Port
     Vertices: XYPos List
     Highlighted: bool
     BusWidth: int
@@ -183,8 +183,8 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                       |>List.head
                     //   |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
                 | _ -> failwithf "Not implemented - view, BusWire line 185"
-            let start = convertIdToXYPos 1 w.SrcPort
-            let final = convertIdToXYPos 0 w.TargetPort
+            let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
+            let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
             let vertex = newWireRoute final start
             let BusWidth = w.BusWidth
             let Highlighted = w.Highlighted
@@ -212,27 +212,17 @@ let createNewBB outp inp=
     wireBoundingBoxes (newWireRoute (inp) (outp))
 
 /// A function which creates a new wire. This is called from the AddWire message in the update function. 
-let createNewWire (sourcePortId:string) (targetPortId:string) (busWidth: int) (model:Model) : Wire =
-    
-    let convertIdToXYPos inOut (id:string) =
-        match inOut with 
-        |1 -> printfn "bottomup %A %A" model.Symbol.Symbols id
-              List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
-              |>List.head
-            //   |>tupleToXYPos 
-        |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
-              |>List.head
-            //   |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
-        | _ -> failwithf "Not implemented - createNewWire function, BusWire line 226"
+let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (busWidth: int) (model:Model) : Wire =
+
     let wireId = CommonTypes.ConnectionId (Helpers.uuid())
 
     {
         SrcSymbol = CommonTypes.ComponentId (Helpers.uuid()) 
         TargetSymbol = CommonTypes.ComponentId (Helpers.uuid())
         Id = wireId 
-        SrcPort = sourcePortId
-        TargetPort = targetPortId
-        Vertices = newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
+        SrcPort = sourcePort
+        TargetPort = targetPort
+        Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
         Highlighted = false
         BusWidth = busWidth
     }
@@ -246,25 +236,16 @@ let init () =
 
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
-    let convertIdToXYPos inOut (id:string) =
-        match inOut with 
-        |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> (string y.Id) = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
-              |> List.head
-            //   |> tupleToXYPos
-        |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> (string y.Id) = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
-              |>List.head
-            //   |> tupleToXYPos
-        | _ -> failwithf "Not implemented - update function, BusWire line 257"
 
     match msg with
     | Symbol sMsg -> 
         let newBB = 
-            List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToXYPos 0 w.TargetPort) (convertIdToXYPos 1 w.SrcPort) )) model.WX
+            List.map (fun w -> wireBoundingBoxes (newWireRoute w.TargetPort.PortPos w.SrcPort.PortPos)) model.WX
         let sm,sCmd = Symbol.update sMsg model.Symbol 
         {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd 
     | AddWire (inp,outp) ->
         let addNewWire = createNewWire inp outp 1 model:: model.WX
-        let addNewWireBB = createNewBB (convertIdToXYPos 1 inp) (convertIdToXYPos 0 outp) :: model.wBB
+        let addNewWireBB = createNewBB inp.PortPos outp.PortPos:: model.wBB
         {model with WX=addNewWire; wBB=addNewWireBB}, Cmd.none 
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
     | DeleteWire (sIdList) ->
