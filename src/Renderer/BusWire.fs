@@ -48,7 +48,7 @@ type Model = {
 /// for highlighting, width inference, etc
 type Msg =
     | Symbol of Symbol.Msg
-    | AddWire of (string * string)
+    | AddWire of (CommonTypes.Port * CommonTypes.Port)
     | SetColor of CommonTypes.HighLightColor
     | DeleteWire of int list
     | MouseMsg of MouseT
@@ -262,7 +262,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToXYPos 0 w.TargetPort) (convertIdToXYPos 1 w.SrcPort) )) model.WX
         let sm,sCmd = Symbol.update sMsg model.Symbol 
         {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd 
-    | AddWire (inp,outp) -> {model with WX = createNewWire inp outp 1 model:: model.WX; wBB = createNewBB (convertIdToXYPos 1 inp) (convertIdToXYPos 0 outp) :: model.wBB}, Cmd.none 
+    | AddWire (inp,outp) ->
+        let addNewWire = createNewWire inp outp 1 model:: model.WX
+        let addNewWireBB = createNewBB (convertIdToXYPos 1 inp) (convertIdToXYPos 0 outp) :: model.wBB
+        {model with WX=addNewWire; wBB=addNewWireBB}, Cmd.none 
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
     | DeleteWire (sIdList) ->
         let wiresToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) sIdList |> function |Some a -> false |None -> true) [0..lst]
