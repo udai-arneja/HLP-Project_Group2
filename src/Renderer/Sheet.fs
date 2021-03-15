@@ -11,7 +11,7 @@ open Helpers
 
 type Model = {
     Wire: BusWire.Model
-    IsWiring: string * (string*string)   //Input/Output * (portId * portId)
+    IsWiring: (Option<CommonTypes.Port>*Option<CommonTypes.Port>)   //Input/Output * (portId * portId)       //do we need null for the first one - so does it need to be an option
     IsSelecting: CommonTypes.ComponentId list * CommonTypes.ConnectionId list        //Symbols * Wires
     IsDropping: bool
     IsDraggingList: int * XYPos
@@ -36,8 +36,12 @@ let zoom = 1.0
 //207 - ToggleSelect
 //212 - AddWire
 
-
 //display
+
+let hovering (symId: CommonTypes.Component list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
+let toggleSelect (symId: CommonTypes.Component list, symId2: CommonTypes.Component list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
+let updateBBoxes (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
+let hovering (symId: CommonTypes.Component list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
     let sizeInPixels = sprintf "%.2fpx" ((1000. * zoom))
@@ -189,17 +193,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //          then portCalculator currentSymbol.InputPorts "input"
         //          else []
 
-        let boundingBoxSearchP (symbol: Symbol.Symbol) =
+        let boundingBoxSearchP (symbol: Symbol.Symbol): CommonTypes.Port list=
             let dist (pos1:XYPos) (pos2:XYPos) = sqrt((pos1.X-pos2.X)**2. + (pos1.Y-pos2.Y)**2.)
-            let portCalculator portlist iOut =
+            let portCalculator portlist =
                     match List.tryFind (fun (port:CommonTypes.Port) -> (dist port.PortPos mousePos)<40.) portlist with
-                    | Some port -> ([port], iOut)
-                    | None -> ([], "null")
+                    | Some port -> [port]
+                    | None -> []
             if mousePos.X <= (symbol.Pos.X+(symbol.W/2.))
-            then portCalculator symbol.InputPorts "input"
-            else portCalculator symbol.OutputPorts "output"
+            then portCalculator symbol.InputPorts
+            else portCalculator symbol.OutputPorts
 
-        let addW (ports: CommonTypes.Port * CommonTypes.Port): Msg = (Wire <| BusWire.AddWire ports)
+        let addWire (ports: CommonTypes.Port * CommonTypes.Port): Msg = (Wire <| BusWire.AddWire ports)
 
         match mouseState with
         
@@ -207,26 +211,38 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                   then {model with IsDropping=false}, Cmd.none
                   else match boundingBoxSearchS with
                        |[sym] -> match boundingBoxSearchP sym with
-                                 | ([portId], iOut) -> match model.IsWiring with
-                                                       |("null", (_,_) )-> if iOut="input" then {model with IsWiring = (iOut, (string portId,"null"))},Cmd.none
-                                                                             else {model with IsWiring = (iOut,("null",string portId))},Cmd.none
-                                                       | (ioLabel, (iPortId,oPortId)) -> if ioLabel <> iOut
-                                                                                         then if iOut="input"
-                                                                                              then {model with IsWiring=("null",("null","null"));LastOp=Down}, Cmd.ofMsg (addW (portId,oPortId))
-                                                                                                    (AddWire (portId, oPortId))
-                                                                                              else {model with IsWiring=("null",("null","null"));LastOp=Down}, Cmd.ofMsg (AddWire (iPortId, portId))
-                                                                                         else {model with IsWiring=("null",("null","null"));LastOp=Down}, Cmd.none                                                 
+                                 | [port] -> match model.IsWiring with
+                                              | (None, None) -> match port.PortType with
+                                                                | CommonTypes.Input -> {model with IsWiring=(Some port, None)},Cmd.none
+                                                                | CommonTypes.Output -> {model with IsWiring=(None, Some port)},Cmd.none
+                                              | (None, Some outputPort)-> match port.PortType with
+                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down}, Cmd.ofMsg (addWire (port,outputPort))
+                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None)},Cmd.none
+                                              | (Some inputPort, None) -> match port.PortType with
+                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down}, Cmd.ofMsg (addWire (inputPort,port))
+                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None)},Cmd.none
+                                               | _ -> failwithf "Not implemented - Down Sheet Update function ~ 219"          
                                  | _ -> {model with IsSelecting = ([sym.Id],[]); LastOp=Down}, Cmd.none
+                                //  | ([port], Some iOut) -> match model.IsWiring with
+                                //                           |(None, _)-> if iOut=true then {model with IsWiring = (Some iOut, (Some port,None))},Cmd.none
+                                //                                              else {model with IsWiring = (Some iOut,(None, Some port))},Cmd.none
+                                //                           | (Some ioLabel, (Some iPortId,Some oPortId)) -> if ioLabel <> iOut
+                                //                                                                           then if iOut=true
+                                //                                                                                then {model with IsWiring=resetIsWiring;LastOp=Down}, Cmd.ofMsg (addW (port,oPortId))
+                                //                                                                                else {model with IsWiring=resetIsWiring;LastOp=Down}, Cmd.ofMsg (addW (iPortId, port))
+                                //                                                                           else {model with IsWiring=resetIsWiring;LastOp=Down}, Cmd.none                                                 
+                                //  | _ -> {model with IsSelecting = ([sym.Id],[]); LastOp=Down}, Cmd.none
+                                 
                        | _ -> match boundingBoxSearchW with 
-                               |[wireId] -> {model with IsSelecting = ([],[wireId]); LastOp=Down}, Cmd.none
-                               |_ -> {model with IsSelecting = ([],[]);LastOp=Down;MultiSelectBox=(true,mousePos,mousePos)}, Cmd.ofMsg (ToggleSelect([],[]))
+                               |[wireId] -> {model with IsSelecting = ([],[wireId]); LastOp=Down}, Cmd.none         //reset wiring to none
+                               |_ -> {model with IsSelecting = ([],[]);LastOp=Down;MultiSelectBox=(true,mousePos,mousePos)}, Cmd.ofMsg (toggleSelect([],[]))
                                
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (ToggleSelect (inSelBox model p1 p2 , boundingBoxWithinSearchW model p1 p2) )//check if in bounding boxes
+                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (toggleSelect (inSelBox model p1 p2 , boundingBoxWithinSearchW model p1 p2) )//check if in bounding boxes
                           | _ -> {model with LastOp=Up}, Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
                           // drag group/single 
-                | Down -> {model with IsSelecting = ([],[])}, Cmd.ofMsg (ToggleSelect model.IsSelecting)
+                | Down -> {model with IsSelecting = ([],[])}, Cmd.ofMsg (toggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up}, Cmd.none
 
         | Drag -> match model.MultiSelectBox with 
@@ -234,11 +250,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                   | _ -> {model with LastOp = Drag}, Cmd.ofMsg (Drag model.IsSelecting)//send to symbol to move symbols lol
 
         | Move -> match model.IsWiring with 
-                  |("null", _) -> match boundingBoxSearchS with
-                                  | [iD] -> {model with LastOp = Move}, Cmd.ofMsg (hovering [iD])
-                                  | [] -> {model with LastOp = Move}, Cmd.none
-                  |(ioLabel,("null",portId)) -> {model with LastOp=Move}, Cmd.ofMsg (ShowValidPorts (ioLabel, portId, Pos ))
-                  |(ioLabel, (portId, "null")) -> {model with LastOp=Move}, Cmd.ofMsg (ShowValidPorts (ioLabel, portId, Pos))
+                  |(None,None) -> match boundingBoxSearchS with
+                                  | [symbol] -> {model with LastOp = Move}, Cmd.ofMsg (hovering [symbol])
+                                  | _ -> {model with LastOp = Move}, Cmd.none
+                  |(None,Some portId) -> {model with LastOp=Move}, Cmd.ofMsg (showValidPorts (ioLabel, portId, Pos ))
+                  |(Some portId,None) -> {model with LastOp=Move}, Cmd.ofMsg (showValidPorts (ioLabel, portId, Pos ))
+                  | _ -> failwithf "Not implemented - Move Sheet Update function ~ 253" 
 
     |Wire wMsg -> 
         let wModel, wCmd = BusWire.update wMsg model.Wire //send message
@@ -291,7 +308,7 @@ let init() =
     let model,cmds = (BusWire.init)() //initial model state
     {
         Wire = model
-        IsWiring = ("null", ("null","null"))
+        IsWiring = (None, None)
         IsSelecting= ([], [])
         IsDropping= false
         IsDraggingList = (0, {X=0.;Y=0.})
