@@ -106,27 +106,7 @@ let view (model:Model) (dispatch : Msg -> unit) =
     let wireSvg = BusWire.view model.Wire wDispatch
     displaySvgWithZoom zoom wireSvg dispatch model
 
-let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list,CommonTypes.ComponentId list) =
-
-
-let wireInSelBox (wModel:BusWire.Model) startPos finalPos =  //checks if wire bounding box within box 
-    let innerLayer start fn bblst = 
-        let innerSeg lst = 
-            let (box1, box2) = lst
-            {X = fn box1.X box2.X; Y = (fn box1.Y box2.Y)}            
-        bblst 
-        |> List.fold (fun acc y -> {X = (fn (innerSeg y).X acc.X); Y = (fn (innerSeg y).Y acc.Y)}) start
-    let maxCoord = 
-        wModel.wBB 
-        |> List.map (innerLayer {X=0.;Y=0.} max)
-    let minCoord =
-        wModel.wBB 
-        |> List.map (innerLayer {X=1000.;Y=1000.} min)
-    List.filter (fun a -> maxCoord.[a].X <= finalPos.X &&  maxCoord.[a].Y <= finalPos.Y) [0..(wModel.wBB.Length-1)]
-    |> List.filter (fun b -> minCoord.[b].X >= startPos.X && minCoord.[b].Y >= startPos.Y)
-    |> List.map (fun c -> wModel.WX.[c].Id)
-
-let symbInSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) list=     //sc : start corner, ec: end corner
+let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list * CommonTypes.ConnectionId list) =
     let corners = if sc.X < ec.X     //dragging left to right
                       then if sc.Y < ec.Y
                            then {TopCorner=sc;BottomCorner=ec}          //dragging up to down
@@ -134,17 +114,66 @@ let symbInSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) 
                       else if sc.Y > ec.Y    //dragging right to left
                           then {TopCorner=ec;BottomCorner=sc}  //dragging down to up
                           else {TopCorner={X=ec.X;Y=sc.Y};BottomCorner={X=sc.X;Y=ec.Y}}   //dragging up to down
-
     let overlap index (pos1,pos2) = if corners.TopCorner.X<pos1.X && corners.BottomCorner.X>pos1.X 
                                         ||corners.TopCorner.X<pos2.X && corners.BottomCorner.X>pos2.X
                                     then if corners.TopCorner.Y<pos1.Y && corners.BottomCorner.Y>pos1.Y
                                               ||corners.TopCorner.Y<pos2.Y && corners.BottomCorner.Y>pos2.Y
-                                           then Some (model.Wire.Symbol.Symbols.[index].Id)          //use index to get the symbol id
+                                           then Some index         //use index to get the symbol id
                                            else None
                                     else None
+    let symbolscontained =
+        List.mapi overlap model.Wire.Symbol.SymBBoxes
+        |> List.map (fun val1 -> match val1 with
+                                 | Some index -> Some (model.Wire.Symbol.Symbols.[index].Id)
+                                 | None ->  None)
+        |> List.choose (fun x-> x )
+    let wirescontained = 
+        List.mapi (fun index segmentsList -> 
+                            List.tryPick (overlap index) segmentsList
+                            ) model.Wire.wBB
+        |> List.map (fun val1 -> match val1 with
+                                 | Some index -> Some (model.Wire.WX.[index].Id)
+                                 | None ->  None)
+        |> List.choose (fun x->x)
+    (symbolscontained,wirescontained)
+    
 
-    List.mapi overlap model.Wire.Symbol.SymBBoxes
-    |> List.choose (fun x->x)
+// let wireInSelBox (wModel:BusWire.Model) startPos finalPos =  //checks if wire bounding box within box 
+//     let innerLayer start fn bblst = 
+//         let innerSeg lst = 
+//             let (box1, box2) = lst
+//             {X = fn box1.X box2.X; Y = (fn box1.Y box2.Y)}            
+//         bblst 
+//         |> List.fold (fun acc y -> {X = (fn (innerSeg y).X acc.X); Y = (fn (innerSeg y).Y acc.Y)}) start
+//     let maxCoord = 
+//         wModel.wBB 
+//         |> List.map (innerLayer {X=0.;Y=0.} max)
+//     let minCoord =
+//         wModel.wBB 
+//         |> List.map (innerLayer {X=1000.;Y=1000.} min)
+//     List.filter (fun a -> maxCoord.[a].X <= finalPos.X &&  maxCoord.[a].Y <= finalPos.Y) [0..(wModel.wBB.Length-1)]
+//     |> List.filter (fun b -> minCoord.[b].X >= startPos.X && minCoord.[b].Y >= startPos.Y)
+//     |> List.map (fun c -> wModel.WX.[c].Id)
+
+// let symbInSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) list=     //sc : start corner, ec: end corner
+//     let corners = if sc.X < ec.X     //dragging left to right
+//                       then if sc.Y < ec.Y
+//                            then {TopCorner=sc;BottomCorner=ec}          //dragging up to down
+//                            else {TopCorner={X=sc.X;Y=ec.Y};BottomCorner={X=ec.X;Y=sc.Y}}    //dragging down to up
+//                       else if sc.Y > ec.Y    //dragging right to left
+//                           then {TopCorner=ec;BottomCorner=sc}  //dragging down to up
+//                           else {TopCorner={X=ec.X;Y=sc.Y};BottomCorner={X=sc.X;Y=ec.Y}}   //dragging up to down
+
+//     let overlap index (pos1,pos2) = if corners.TopCorner.X<pos1.X && corners.BottomCorner.X>pos1.X 
+//                                         ||corners.TopCorner.X<pos2.X && corners.BottomCorner.X>pos2.X
+//                                     then if corners.TopCorner.Y<pos1.Y && corners.BottomCorner.Y>pos1.Y
+//                                               ||corners.TopCorner.Y<pos2.Y && corners.BottomCorner.Y>pos2.Y
+//                                            then Some (model.Wire.Symbol.Symbols.[index].Id)          //use index to get the symbol id
+//                                            else None
+//                                     else None
+
+//     List.mapi overlap model.Wire.Symbol.SymBBoxes
+//     |> List.choose (fun x->x)
 
 let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : CommonTypes.ConnectionId list = //checks if point is in wire bounding box
     let isInside bblst wireId= //gives you the wire bb list 
@@ -224,7 +253,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (toggleSelect (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
+                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (toggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
                           | _ -> {model with LastOp=Up}, Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
                           // drag group/single 
                 | Down -> {model with IsSelecting = ([],[])}, Cmd.ofMsg (toggleSelect model.IsSelecting)
@@ -232,7 +261,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         | Drag -> match model.MultiSelectBox with 
                   |(true, p1, p2) -> {model with IsSelecting = ([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
-                  | _ -> {model with LastOp = Drag}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging (fst model.IsSelecting,mousePos))) //send to symbol to move symbols lol
+                  | _ -> {model with LastOp = Drag}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting).[0],mousePos))) //send to symbol to move symbols lol
 
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
