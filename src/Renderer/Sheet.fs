@@ -11,7 +11,7 @@ open Helpers
 
 type Model = {
     Wire: BusWire.Model
-    IsWiring: (Option<CommonTypes.Port>*Option<CommonTypes.Port>)   //Input/Output * (portId * portId)       //do we need null for the first one - so does it need to be an option
+    IsWiring: (Option<CommonTypes.Port> * Option<CommonTypes.Port>)   //Input/Output * (portId * portId)       //do we need null for the first one - so does it need to be an option
     IsSelecting: CommonTypes.ComponentId list * CommonTypes.ConnectionId list        //Symbols * Wires
     IsDropping: bool
     IsDraggingList: int * XYPos
@@ -42,12 +42,12 @@ let zoom = 1.0
 //207 - ToggleSelect
 //212 - AddWire
 
-//display
-
 let hovering (symId: Symbol.Symbol list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
 let toggleSelect (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
 let updateBBoxes (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
 let showValidPorts (testtype, portId, mousePos) = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
+
+//display
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
     let sizeInPixels = sprintf "%.2fpx" ((1000. * zoom))
@@ -106,8 +106,10 @@ let view (model:Model) (dispatch : Msg -> unit) =
     let wireSvg = BusWire.view model.Wire wDispatch
     displaySvgWithZoom zoom wireSvg dispatch model
 
+let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list,CommonTypes.ComponentId list) =
 
-let boundingBoxWithinSearchW (wModel:BusWire.Model) startPos finalPos =  //checks if wire bounding box within box 
+
+let wireInSelBox (wModel:BusWire.Model) startPos finalPos =  //checks if wire bounding box within box 
     let innerLayer start fn bblst = 
         let innerSeg lst = 
             let (box1, box2) = lst
@@ -124,7 +126,7 @@ let boundingBoxWithinSearchW (wModel:BusWire.Model) startPos finalPos =  //check
     |> List.filter (fun b -> minCoord.[b].X >= startPos.X && minCoord.[b].Y >= startPos.Y)
     |> List.map (fun c -> wModel.WX.[c].Id)
 
-let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) list=     //sc : start corner, ec: end corner
+let symbInSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) list=     //sc : start corner, ec: end corner
     let corners = if sc.X < ec.X     //dragging left to right
                       then if sc.Y < ec.Y
                            then {TopCorner=sc;BottomCorner=ec}          //dragging up to down
@@ -222,7 +224,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (toggleSelect (inSelBox model p1 p2 , boundingBoxWithinSearchW model.Wire p1 p2) )//check if in bounding boxes
+                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (toggleSelect (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
                           | _ -> {model with LastOp=Up}, Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
                           // drag group/single 
                 | Down -> {model with IsSelecting = ([],[])}, Cmd.ofMsg (toggleSelect model.IsSelecting)
