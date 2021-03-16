@@ -194,16 +194,10 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                     //   |>Symbol.tupleToXYPos 
                 |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
                       |>List.head
-<<<<<<< Updated upstream
                     //   |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
                 | _ -> failwithf "Not implemented - view, BusWire line 185"
             let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
             let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
-=======
-                      //|>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
-            let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
-            let final = w.TargetPort.PortPos//
->>>>>>> Stashed changes
             let vertex = newWireRoute final start
             let BusWidth = w.BusWidth
             let Highlighted = w.Highlighted
@@ -232,11 +226,6 @@ let createNewBB outp inp=
 
 /// A function which creates a new wire. This is called from the AddWire message in the update function. 
 let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (busWidth: int) (model:Model) : Wire =
-<<<<<<< Updated upstream
-
-=======
-              //|>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
->>>>>>> Stashed changes
     let wireId = CommonTypes.ConnectionId (Helpers.uuid())
 
     {
@@ -245,11 +234,7 @@ let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (b
         Id = wireId 
         SrcPort = sourcePort
         TargetPort = targetPort
-<<<<<<< Updated upstream
         Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
-=======
-        Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos
->>>>>>> Stashed changes
         Highlighted = false
         BusWidth = busWidth
         IsDragging = false
@@ -307,17 +292,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             List.map (fun w -> wireBoundingBoxes (newWireRoute w.TargetPort.PortPos w.SrcPort.PortPos)) model.WX
         let sm,sCmd = Symbol.update sMsg model.Symbol 
         {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd 
-<<<<<<< Updated upstream
-    | AddWire (inp,outp) ->
-        let addNewWire = createNewWire inp outp 1 model:: model.WX
-        let addNewWireBB = createNewBB inp.PortPos outp.PortPos:: model.wBB
-        {model with WX=addNewWire; wBB=addNewWireBB}, Cmd.none 
-=======
     | AddWire (inp,outp) -> 
         let addNewWire = createNewWire inp outp 1 model:: model.WX
         let addNewWireBB = createNewBB inp.PortPos outp.PortPos:: model.wBB
         {model with WX=addNewWire; wBB=addNewWireBB}, Cmd.none
->>>>>>> Stashed changes
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
     | DeleteWire (wIdList) ->
         let wiresToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) wIdList |> function |Some a -> false |None -> true) [0..lst]
@@ -342,9 +320,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             [0..(defaultList.Length-1)]
             |> List.map checker
         {model with WX = selectedWireList}, Cmd.none
-<<<<<<< Updated upstream
-    | _ -> failwithf "Not implemented - BusWire update"
-=======
     | Dragging (rank, pagePos) ->
         let updatePorts pType xy mainS no= 
             if pType = "Input" then
@@ -391,7 +366,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let dSymbols = 
             model.WX
             |> List.map (fun wir -> (List.tryFind (fun k -> k = wir.Id) rank) |> function |Some a -> newSym wir |None -> wir) //if wire Id is same as the rank -> change the pos of the wire.
->>>>>>> Stashed changes
 
             
         let updatesBbox =
