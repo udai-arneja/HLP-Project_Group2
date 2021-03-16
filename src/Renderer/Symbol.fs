@@ -264,6 +264,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let remainingSymbols =
             List.filter (fun sym -> sym.IsSelected=true) model.Symbols
         {model with Symbols=remainingSymbols}, Cmd.none
+        //need to do the delete properly
         // let symbolsToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) sIdList |> function |Some a -> false |None -> true) [0..lst]
         // let dSymbols =
         //      symbolsToKeepIndex ((model.Symbols.Length)- 1)
@@ -690,8 +691,8 @@ let renderCustom =
                                                                      | CommonTypes.Custom customSymbol -> fst customSymbol.InputLabels.[int num]
                                                                      | _ -> failwithf "Not Implemented - Custom Component, Symbol line 678"))
                            else if inOrOutText = 70. then str <| (string (match (props.Custom.Type) with
-                                                                     | CommonTypes.Custom customSymbol -> fst customSymbol.OutputLabels.[int num]
-                                                                     | _ -> failwithf "Not Implemented - Custom Component, Symbol line 678"))]
+                                                                          | CommonTypes.Custom customSymbol -> fst customSymbol.OutputLabels.[int num]
+                                                                          | _ -> failwithf "Not Implemented - Custom Component, Symbol line 678"))]
                     ]
                 let slideRect =
                     let portList =

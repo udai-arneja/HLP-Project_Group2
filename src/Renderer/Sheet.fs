@@ -44,11 +44,10 @@ let zoom = 1.0
 
 //display
 
-let hovering (symId: Symbol.Symbol list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
-let toggleSelect (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
-let updateBBoxes (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
-// let hovering (symId: CommonTypes.Component list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
-let showValidPorts (testtype, portId, mousePos) = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol [0]))
+let hovering (symId: Symbol.Symbol list) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
+let toggleSelect (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
+let updateBBoxes (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
+let showValidPorts (testtype, portId, mousePos) = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
     let sizeInPixels = sprintf "%.2fpx" ((1000. * zoom))
@@ -231,7 +230,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         | Drag -> match model.MultiSelectBox with 
                   |(true, p1, p2) -> {model with IsSelecting = ([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
-                  | _ -> {model with LastOp = Drag}, Cmd.ofMsg (BusWire.Symbol Dragging model.IsSelecting) //send to symbol to move symbols lol
+                  | _ -> {model with LastOp = Drag}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging (fst model.IsSelecting,mousePos))) //send to symbol to move symbols lol
 
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
@@ -250,32 +249,33 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none // do nothing else and return model unchanged
 
     | KeyPress CtrlS -> // add symbol and create a restore point
-        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol({X=10.; Y=10.}, 1, 1))) model.Wire 
-        {model with Wire = wModel; IsDropping = 1; Restore = model.Wire}, Cmd.map Wire wCmd
+        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ({X=10.; Y=10.}, 1, 1, CommonTypes.Nor))) model.Wire 
+        {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
     
     |KeyPress DEL -> 
-        let sModel, sCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.DeleteSymbol symList)) model.Wire
-        let newWSelectList = 
-            if symList <> [] //if symbols have been selected then check whether wires connected also have to be deleted
-            then
-                let srcPorts = List.map (fun (x:BusWire.Wire) -> x.SrcPort) model.Wire.WX //take all the inputports ids from wires
-                let tgtPorts = List.map (fun (x:BusWire.Wire) -> x.TargetPort) model.Wire.WX //take all the outputports ids from wires
-                let symbolsList = 
-                    List.map (fun x -> List.item x model.Wire.Symbol.Symbols) symList //collect all the selected symbols
-                let selectedSymbolInputs = //check if portids in the wires and selected symbols match for input ports -> if so then take the index of the wire 
-                    symbolsList
-                    |> List.map (fun (x:Symbol.Symbol) -> List.collect (fun (y:CommonTypes.Port) -> [y.Id]) x.InputPorts)
-                    |> List.collect (fun lst -> List.collect (fun y -> List.tryFindIndex (fun s -> s = y) srcPorts |> function |Some a -> [a] |None -> []) lst) 
-                let selectedSymbolOutputs= //check if portids in the wires and selected symbols match for output ports -> if so then take the index of the wire 
-                    symbolsList
-                    |> List.map (fun (x:Symbol.Symbol) -> List.collect (fun (y:CommonTypes.Port) -> [y.Id]) x.OutputPorts) 
-                    |> List.collect (fun lst -> List.collect (fun y -> List.tryFindIndex (fun s -> s = y) tgtPorts |> function |Some a -> [a] |None -> []) lst) 
-                let inPlusOut = List.fold (fun acc w -> selectAlready 0 acc w) selectedSymbolInputs selectedSymbolOutputs //check whether the wires have already been selected 
-                List.fold (fun acc w -> selectAlready 0 acc w) inPlusOut wireList
-            else 
-                wireList
-        let wModel, wCmd = BusWire.update (BusWire.DeleteWire newWSelectList) sModel
-        {model with Wire = wModel; IsSelecting = ([],[]); Restore = model.Wire}, Cmd.map Wire wCmd //update model and reset selecting 
+        // let sModel, sCmd = BusWire.update (BusWire.Symbol (Symbol.DeleteSymbol)) model.Wire
+        // let newWSelectList = 
+        //     if symList <> [] //if symbols have been selected then check whether wires connected also have to be deleted
+        //     then
+        //         let srcPorts = List.map (fun (x:BusWire.Wire) -> x.SrcPort) model.Wire.WX //take all the inputports ids from wires
+        //         let tgtPorts = List.map (fun (x:BusWire.Wire) -> x.TargetPort) model.Wire.WX //take all the outputports ids from wires
+        //         let symbolsList = 
+        //             List.map (fun x -> List.item x model.Wire.Symbol.Symbols) symList //collect all the selected symbols
+        //         let selectedSymbolInputs = //check if portids in the wires and selected symbols match for input ports -> if so then take the index of the wire 
+        //             symbolsList
+        //             |> List.map (fun (x:Symbol.Symbol) -> List.collect (fun (y:CommonTypes.Port) -> [y.Id]) x.InputPorts)
+        //             |> List.collect (fun lst -> List.collect (fun y -> List.tryFindIndex (fun s -> s = y) srcPorts |> function |Some a -> [a] |None -> []) lst) 
+        //         let selectedSymbolOutputs= //check if portids in the wires and selected symbols match for output ports -> if so then take the index of the wire 
+        //             symbolsList
+        //             |> List.map (fun (x:Symbol.Symbol) -> List.collect (fun (y:CommonTypes.Port) -> [y.Id]) x.OutputPorts) 
+        //             |> List.collect (fun lst -> List.collect (fun y -> List.tryFindIndex (fun s -> s = y) tgtPorts |> function |Some a -> [a] |None -> []) lst) 
+        //         let inPlusOut = List.fold (fun acc w -> selectAlready 0 acc w) selectedSymbolInputs selectedSymbolOutputs //check whether the wires have already been selected 
+        //         List.fold (fun acc w -> selectAlready 0 acc w) inPlusOut wireList
+        //     else 
+        //         wireList
+        // let wModel, wCmd = BusWire.update (BusWire.DeleteWire newWSelectList) sModel
+        // {model with Wire = wModel; IsSelecting = ([],[]); Restore = model.Wire}, Cmd.map Wire wCmd //update model and reset selecting 
+        model, Cmd.none
     
     | KeyPress AltZ -> {model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); Restore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});
