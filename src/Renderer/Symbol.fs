@@ -1,4 +1,4 @@
-module Symbol
+ module Symbol
 open Fable.React
 open Fable.React.Props
 open Browser
@@ -22,7 +22,6 @@ type Symbol =
         IsDragging : bool
         Id : CommonTypes.ComponentId
         Type : CommonTypes.ComponentType
-        //Type2: CommonTypes.CustomComponentType
         InputPorts : CommonTypes.Port list
         OutputPorts : CommonTypes.Port list
         Pos: XYPos
@@ -36,6 +35,7 @@ type Symbol =
 type Model = {
     Symbols: Symbol list
     SymBBoxes: (XYPos*XYPos)  List
+    DragMultipleOrSingle: bool * XYPos
     }
 
 
@@ -49,21 +49,22 @@ type Msg =
     /// Mouse info with coords adjusted form top-level zoom
     | MouseMsg of MouseT
     /// coords not adjusted for top-level zoom
-    | StartDragging of sId : CommonTypes.ComponentId * pagePos: XYPos
+    //| StartDragging of sId : CommonTypes.ComponentId * pagePos: XYPos
     /// coords not adjusted for top-level zoom
     //| Dragging of sId : CommonTypes.ComponentId * pagePos: XYPos
-    | Dragging of sId : CommonTypes.ComponentId  * pagePos: XYPos
-    | DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
-    | EndDragging of sId : CommonTypes.ComponentId
-    | EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
-    | AddSymbol of pos: XYPos * inputs: int * outputs: int * comp: CommonTypes.ComponentType// used by demo code to add a circle
+    | Dragging of sId : CommonTypes.ComponentId list * pagePos: XYPos * prevPagePos: XYPos
+    //| DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
+    //| EndDragging of sId : CommonTypes.ComponentId
+    //| EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
+    | AddSymbol of inputs: int list * outputs: int list * comp: CommonTypes.ComponentType// used by demo code to add a circle
     | DeleteSymbol
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
-    | SelectSymbol of int list
-    | ShowPorts of int list
-    | ShowValidPorts of string*string*XYPos
-
-
+    | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
+    | Hovering of portSymbol:CommonTypes.ComponentId list
+    | ShowValidPorts of inOut:string* portId:string * mousePos:XYPos
+    | UpdateBBoxes of CommonTypes.ComponentId list
+    | SelectSymbol of Symbol list
+    
 //---------------------------------helper types and functions----------------//
 
 
@@ -81,7 +82,7 @@ let posOf x y = {X=x;Y=y}
 //-----------------------------Skeleton Model Type for symbols----------------//
 
 
-let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int): CommonTypes.Port =
+let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(width:int): CommonTypes.Port =
     let portPos =
         if portType = CommonTypes.Input then {X=comp.Pos.X;Y=(comp.Pos.Y+65.+(float portNumber)*40.)}
         else {X=(comp.Pos.X+comp.W-10.);Y=(comp.Pos.Y+65.+(float portNumber)*40.)}
@@ -91,6 +92,7 @@ let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int):
         CommonTypes.Port.PortType = portType
         CommonTypes.Port.HostId = string(comp.Id)
         CommonTypes.Port.PortPos = portPos
+        CommonTypes.Port.BusWidth = width
     }
 
 //-----------------------Skeleton Message type for symbols---------------------//
@@ -98,7 +100,7 @@ let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int):
 /// Symbol creation: a unique Id is given to the symbol, found from uuid.
 /// The parameters of this function must be enough to specify the symbol completely
 /// in its initial form. This is called by the AddSymbol message and need not be exposed.
-let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTypes.ComponentType)= //could match comp for symbols of different heights and widths
+let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) = //could match comp for symbols of different heights and widths
     //match comp with
     //| Not | And | Or | Xor | Nand | Nor | Xnor ->
     let mainSymbol = {
@@ -108,8 +110,8 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
                 Type = comp
                 InputPorts = []
                 OutputPorts = []
-                Pos = start
-                H = 65. + float (max inputno outputno)*40.
+                Pos = {X=10.;Y=10.}
+                H = 65. + float (max (List.length inputs) (List.length outputs))*40.
                 W = 100.
                 IsSelected = false
                 PortStatus = "invisible"
@@ -130,13 +132,13 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
                 //PortStatus = "invisible"
                 //IsSliding = (false, "input" , 0, {X=0.; Y=0.})
               //}
-    let InputPortsList = List.map (fun index -> createportlist mainSymbol CommonTypes.PortType.Input index) [0..(inputno-1)]
-    let OutputPortsList = List.map (fun index -> createportlist mainSymbol CommonTypes.PortType.Output index) [0..(outputno-1)]
+    let InputPortsList = List.mapi (fun index width -> createportlist mainSymbol CommonTypes.PortType.Input index width) inputs
+    let OutputPortsList = List.mapi (fun index width -> createportlist mainSymbol CommonTypes.PortType.Output index width) outputs
     {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
 
 
-let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
-    ({X=start.X-10.;Y=start.Y-10.},{X=75.+float(max inputno outputno)*40.;Y=75.+float (max inputno outputno)*40.})
+let createNewBoundingBox (inputs: int list) (outputs: int list)=
+    ({X=0.;Y=0.},{X=75.+float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
     // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
 
 let portmove portId inputYes model =
@@ -155,77 +157,86 @@ let portmove portId inputYes model =
     (symbolReturn, portReturn, portNumber)
 
 let init() =
-    {Symbols=[]; SymBBoxes =[]}, Cmd.none
+    {Symbols=[]; SymBBoxes =[]; DragMultipleOrSingle = (false, {X=0.; Y=0.})}, Cmd.none
 
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
-    | AddSymbol(pos, inputno, outputno, comp) ->
-        let newSymbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols)
-        let newSymbolsBoundingBoxes = List.rev (createNewBoundingBox pos inputno outputno :: model.SymBBoxes)
+    | AddSymbol(inputno, outputno, compType) ->
+        let newSymbols = List.rev (createNewSymbol inputno outputno compType :: model.Symbols)
+        let newSymbolsBoundingBoxes = List.rev (createNewBoundingBox inputno outputno :: model.SymBBoxes)
         {model with Symbols=newSymbols; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
-    | StartDragging (sId, pagePos) ->
-        let sdSymbols =
-            model.Symbols
-            |> List.map (fun sym ->
-                if sId <> sym.Id then
-                    sym
-                else
-                    {sym with
-                        LastDragPos = pagePos
-                        IsDragging = true
-                    }
-            )
-        {model with Symbols = sdSymbols}, Cmd.none
+    //| StartDragging (sId, pagePos) ->
+    //    let sdSymbols =
+    //        model.Symbols
+    //        |> List.map (fun sym ->
+    //            if sId <> sym.Id then
+    //                sym
+    //            else
+    //                {sym with
+    //                    LastDragPos = pagePos
+    //                    IsDragging = true
+    //                }
+    //        )
+    //    {model with Symbols = sdSymbols}, Cmd.none
 
-    | Dragging (rank, pagePos) ->
-        let updatePorts pType xy mainS no=
-            if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
-            else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
-        let dSymbols =
+    | Dragging (sId, pagePos, prevPagePos) ->
+        //let updatePorts pType xy mainS no=
+        //    if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
+        //    else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
+        let singleOrMultipleDragBool =
+            model.Symbols 
+            |> List.exists (fun sym -> sId = [sym.Id] && sym.IsSelected = false)
+
+        let diff = posDiff pagePos prevPagePos
+
+        let dSymbols=
+            let symFunction newSym= if singleOrMultipleDragBool = true then newSym.selected = false else sId <> newSym.Id
             model.Symbols
             |> List.map (fun sym ->
-                if rank <> sym.Id then
+                if symFunction sym = false then
                     sym
-                else
-                    let diff = posDiff pagePos sym.LastDragPos
+                else //check whether symbol is selected
                     { sym with
                         Pos = posAdd sym.Pos diff
                         LastDragPos = pagePos
-                        InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-                        OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
+                        InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
+                        OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
                     }
-            )
+            )  
 
-        //this is going to be a separate function that will be called by Sheet:
+        
+        {model with Symbols = dSymbols; DragMultipleOrSingle = singleOrMultipleDragBool, diff }, Cmd.none  
 
-        // let updateSymBBoxesox =
-        //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Symbols
-        //     let updateBBox index boxList =
-        //         let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-        //         let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2
-        //         if index = indexforBbox
-        //         then [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H]
-        //         else boxList
-        //     List.mapi (fun i p -> updateBBox i p) model.SymBBoxes
+             //; SymBBoxes = updateSymBBoxesox
+    
+    | UpdateBBoxes (sId) ->
+        let (mulitpleDragBool , diff) = model.DragMultipleOrSingle
+        let symbols, newBox =
+            if mulitpleDragBool = true then  
+                List.map2 (fun sym box -> if sId <> [sym.Id] then (sym, box) else (sym , (posAdd (fst box) , posAdd (snd box) diff)) model.Symbols model.SymBBoxes)
+                |> List.unzip
+            else
+                List.map2 (fun sym box -> if sym.IsSelected = false then (sym, box) else (sym, (posAdd (fst box) diff, posAdd (snd box) diff)) model.Symbols model.SymBBoxes)
+                |> List.unzip
+                        
+        {model with SymBBoxes = symbols}, Cmd.none 
 
-        {model with Symbols = dSymbols}, Cmd.none       //; SymBBoxes = updateSymBBoxesox
-
-    | DraggingList (rank, pagePos, prevPagePos) ->
-        let updatePorts pType xy mainS no=
-            if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
-            else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
-        let newSym sym =
-            let diff = posDiff pagePos prevPagePos
-            { sym with
-                Pos = posAdd sym.Pos diff
-                LastDragPos = pagePos
-                InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-                OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
-            }
-        let dSymbols =
-            model.Symbols
-            |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) rank) |> function |Some a -> newSym sym |None -> sym)
+    //| DraggingList (rank, pagePos, prevPagePos) ->
+    //    let updatePorts pType xy mainS no=
+    //        if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
+    //        else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
+    //    let newSym sym =
+    //        let diff = posDiff pagePos prevPagePos
+    //        { sym with
+    //            Pos = posAdd sym.Pos diff
+    //            LastDragPos = pagePos
+    //            InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
+    //            OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
+    //        }
+    //    let dSymbols =
+    //        model.Symbols
+    //        |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) rank) |> function |Some a -> newSym sym |None -> sym)
 
 
         //this is going to be a separate function that will be called by Sheet:
@@ -239,7 +250,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         //         |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] |None -> boxList
         //     List.mapi (fun i p -> updateBBox i p) model.SymBBoxes
 
-        {model with Symbols = dSymbols}, Cmd.none           //; SymBBoxes = updateSymBBoxesox
+        //{model with Symbols = dSymbols}, Cmd.none           //; SymBBoxes = updateSymBBoxesox
 
     | EndDragging sId ->
         let edSymbols =
@@ -314,6 +325,169 @@ type Gates = //one for each unique shape
 type Mux =
     | Mux2
     | Demux2
+
+type private RenderSymbolProps =
+    {
+        Symb : Symbol // name works for the demo!
+        Dispatch : Dispatch<Msg>
+        key: string // special field used by react to detect whether lists have changed, set to symbol Id
+        Comp : CommonTypes.ComponentType
+    }
+
+let private RenderSymbol (comp: CommonTypes.ComponentType)=
+    match comp with
+    | Not | And | Or | Xor | Nand | Nor | Xnor->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+                let handleMouseMove =
+                    Hooks.useRef(fun (ev : Types.Event) ->
+                        let ev = ev :?> Types.MouseEvent
+                        // x,y coordinates here do not compensate for transform in Sheet
+                        // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
+                        Dragging(props.Symb.Id, posOf ev.pageX ev.pageY)
+                        |> props.Dispatch
+                    )
+                let color =
+                    if props.Symb.IsDragging && not props.Symb.IsSelected then
+                        "lightblue"
+                    else if props.Symb.IsSelected then
+                        "red"
+                    else
+                        "grey"
+
+                let outputText inOrOutText portStat num = 
+                    let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Symb.IsSliding
+                    let textSection =
+                        [
+                            text [ 
+                                X (props.Symb.Pos.X + inOrOutText)
+                                Y (props.Symb.Pos.Y + props.Symb.H);
+                                Style [
+                                    TextAnchor "right" // left/right/middle: horizontal algnment vs (X,Y)
+                                    DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
+                                    FontSize "20px"
+                                    FontWeight "Bold"
+                                    Fill "Black" // demo font color
+
+                                ]
+                            ] [str <| string num]
+                        ]
+                    let slideRect =
+                        let portList =
+                            if IO = "input" then props.Symb.InputPorts.[(int num)].PortPos 
+                            else props.Symb.OutputPorts.[(int num)].PortPos
+                        [
+                            rect [
+                                  X (xSlide)
+                                  Y (ySlide)
+                                  SVGAttr.Width 10.
+                                  SVGAttr.Height 10.
+                                  SVGAttr.Fill "black"
+                                  SVGAttr.Stroke "black"
+                                  SVGAttr.StrokeWidth 1
+                              ][]
+                            line [
+                                X1 portList.X
+                                Y1 portList.Y //(snd portList)
+                                X2 xSlide
+                                Y2 ySlide
+                                SVGAttr.StrokeDasharray "4"
+                                // Qualify these props to avoid name collision with CSSProp
+                                SVGAttr.Stroke "black"
+                                SVGAttr.StrokeWidth 5 ] []
+                        ]
+
+                    let inPorts = 
+                        [
+                          circle [
+                                Cx props.Gate.InputPorts.[int num].PortPos.X
+                                Cy props.Gate.InputPorts.[int num].PortPos.Y
+                                SVGAttr.R 10.
+                                SVGAttr.Fill "black"
+                                SVGAttr.Stroke "black"
+                                SVGAttr.StrokeWidth 1
+                            ][]
+                        ]
+                    let outPorts=
+                        [
+                            circle [
+                                Cx props.Gate.OutputPorts.[int num].PortPos.X    //(fst props.Gate.OutputPorts.[int num].PortPos)
+                                Cy props.Gate.OutputPorts.[int num].PortPos.Y   //(snd props.Gate.OutputPorts.[int num].PortPos)
+                                SVGAttr.R 10.
+                                SVGAttr.Height 10.
+                                SVGAttr.Fill "black"
+                                SVGAttr.Stroke "black"
+                                SVGAttr.StrokeWidth 1
+                            ][]
+                        ]
+
+                    let portSection =
+                        match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
+                        |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
+                        |("visible", 70., _, _, _ ) -> outPorts
+                        | ("input", 70.,false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs  
+                        |("output", 20., false,_,_ ) -> inPorts
+                        |(_, 70., true, slidePortNum, "output") -> slideRect // for valid ports but the port that slides for a sliding output 
+                        |(_, 20., true, slidePortNum, "input") -> slideRect // for valid ports but the port that slides 
+                        |(_, 20., true, slidePortNum, "output") -> inPorts
+                        |(_, 70., true, slidePortNum, "input") -> outPorts
+                        |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides 
+                        |("output", 20., true,_,_ ) -> inPorts
+                        |_ -> []
+                   
+                    match portStat with 
+                    |"invisible" -> [textSection]
+                    |_ -> [textSection; portSection]
+
+                let initialoutline = 
+                    [
+                        rect
+                            [ 
+                                OnMouseUp (fun ev -> 
+                                    document.removeEventListener("mousemove", handleMouseMove.current)
+                                    EndDragging props.Gate.Id
+                                    |> props.Dispatch
+                                )
+                                OnMouseDown (fun ev -> 
+                                    // See note above re coords wrong if zoom <> 1.0
+                                    StartDragging (props.Gate.Id, posOf ev.pageX ev.pageY)
+                                    |> props.Dispatch
+                                    document.addEventListener("mousemove", handleMouseMove.current)
+                                )
+                                X props.Gate.Pos.X
+                                Y props.Gate.Pos.Y
+                                SVGAttr.Width props.Gate.W
+                                SVGAttr.Height props.Gate.H
+                                SVGAttr.Fill color
+                                SVGAttr.Stroke color
+                                SVGAttr.StrokeWidth 1
+                            ][]
+
+                        text [ // a demo text svg element
+                                X (props.Gate.Pos.X + 30.); 
+                                Y (props.Gate.Pos.Y + 10.); 
+                                Style [
+                                    TextAnchor "middle" // left/right/middle: horizontal algnment vs (X,Y)
+                                    DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
+                                    FontSize "30px"
+                                    FontWeight "Bold"
+                                    Fill "Black" // demo font color
+                                ]
+                             ] [str <| sprintf "Not"]   
+                    ]
+                let reactElementList = 
+                    List.map (outputText 70. props.Gate.PortStatus) [(0.)..(float (props.Gate.OutputPorts.Length-1))]
+                    |> List.append (List.map (outputText 20. props.Gate.PortStatus) [(0.)..(float (props.Gate.InputPorts.Length-1))])
+                    |> List.collect (fun x -> x)
+                    |> List.collect (fun x->x)
+                    |>List.append initialoutline
+                g   [ Style [ 
+                        ]
+                    ] (reactElementList)
+        , "Gate"
+        , equalsButFunctions
+        )               
+
 
 type RenderGateProps=
     {

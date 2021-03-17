@@ -123,7 +123,7 @@ let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list 
                                     else None
     let symbolscontained =
         List.mapi overlap model.Wire.Symbol.SymBBoxes
-        |> List.map (fun optionindex -> match optionindex with
+        |> List.map (fun indexOption -> match indexOption with
                                         | Some index -> Some (model.Wire.Symbol.Symbols.[index].Id)
                                         | None ->  None)
         |> List.choose (fun x-> x )
@@ -261,14 +261,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         | Drag -> match model.MultiSelectBox with 
                   |(true, p1, p2) -> {model with IsSelecting = ([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
-                  | _ -> {model with LastOp = Drag}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting).[0],mousePos))) //send to symbol to move symbols lol
+                  |(false, p1, prevPos) -> {model with LastOp = Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
 
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp = Move}, Cmd.ofMsg (hovering [symbol])
                                   | _ -> {model with LastOp = Move}, Cmd.none
                   |(None,Some portId) -> {model with LastOp=Move}, Cmd.ofMsg (showValidPorts ("Input", portId, mousePos))
-                  |(Some portId,None) -> {model with LastOp=Move}, Cmd.ofMsg (showValidPorts ("Ourput", portId, mousePos))
+                  |(Some portId,None) -> {model with LastOp=Move}, Cmd.ofMsg (showValidPorts ("Output", portId, mousePos))
                   | _ -> failwithf "Not implemented - Move Sheet Update function ~ 253" 
 
     |Wire wMsg -> 

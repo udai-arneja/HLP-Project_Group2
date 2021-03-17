@@ -17,10 +17,16 @@ open Helpers
 /// for demo only. The real wires will
 /// connect to Ports - not symbols, where each symbol has
 /// a number of ports (see Issie Component and Port types) and have
-/// extra information for highlighting, width, etc.
+/// extra informion for highlighting, width, etc.
 /// NB - how you define Ports for drawing - whether they correspond to
-/// a separate datatype and Id, or whether port offsets from
+/// a separadatatype and Id or whether port offsets from
 /// component coordinates are held in some other way, is up to groups.
+// type HighlightWire = 
+//     | Wrong of CommonTypes.Red
+//     | Fine of CommonTypes.Black
+//     | Hovering of CommonTypes.Blue
+//     | Selecting of CommonTypes.Green
+
 type Wire = {
     Id: CommonTypes.ConnectionId 
     SrcSymbol: CommonTypes.ComponentId // source symbol
@@ -29,6 +35,7 @@ type Wire = {
     TargetPort: CommonTypes.Port
     Vertices: XYPos List
     Highlighted: bool
+    Selected: bool
     BusWidth: int
     IsDragging : bool
     LastDragPos : XYPos List   
@@ -52,9 +59,9 @@ type Msg =
     | Symbol of Symbol.Msg
     | AddWire of (CommonTypes.Port * CommonTypes.Port)
     | SetColor of CommonTypes.HighLightColor
-    | DeleteWire of int list
+    | DeleteWire
     | MouseMsg of MouseT
-    | HighlightSingleWire of int list
+    | SelectWire of (Symbol.Symbol list * Wire list)
     | Dragging of wId : CommonTypes.ComponentId  * pagePos: XYPos
     | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     | EndDragging of wId : CommonTypes.ComponentId
@@ -68,10 +75,14 @@ type WireRenderProps = {
     SrcP: XYPos 
     TgtP: XYPos
     Vertices: XYPos list
-    Highlighted : bool
+    Selected : bool
+    Highlighted: bool
     BusWidth: int 
     ColorP: string
-    StrokeWidthP: string }
+    StrokeWidthP: string 
+    IsDragging : bool
+    LastDragPos : XYPos List   
+}
 
 let posDiff (a:XYPos) (b:XYPos) =
     {X=a.X-b.X; Y=a.Y-b.Y}
@@ -138,7 +149,7 @@ let wireBoundingBoxes (verticesList: XYPos list) =
 
 
 /// singleWireView maps the list of vertices to a list of segments, then draws each individual line by passing in the XY positions to singularLine.
-/// We are able to view the wire through this function, as well as the bus width legend, and a change in colour if highlighted, or if the wire has 
+/// We are able to view the wire through this function, as well as the bus width legend, and a change in colour if Selected, or if the wire has 
 /// a larger bus width. 
 let singleWireView = 
     FunctionComponent.Of(
@@ -155,7 +166,7 @@ let singleWireView =
                     Y2 snd.Y 
                     
                     
-                    SVGAttr.Stroke props.ColorP //(if props.BusWidth = 1 then props.ColorP elif props.Highlighted = true then "yellow" else "darkorchid")
+                    SVGAttr.Stroke props.ColorP //(if props.BusWidth = 1 then props.ColorP elif props.Selected = true then "yellow" else "darkorchid")
                     SVGAttr.StrokeWidth (if props.BusWidth = 1 then props.StrokeWidthP else "5px")
                     SVGAttr.StrokeLinecap "round"  ] []
 
@@ -200,22 +211,26 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
             let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
             let vertex = newWireRoute final start
             let BusWidth = w.BusWidth
-            let Highlighted = w.Highlighted
-            let wireColour = match (BusWidth, Highlighted) with 
-                             | (_, true) -> "yellow"
-                             | (1, false) -> "red"
-                             | (_, _) -> "darkorchid"
+            let Selected = w.Selected
+            let Highlighted = w.Highlighted 
+            let wireColour = match (BusWidth, Highlighted, Selected) with 
+                             | (_, _, true) -> "yellow"
+                             | (_, true, false) -> "red"
+                             | (_,_, _) -> "darkorchid"
             let props = {
                 key = w.Id
                 WireP = w
-                Highlighted= w.Highlighted
+                Selected= w.Selected
                 BusWidth = w.BusWidth
                 SrcP = start 
                 TgtP = final 
                 Vertices = vertex
                 //ColorP = model.Color.Text()
                 ColorP = wireColour
-                StrokeWidthP = "2px" }
+                StrokeWidthP = "2px"
+                Highlighted = w.Highlighted
+                IsDragging = false 
+                LastDragPos = vertex  }
             singleWireView props) // pass in the props for this given wire into singleWireView
     let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg)) 
     g [] [(g [] wires); symbols] // displaying the wires and symbols 
@@ -225,21 +240,38 @@ let createNewBB outp inp=
     wireBoundingBoxes (newWireRoute (inp) (outp))
 
 /// A function which creates a new wire. This is called from the AddWire message in the update function. 
-let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (busWidth: int) (model:Model) : Wire =
-    let wireId = CommonTypes.ConnectionId (Helpers.uuid())
-
-    {
-        SrcSymbol = CommonTypes.ComponentId (Helpers.uuid()) 
-        TargetSymbol = CommonTypes.ComponentId (Helpers.uuid())
-        Id = wireId 
-        SrcPort = sourcePort
-        TargetPort = targetPort
-        Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
-        Highlighted = false
-        BusWidth = busWidth
-        IsDragging = false
-        LastDragPos = newWireRoute targetPort.PortPos sourcePort.PortPos
-    }
+let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (model:Model) : Wire =
+    if sourcePort.BusWidth <> targetPort.BusWidth
+    then 
+        let wireId = CommonTypes.ConnectionId (Helpers.uuid())
+        {
+            SrcSymbol = CommonTypes.ComponentId (Helpers.uuid()) 
+            TargetSymbol = CommonTypes.ComponentId (Helpers.uuid())
+            Id = wireId 
+            SrcPort = sourcePort
+            TargetPort = targetPort
+            Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
+            Selected = false
+            BusWidth = 1                                                            //need to set this to something
+            Highlighted = true                                                            
+            IsDragging = false
+            LastDragPos = newWireRoute targetPort.PortPos sourcePort.PortPos
+        }
+    else 
+        let wireId = CommonTypes.ConnectionId (Helpers.uuid())
+        {
+            SrcSymbol = CommonTypes.ComponentId (Helpers.uuid()) 
+            TargetSymbol = CommonTypes.ComponentId (Helpers.uuid())
+            Id = wireId 
+            SrcPort = sourcePort
+            TargetPort = targetPort
+            Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
+            Selected = false
+            BusWidth = sourcePort.BusWidth
+            IsDragging = false
+            LastDragPos = newWireRoute targetPort.PortPos sourcePort.PortPos
+            Highlighted = false
+        }
 
 
 
@@ -251,23 +283,23 @@ let isEven (segId: int) : Option<bool> =
     | 3 -> Some false
     | _ -> None
 
-let evenChange (currPos: XYPos) (MPos: XYPos): XYPos =
-    {currPos with Y = MPos.Y}
-let oddChange (currPos: XYPos) (MPos: XYPos): XYPos =
-    {currPos with X = MPos.X}
+let evenChange (currPos: XYPos) (mPos: XYPos): XYPos =
+    {currPos with Y = mPos.Y}
+let oddChange (currPos: XYPos) (mPos: XYPos): XYPos =
+    {currPos with X = mPos.X}
 
-let updateVertices (segId: int) (wir: Wire) (MPos: XYPos) : XYPos list = 
+let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list = 
     //let noOfSeg = List.length wir.Vertices
     
     let trueList idx = 
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then evenChange v MPos else v)  
+        |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then evenChange v mPos else v)  
 
     let falseList idx = 
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then oddChange v MPos else v)
+        |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then oddChange v mPos else v)
     
     
     match isEven(segId) with 
@@ -284,42 +316,51 @@ let init () =
 
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
-
-              //|> tupleToXYPo
     match msg with
     | Symbol sMsg -> 
+        //cmoe back to this - moving the symbol and its effect on wires
         let newBB = 
             List.map (fun w -> wireBoundingBoxes (newWireRoute w.TargetPort.PortPos w.SrcPort.PortPos)) model.WX
         let sm,sCmd = Symbol.update sMsg model.Symbol 
-        {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd 
-    | AddWire (inp,outp) -> 
-        let addNewWire = createNewWire inp outp 1 model:: model.WX
-        let addNewWireBB = createNewBB inp.PortPos outp.PortPos:: model.wBB
+        {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd
+
+    | AddWire (inputPort,outputPort) -> 
+        //
+        let addNewWire = (createNewWire inputPort outputPort model):: model.WX
+        let addNewWireBB = (createNewBB inputPort.PortPos outputPort.PortPos):: model.wBB
         {model with WX=addNewWire; wBB=addNewWireBB}, Cmd.none
+
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
-    | DeleteWire (wIdList) ->
-        let wiresToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) wIdList |> function |Some a -> false |None -> true) [0..lst]
-        let dWires = 
-             wiresToKeepIndex ((model.WX.Length)- 1)
-             |> List.map (fun i -> model.WX.[i]) // (fun index value ->  List.tryFind (fun x -> x = index) sIdList |> function |Some a -> [] |None -> [value]) 
-        let dBbox =
-            wiresToKeepIndex ((model.wBB.Length)- 1)
-            |> List.map (fun i -> model.wBB.[i])
+
+    | DeleteWire ->
+        let selectedList = 
+            let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBox= 
+                if wireTest.Selected = true
+                then (wireTest::wiresList,boundingBox::bBoxesList)
+                else (wiresList, bBoxesList)
+            List.fold2 checkWire ([],[]) model.WX model.wBB
+        let dWires = fst selectedList
+        let dBbox = snd selectedList
         {model with WX = dWires; wBB = dBbox}, Cmd.none
-    | HighlightSingleWire (intv) -> // for now, my highlightSingleWire acts as a selectwire. 
+
+    | SelectWire (symToSel, wiresToSel) ->
+        // let selectedWireList =
+        //     let defaultList = List.map (fun (x:Wire) -> {x with Selected = false}) model.WX
+        //     let checker x =
+        //         let outcome = 
+        //             List.tryFind (fun w -> w = x) wireList
+        //         match outcome with 
+        //             |Some a -> {defaultList.[x] with Selected = true}
+        //             |None -> {defaultList.[x] with Selected = false}
         
-        let selectedWireList =
-            let defaultList = List.map (fun (x:Wire) -> {x with Highlighted = false}) model.WX
-            let checker x =
-                let outcome = 
-                    List.tryFind (fun w -> w = x) intv
-                match outcome with 
-                    |Some a -> {defaultList.[x] with Highlighted = true}
-                    |None -> {defaultList.[x] with Highlighted = false}
-        
-            [0..(defaultList.Length-1)]
-            |> List.map checker
-        {model with WX = selectedWireList}, Cmd.none
+        //     [0..(defaultList.Length-1)]
+        //     |> List.map checker
+        let makeWiresSelected = List.map (fun (wire:Wire) -> {wire with Selected = true}) wiresToSel
+        let selectWires = 
+            List.map (fun (wire:Wire) -> if List.contains wire wiresToSel
+                                         then {wire with Selected=true}
+                                         else {wire with Selected=false} ) model.WX
+        {model with WX=selectWires}, Cmd.ofMsg (Symbol (Symbol.SelectSymbol symToSel))
     | Dragging (rank, pagePos) ->
         let updatePorts pType xy mainS no= 
             if pType = "Input" then
