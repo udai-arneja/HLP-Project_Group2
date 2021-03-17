@@ -12,7 +12,7 @@ open Helpers
 type Model = {
     Wire: BusWire.Model
     IsWiring: (Option<CommonTypes.Port> * Option<CommonTypes.Port>)   //Input/Output * (portId * portId)       //do we need null for the first one - so does it need to be an option
-    IsSelecting: CommonTypes.ComponentId list * CommonTypes.ConnectionId list        //Symbols * Wires
+    IsSelecting: CommonTypes.ComponentId list * (BusWire.Wire * int) list        //Symbols * Wires
     IsDropping: bool
     IsDraggingList: int * XYPos
     MultiSelectBox: bool * XYPos * XYPos  //boxOrWire,startPos, endPos multi-select box
@@ -127,15 +127,16 @@ let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list 
                                         | Some index -> Some (model.Wire.Symbol.Symbols.[index].Id)
                                         | None ->  None)
         |> List.choose (fun x-> x )
-    let wirescontained = 
-        List.mapi (fun index segmentsList -> 
-                            List.tryPick (overlap index) segmentsList
-                            ) model.Wire.wBB
-        |> List.map (fun val1 -> match val1 with
-                                 | Some index -> Some (model.Wire.Wires.[index].Id)
-                                 | None ->  None)
-        |> List.choose (fun x->x)
-    (symbolscontained,wirescontained)
+    // FINDING WIRES IN THE MULTI-SELECT BOX - NOT CURRENTLY NEEDED
+    // let wirescontained = 
+    //     List.mapi (fun index segmentsList -> 
+    //                         List.tryPick (overlap index) segmentsList
+    //                         ) model.Wire.wBB
+    //     |> List.map (fun val1 -> match val1 with
+    //                              | Some index -> Some (model.Wire.Wires.[index].Id)
+    //                              | None ->  None)
+    //     |> List.choose (fun x->x)
+    (symbolscontained,[])
     
 
 // let wireInSelBox (wModel:BusWire.Model) startPos finalPos =  //checks if wire bounding box within box 
@@ -175,31 +176,29 @@ let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list 
 //     List.mapi overlap model.Wire.Symbol.SymBBoxes
 //     |> List.choose (fun x->x)
 
-let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : CommonTypes.ConnectionId list = //checks if point is in wire bounding box
-    let isInside bblst wireId= //gives you the wire bb list 
-        let inSeg ind lst = //list of bounding boxes 
-            let (box1, box2) = 
-                match lst,(ind%2) with 
-                |(a,b),1 -> (b,a)
-                |(a,b),0 -> (a,b)
-                | _ -> failwithf "Not Implemented"
-            if (pos.X <= box1.X && pos.X >= box2.X) && (pos.Y <= box2.Y && pos.Y >= box1.Y) then
-                (true, wireId) 
-            else 
-                (false, wireId)            
-        bblst 
-        |> List.mapi (fun i y -> inSeg i y) //
+let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) list = //checks if point is in wire bounding box
+    let isInside bBoxList wire= //gives you the wire bb list 
+        let inSeg indexSeg segment = //list of bounding boxes 
+            let (box1, box2) = match segment,(indexSeg%2) with 
+                               |(a,b),1 -> (b,a)
+                               |(a,b),0 -> (a,b)
+                               | _ -> failwithf "Not Implemented"
+            if (pos.X <= box1.X && pos.X >= box2.X) && (pos.Y <= box2.Y && pos.Y >= box1.Y) 
+            then (true, wire, indexSeg) 
+            else (false, wire, indexSeg)            
+        bBoxList 
+        |> List.mapi (fun indexSeg y -> inSeg indexSeg y)
     
     let vertices = List.map (fun (i:BusWire.Wire) -> i.Vertices) wModel.Wires
-    //need to pattern match every wire
+
     let mapToBB = 
         wModel.wBB 
-        |> List.mapi (fun i w -> isInside w wModel.Wires.[i].Id)
+        |> List.mapi (fun index wireBBoxes -> isInside wireBBoxes wModel.Wires.[index])
         |> List.collect id
-        |> List.filter (fun (x,y) -> x=true) 
+        |> List.filter (fun (x,y,indexSeg) -> x=true) 
 
     match mapToBB with 
-    | [(true, wireId)] -> [wireId]
+    | [(true, wire,indexSeg)] -> [(wire,indexSeg)]
     | _ -> []
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
@@ -248,7 +247,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                  | _ -> {model with IsSelecting = ([sym.Id],[]); LastOp=Down}, Cmd.none
                                  
                        | _ -> match boundingBoxSearchW with 
-                               |[wireId] -> {model with IsSelecting = ([],[wireId]); LastOp=Down}, Cmd.none         //reset wiring to none
+                               |[wireAndSeg] -> {model with IsSelecting = ([],[wireAndSeg]); LastOp=Down}, Cmd.none         //reset wiring to none
                                |_ -> {model with IsSelecting = ([],[]);LastOp=Down;MultiSelectBox=(true,mousePos,mousePos)}, Cmd.ofMsg (toggleSelect([],[]))
                                
         | Up -> match model.LastOp with
@@ -260,8 +259,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | _ -> {model with LastOp=Up}, Cmd.none
 
         | Drag -> match model.MultiSelectBox with 
-                  |(true, p1, p2) -> {model with IsSelecting = ([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
-                  |(false, p1, prevPos) -> {model with LastOp = Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
+                  |(true, p1, p2) -> {model with IsSelecting=([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
+                  |(false, p1, prevPos) -> match model.LastOp with 
+                                           |Down -> {model with LastOp=Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, prevPos, mousePos) ) 
+                                           |Drag -> {model with LastOp=Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, prevPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
 
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
