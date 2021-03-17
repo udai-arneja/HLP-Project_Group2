@@ -63,7 +63,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
             [ 
                 Height "100vh" 
                 MaxWidth "100vw"
-                CSSProp.OverflowX OverflowOptions.Auto 
+                CSSProp.OverfloWires OverflowOptions.Auto 
                 CSSProp.OverflowY OverflowOptions.Auto
             ] 
           OnMouseDown (fun ev -> (mouseOp Down ev))
@@ -132,7 +132,7 @@ let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list 
                             List.tryPick (overlap index) segmentsList
                             ) model.Wire.wBB
         |> List.map (fun val1 -> match val1 with
-                                 | Some index -> Some (model.Wire.WX.[index].Id)
+                                 | Some index -> Some (model.Wire.Wires.[index].Id)
                                  | None ->  None)
         |> List.choose (fun x->x)
     (symbolscontained,wirescontained)
@@ -153,7 +153,7 @@ let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list 
 //         |> List.map (innerLayer {X=1000.;Y=1000.} min)
 //     List.filter (fun a -> maxCoord.[a].X <= finalPos.X &&  maxCoord.[a].Y <= finalPos.Y) [0..(wModel.wBB.Length-1)]
 //     |> List.filter (fun b -> minCoord.[b].X >= startPos.X && minCoord.[b].Y >= startPos.Y)
-//     |> List.map (fun c -> wModel.WX.[c].Id)
+//     |> List.map (fun c -> wModel.Wires.[c].Id)
 
 // let symbInSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) list=     //sc : start corner, ec: end corner
 //     let corners = if sc.X < ec.X     //dragging left to right
@@ -190,11 +190,11 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : CommonTypes.Connectio
         bblst 
         |> List.mapi (fun i y -> inSeg i y) //
     
-    let vertices = List.map (fun (i:BusWire.Wire) -> i.Vertices) wModel.WX
+    let vertices = List.map (fun (i:BusWire.Wire) -> i.Vertices) wModel.Wires
     //need to pattern match every wire
     let mapToBB = 
         wModel.wBB 
-        |> List.mapi (fun i w -> isInside w wModel.WX.[i].Id)
+        |> List.mapi (fun i w -> isInside w wModel.Wires.[i].Id)
         |> List.collect id
         |> List.filter (fun (x,y) -> x=true) 
 
@@ -288,8 +288,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // let newWSelectList = 
         //     if symList <> [] //if symbols have been selected then check whether wires connected also have to be deleted
         //     then
-        //         let srcPorts = List.map (fun (x:BusWire.Wire) -> x.SrcPort) model.Wire.WX //take all the inputports ids from wires
-        //         let tgtPorts = List.map (fun (x:BusWire.Wire) -> x.TargetPort) model.Wire.WX //take all the outputports ids from wires
+        //         let srcPorts = List.map (fun (x:BusWire.Wire) -> x.SrcPort) model.Wire.Wires //take all the inputports ids from wires
+        //         let tgtPorts = List.map (fun (x:BusWire.Wire) -> x.TargetPort) model.Wire.Wires //take all the outputports ids from wires
         //         let symbolsList = 
         //             List.map (fun x -> List.item x model.Wire.Symbol.Symbols) symList //collect all the selected symbols
         //         let selectedSymbolInputs = //check if portids in the wires and selected symbols match for input ports -> if so then take the index of the wire 

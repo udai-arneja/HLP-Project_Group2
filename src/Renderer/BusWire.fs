@@ -43,7 +43,7 @@ type Wire = {
 
 type Model = {
     Symbol: Symbol.Model
-    WX: Wire list
+    Wires: Wire list
     Color: CommonTypes.HighLightColor
     wBB: (XYPos*XYPos) list List
     }
@@ -53,7 +53,7 @@ type Model = {
 /// Messages to update buswire model
 /// These are OK for the demo - but not the correct messages for
 /// a production system. In the real system wires must connection
-/// to ports, not symbols. In addition there will be other changes needed
+/// to ports, not symbols. In addition there will be other chasnges needed
 /// for highlighting, width inference, etc
 type Msg =
     | Symbol of Symbol.Msg
@@ -62,8 +62,8 @@ type Msg =
     | DeleteWire
     | MouseMsg of MouseT
     | SelectWire of (Symbol.Symbol list * Wire list)
-    | Dragging of wId : CommonTypes.ComponentId  * pagePos: XYPos
-    | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
+    | Dragging of wId : CommonTypes.ComponentId  * pagePos: XYPos * prevPagePos: XYPos
+    // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     | EndDragging of wId : CommonTypes.ComponentId
     | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
 
@@ -94,7 +94,7 @@ let posOf x y = {X=x;Y=y}
 
 /// look up wire in WireModel
 let wire (wModel: Model)(wId: CommonTypes.ConnectionId): Option<Wire> =
-    wModel.WX
+    wModel.Wires
     |> List.tryPick (function {Id = wId} as x -> Some x) 
 
 /// newWireRoute calculates the wire route between 2 port positions. It returns a list of XY Positions, which are in the 
@@ -196,7 +196,7 @@ let singleWireView =
 /// function convertIdToXYPos is not my code, but a teammates. 
 let view (model:Model) (dispatch: Dispatch<Msg>)=
     let wires = 
-        model.WX 
+        model.Wires 
         |> List.map (fun w -> 
             let convertIdToXYPos inOut (id:string) = // this function was not written by me, pmc18. This is a helper function from a teammate.
                 match inOut with 
@@ -311,7 +311,7 @@ let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list =
     /// Initialisation function. Begins with no wires, and uses the Symbol model as a base. 
 let init () = 
     let symbols, cmd = Symbol.init()
-    {WX = []; Symbol = symbols;Color = CommonTypes.Red; wBB = []}, Cmd.none
+    {Wires = []; Symbol = symbols;Color = CommonTypes.Red; wBB = []}, Cmd.none
 
 
 
@@ -320,15 +320,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | Symbol sMsg -> 
         //cmoe back to this - moving the symbol and its effect on wires
         let newBB = 
-            List.map (fun w -> wireBoundingBoxes (newWireRoute w.TargetPort.PortPos w.SrcPort.PortPos)) model.WX
+            List.map (fun w -> wireBoundingBoxes (newWireRoute w.TargetPort.PortPos w.SrcPort.PortPos)) model.Wires
         let sm,sCmd = Symbol.update sMsg model.Symbol 
         {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd
 
     | AddWire (inputPort,outputPort) -> 
         //
-        let addNewWire = (createNewWire inputPort outputPort model):: model.WX
+        let addNewWire = (createNewWire inputPort outputPort model):: model.Wires
         let addNewWireBB = (createNewBB inputPort.PortPos outputPort.PortPos):: model.wBB
-        {model with WX=addNewWire; wBB=addNewWireBB}, Cmd.none
+        {model with Wires=addNewWire; wBB=addNewWireBB}, Cmd.none
 
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
 
@@ -336,16 +336,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let selectedList = 
             let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBox= 
                 if wireTest.Selected = true
-                then (wireTest::wiresList,boundingBox::bBoxesList)
+                then (wireTest::wiresList, bBoxesList@[boundingBox])
                 else (wiresList, bBoxesList)
-            List.fold2 checkWire ([],[]) model.WX model.wBB
-        let dWires = fst selectedList
-        let dBbox = snd selectedList
-        {model with WX = dWires; wBB = dBbox}, Cmd.none
+            List.fold2 checkWire ([],[]) model.Wires model.wBB
+        let remainingWires = fst selectedList
+        let remainingBbox = snd selectedList
+        {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.none
 
     | SelectWire (symToSel, wiresToSel) ->
         // let selectedWireList =
-        //     let defaultList = List.map (fun (x:Wire) -> {x with Selected = false}) model.WX
+        //     let defaultList = List.map (fun (x:Wire) -> {x with Selected = false}) model.Wires
         //     let checker x =
         //         let outcome = 
         //             List.tryFind (fun w -> w = x) wireList
@@ -355,40 +355,66 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         
         //     [0..(defaultList.Length-1)]
         //     |> List.map checker
-        let makeWiresSelected = List.map (fun (wire:Wire) -> {wire with Selected = true}) wiresToSel
+        // let makeWiresSelected = List.map (fun (wire:Wire) -> {wire with Selected = true}) wiresToSel
         let selectWires = 
             List.map (fun (wire:Wire) -> if List.contains wire wiresToSel
                                          then {wire with Selected=true}
-                                         else {wire with Selected=false} ) model.WX
-        {model with WX=selectWires}, Cmd.ofMsg (Symbol (Symbol.SelectSymbol symToSel))
-    | Dragging (rank, pagePos) ->
-        let updatePorts pType xy mainS no= 
-            if pType = "Input" then
-                (fst xy,(snd xy + 65. + (float no)*40.))
-            else
-                (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
-        let dWires = 
-            model.WX
-            |> List.map (fun wir ->
-                if rank <> wir.Id then
-                    wir
-                else
-                    let diff = posDiff pagePos wir.LastDragPos
-                    { wir with
+                                         else {wire with Selected=false} ) model.Wires
+        {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.SelectSymbol symToSel))
+
+    | Dragging (rank, pagePos, prevPagePos) ->
+        //let updatePorts pType xy mainS no=
+        //    if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
+        //    else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
+        let singleOrMultipleDragBool =
+            model.Symbols 
+            |> List.exists (fun sym -> sId = [sym.Id] && sym.IsSelected = false)
+
+        let diff = posDiff pagePos prevPagePos
+
+        let dSymbols=
+            let symFunction newSym= if singleOrMultipleDragBool = true then newSym.selected = false else sId <> newSym.Id
+            model.Symbols
+            |> List.map (fun sym ->
+                if symFunction sym = false then
+                    sym
+                else //check whether symbol is selected
+                    { sym with
                         Pos = posAdd sym.Pos diff
                         LastDragPos = pagePos
-                        InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd wir.Pos diff).X, (posAdd wir.Pos diff).Y) wir num}) wir.InputPorts
-                        OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd wir.Pos diff).X, (posAdd wir.Pos diff).Y) wir num}) wir.OutputPorts
+                        InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
+                        OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
                     }
             )
-        let updatesBbox =
-            let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.WX
-            let updateBBox index boxList =
-                let diff2 = posDiff pagePos model.WX.[index].LastDragPos
-                let {X = correctX; Y= correctY} =  posAdd (model.WX.[index].Pos) diff2 
-                if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.WX.[index].W, correctY-10.; correctX+10.+model.WX.[index].W, correctY+10. + model.WX.[index].H; correctX-10.,correctY+10.+ model.WX.[index].H] else boxList
-            List.mapi (fun i p -> updateBBox i p) model.wBB
-        {model with WX = dSymbols; wBB = updatesBbox}, Cmd.none
+        {model with Symbols = dSymbols; DragMultipleOrSingle = singleOrMultipleDragBool, diff }, Cmd.none 
+
+        // let updatePorts pType xy mainS no= 
+        //     if pType = "Input" then
+        //         (fst xy,(snd xy + 65. + (float no)*40.))
+        //     else
+        //         (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
+        // let dWires = 
+        //     model.Wires
+        //     |> List.map (fun wir ->
+        //         if rank <> wir.Id then
+        //             wir
+        //         else
+        //             let diff = posDiff pagePos wir.LastDragPos
+        //             { wir with
+        //                 Pos = posAdd sym.Pos diff
+        //                 LastDragPos = pagePos
+        //                 InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd wir.Pos diff).X, (posAdd wir.Pos diff).Y) wir num}) wir.InputPorts
+        //                 OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd wir.Pos diff).X, (posAdd wir.Pos diff).Y) wir num}) wir.OutputPorts
+        //             }
+        //     )
+        // let updatesBbox =
+        //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Wires
+        //     let updateBBox index boxList =
+        //         let diff2 = posDiff pagePos model.Wires.[index].LastDragPos
+        //         let {X = correctX; Y= correctY} =  posAdd (model.Wires.[index].Pos) diff2 
+        //         if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Wires.[index].W, correctY-10.; correctX+10.+model.Wires.[index].W, correctY+10. + model.Wires.[index].H; correctX-10.,correctY+10.+ model.Wires.[index].H] else boxList
+        //     List.mapi (fun i p -> updateBBox i p) model.wBB
+        // {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
 
     | DraggingList (rank, pagePos, prevPagePos) ->
         let updatePorts pType xy mainS no= 
@@ -405,24 +431,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
             }
         let dSymbols = 
-            model.WX
+            model.Wires
             |> List.map (fun wir -> (List.tryFind (fun k -> k = wir.Id) rank) |> function |Some a -> newSym wir |None -> wir) //if wire Id is same as the rank -> change the pos of the wire.
 
             
         let updatesBbox =
-            let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.WX) rank
+            let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Wires) rank
             let updateBBox index boxList =
-                let diff2 = posDiff pagePos model.WX.[index].LastDragPos
-                let {X = correctX; Y= correctY} =  posAdd (model.WX.[index].Pos) diff2
+                let diff2 = posDiff pagePos model.Wires.[index].LastDragPos
+                let {X = correctX; Y= correctY} =  posAdd (model.Wires.[index].Pos) diff2
                 List.tryFind (fun k -> k = index) indexforBbox 
-                |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.WX.[index].W, correctY-10.; correctX+10.+model.WX.[index].W, correctY+10. + model.WX.[index].H; correctX-10.,correctY+10.+ model.WX.[index].H] |None -> boxList
+                |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Wires.[index].W, correctY-10.; correctX+10.+model.Wires.[index].W, correctY+10. + model.Wires.[index].H; correctX-10.,correctY+10.+ model.Wires.[index].H] |None -> boxList
             List.mapi (fun i p -> updateBBox i p) model.wBB
             
-        {model with WX = dSymbols; wBB = updatesBbox}, Cmd.none
+        {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
 
     | EndDragging wId ->
         let edSymbols = 
-            model.WX
+            model.Wires
             |> List.map (fun wir ->
                 if wId <> wir.Id then 
                     wir
@@ -431,20 +457,20 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                         IsDragging = false 
                     }
             )
-        {model with WX = edSymbols}, Cmd.none
+        {model with Wires = edSymbols}, Cmd.none
 
     |EndDraggingList (wId, pagePos) ->
         let edSymbols = 
-            model.WX
+            model.Wires
             |> List.map (fun wir -> (List.tryFind (fun k -> k = wir.Id) wId) |> function |Some a -> {wir with IsDragging = false; LastDragPos = pagePos} |None -> wir)
-        {model with WX = edSymbols}, Cmd.none 
+        {model with Wires = edSymbols}, Cmd.none 
     
 
 //---------------Other interface functions--------------------//
 
 /// look up wire in WireModel
 //let wire (wModel: Model) (wId: CommonTypes.ConnectionId): Wire =
-//    wModel.WX 
+//    wModel.Wires 
 //    |> List.contains (fun wire -> wire.Id = wId)
 
 ///// Given a point on the canvas, returns the wire ID of a wire within a few pixels
@@ -452,7 +478,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 ///// to determine which wire (if any) to select on a mouse click
 //let wireToSelectOpt (wModel: Model) (pos: XYPos) : CommonTypes.ConnectionId option = 
 
-//    let listOfBoundingBoxes = wModel.WX |> List.map (fun x -> x.BoundingBoxes)
+//    let listOfBoundingBoxes = wModel.Wires |> List.map (fun x -> x.BoundingBoxes)
 //    let isInside bblst  =
 //        let inSeg lst =
 //            let wireId, box1, box2 = lst

@@ -1,4 +1,4 @@
- module Symbol
+module Symbol
 open Fable.React
 open Fable.React.Props
 open Browser
@@ -77,7 +77,60 @@ let posAdd a b =
 
 let posOf x y = {X=x;Y=y}
 
+let rectum xPos yPos width height colour  = // cheeky bit of kareem abstraction
+        rect
+            [
+                X xPos
+                Y yPos
+                SVGAttr.Width width
+                SVGAttr.Height height
+                SVGAttr.Fill colour
+                SVGAttr.FillOpacity 0.4
+                SVGAttr.Stroke "Black"
+                SVGAttr.StrokeWidth 2
+            ]
+            [ ]
 
+let circus xPos yPos rad = // cheeky bit of kareem abstraction
+    circle
+        [
+            SVGAttr.Cx xPos
+            SVGAttr.Cy yPos
+            SVGAttr.R rad
+            SVGAttr.Fill "Transparent"
+            SVGAttr.Stroke "Black"
+            SVGAttr.StrokeWidth 2
+        ] [ ]
+        
+let homotextual xPos yPos textAnchor domBaseline fontSize displayText = // cheeky bit of kareem abstraction
+    text
+        [ X xPos
+          Y yPos 
+          Style
+                [
+                    TextAnchor textAnchor
+                    DominantBaseline domBaseline
+                    FontSize fontSize
+                    FontWeight "Bold"
+                    Fill "Black"
+                ]
+        ]
+        [ str <| sprintf displayText ]
+
+let creditLines x1Pos y1Pos x2Pos y2Pos width = // cheeky bit of kareem abstraction
+    line
+        [   X1 x1Pos
+            Y1 y1Pos
+            X2 x2Pos
+            Y2 y2Pos
+            Style
+                [
+                    CSSProp.Stroke "Black"
+                    CSSProp.StrokeWidth width
+                    
+                ]
+        ]
+        []
 
 //-----------------------------Skeleton Model Type for symbols----------------//
 
@@ -191,7 +244,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let diff = posDiff pagePos prevPagePos
 
         let dSymbols=
-            let symFunction newSym= if singleOrMultipleDragBool = true then newSym.selected = false else sId <> newSym.Id
+            let symFunction (newSym: Symbol) = if singleOrMultipleDragBool = true then newSym.IsSelected = false else sId <> [newSym.Id]
             model.Symbols
             |> List.map (fun sym ->
                 if symFunction sym = false then
@@ -199,6 +252,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                 else //check whether symbol is selected
                     { sym with
                         Pos = posAdd sym.Pos diff
+                        IsDragging = true
                         LastDragPos = pagePos
                         InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
                         OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
@@ -206,21 +260,21 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             )  
 
         
-        {model with Symbols = dSymbols; DragMultipleOrSingle = singleOrMultipleDragBool, diff }, Cmd.none  
+        {model with Symbols = dSymbols; DragMultipleOrSingle = (singleOrMultipleDragBool, diff) }, Cmd.none  
 
              //; SymBBoxes = updateSymBBoxesox
     
     | UpdateBBoxes (sId) ->
-        let (mulitpleDragBool , diff) = model.DragMultipleOrSingle
-        let symbols, newBox =
-            if mulitpleDragBool = true then  
-                List.map2 (fun sym box -> if sId <> [sym.Id] then (sym, box) else (sym , (posAdd (fst box) , posAdd (snd box) diff)) model.Symbols model.SymBBoxes)
+        let (singleDragBool , diff) = model.DragMultipleOrSingle
+        let newSymbols, newBox =
+            if singleDragBool = true then  
+                List.map2 (fun sym box -> if sId <> [sym.Id] then (sym, box) else ({sym with IsDragging = false} , (posAdd (fst box) diff, posAdd (snd box) diff))) model.Symbols model.SymBBoxes
                 |> List.unzip
             else
-                List.map2 (fun sym box -> if sym.IsSelected = false then (sym, box) else (sym, (posAdd (fst box) diff, posAdd (snd box) diff)) model.Symbols model.SymBBoxes)
+                List.map2 (fun sym box -> if sym.IsSelected = false then (sym, box) else ({sym with IsDragging = false}, (posAdd (fst box) diff, posAdd (snd box) diff))) model.Symbols model.SymBBoxes
                 |> List.unzip
                         
-        {model with SymBBoxes = symbols}, Cmd.none 
+        {model with SymBBoxes = newBox; Symbols = newSymbols}, Cmd.none 
 
     //| DraggingList (rank, pagePos, prevPagePos) ->
     //    let updatePorts pType xy mainS no=
@@ -252,29 +306,43 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         //{model with Symbols = dSymbols}, Cmd.none           //; SymBBoxes = updateSymBBoxesox
 
-    | EndDragging sId ->
-        let edSymbols =
-            model.Symbols
-            |> List.map (fun sym ->
-                if sId <> sym.Id then
-                    sym
-                else
-                    { sym with
-                        IsDragging = false
-                    }
-            )
-        {model with Symbols = edSymbols}, Cmd.none
+    //| EndDragging sId ->
+    //    let edSymbols =
+    //        model.Symbols
+    //        |> List.map (fun sym ->
+    //            if sId <> sym.Id then
+    //                sym
+    //            else
+    //                { sym with
+    //                    IsDragging = false
+    //                }
+    //        )
+    //    {model with Symbols = edSymbols}, Cmd.none
 
-    |EndDraggingList (sId, pagePos) ->
-        let edSymbols =
-            model.Symbols
-            |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) sId) |> function |Some a -> {sym with IsDragging = false; LastDragPos = pagePos} |None -> sym)
-        {model with Symbols = edSymbols}, Cmd.none
-
+    //|EndDraggingList (sId, pagePos) ->
+    //    let edSymbols =
+    //        model.Symbols
+    //        |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) sId) |> function |Some a -> {sym with IsDragging = false; LastDragPos = pagePos} |None -> sym)
+    //    {model with Symbols = edSymbols}, Cmd.none
+    
     | DeleteSymbol ->
-        let remainingSymbols =
-            List.filter (fun sym -> sym.IsSelected=true) model.Symbols
-        {model with Symbols=remainingSymbols}, Cmd.none
+        let (remainingSymbols, remainingBBox) =
+             List.fold2 (fun remainingValues sym box -> if sym.IsSelected = false 
+                                                        then remainingValues @ [(sym, box)] 
+                                                        else remainingValues ) [] model.Symbols model.SymBBoxes
+             |> List.unzip
+        {model with Symbols=remainingSymbols; SymBBoxes = remainingBBox}, Cmd.none
+
+        // let selectedList = 
+        //     let checkSymbol (wiresList, bBoxesList) (wireTest) (boundingBox:XYPos*XYPos)= 
+        //         if wireTest.IsSelected = true
+        //         then (wireTest::wiresList, bBoxesList@[boundingBox])
+        //         else (wiresList, bBoxesList)
+        //     List.fold2 checkSymbol ([],[]) model.Symbols model.SymBBoxes
+        // let remainingSymbols = fst selectedList
+        // let remainingBbox = snd selectedList
+        // {model with Symbols=remainingSymbols ; SymBBoxes=remainingBbox}, Cmd.none
+
         //need to do the delete properly
         // let symbolsToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) sIdList |> function |Some a -> false |None -> true) [0..lst]
         // let dSymbols =
@@ -284,28 +352,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         //     symbolsToKeepIndex ((model.SymBBoxes.Length)- 1)
         //     |> List.map (fun i -> model.SymBBoxes.[i])
         // {model with Symbols = dSymbols; SymBBoxes = dBbox}, Cmd.none
-    | SelectSymbol (sId) ->
+
+    | ToggleSymbol (sId) ->
         let selectedSymbolList =
-            let defaultList = List.map (fun x -> {x with IsSelected = false; IsDragging = false}) model.Symbols
-            let checker x =
-                let outcome =
-                    List.tryFind (fun w -> w = x) sId
-                match outcome with
-                    |Some a -> {defaultList.[x] with IsSelected = true; IsDragging = false}
-                    |None -> {defaultList.[x] with IsSelected = false; IsDragging = false}
-            [0..(defaultList.Length-1)]
-            |> List.map checker
+            List.map (fun sym -> if sId = [sym.Id] then {sym with IsSelected = not sym.IsSelected} else sym) model.Symbols
         {model with Symbols = selectedSymbolList}, Cmd.none
-    |ShowPorts (sId) ->
+
+    |Hovering (sId) ->
         let showPortSymbols =
             model.Symbols
-            |> List.mapi (fun ind x -> if [ind] = sId then { x with PortStatus = "visible"}  else { x with PortStatus = "invisible"})
+            |> List.map (fun sym -> if [sym.Id] = sId then { sym with PortStatus = "visible"}  else { sym with PortStatus = "invisible"})
         {model with Symbols = showPortSymbols}, Cmd.none
+
     |ShowValidPorts (iO, portId, posi) ->
         let validPortSymbols =
             match portmove portId iO model.Symbols with
             | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
+
     | MouseMsg {Pos = {X=posX; Y=posY}; Op = Down} ->
         let showPorts =
             model.Symbols
@@ -313,18 +377,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         {model with Symbols = showPorts}, Cmd.none
     | _ -> failwith "Not Implemented, Symbol Update Function, Symbol line 299" // allow unused mouse messags
 
-type Gates = //one for each unique shape
-    | Not
-    | And
-    | Or
-    | Xor
-    | Nand
-    | Nor
-    | Xnor
-
-type Mux =
-    | Mux2
-    | Demux2
 
 type private RenderSymbolProps =
     {
@@ -335,20 +387,12 @@ type private RenderSymbolProps =
     }
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
-    match comp with
-    | Not | And | Or | Xor | Nand | Nor | Xnor->
+    //match comp with
+    //| Not | And | Or | Xor | Nand | Nor | Xnor->
         FunctionComponent.Of(
             fun (props : RenderSymbolProps) ->
-                let handleMouseMove =
-                    Hooks.useRef(fun (ev : Types.Event) ->
-                        let ev = ev :?> Types.MouseEvent
-                        // x,y coordinates here do not compensate for transform in Sheet
-                        // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
-                        Dragging(props.Symb.Id, posOf ev.pageX ev.pageY)
-                        |> props.Dispatch
-                    )
                 let color =
-                    if props.Symb.IsDragging && not props.Symb.IsSelected then
+                    if props.Symb.IsDragging then
                         "lightblue"
                     else if props.Symb.IsSelected then
                         "red"
@@ -486,7 +530,8 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                     ] (reactElementList)
         , "Gate"
         , equalsButFunctions
-        )               
+        )
+    |_-> failwithf "not yet implemented"        
 
 
 type RenderGateProps=
