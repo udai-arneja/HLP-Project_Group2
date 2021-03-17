@@ -865,8 +865,8 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
             |"invisible" -> []
             |_ -> [portSection]
 
-        List.map (outputText sym.PortStatus) [(0.)..(float (sym.OutputPorts.Length-1))]
-        |> List.append (List.map (outputText sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
+        List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.OutputPorts.Length-1))]
+        |> List.append (List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
         |> List.collect (fun x -> x)
         |> List.collect (fun x->x)
 

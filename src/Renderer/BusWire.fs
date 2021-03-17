@@ -172,7 +172,7 @@ let singleWireView =
                     SVGAttr.StrokeLinecap "round"  ] []
 
             let busWidthLegend =
-                let legendPos = Symbol.posAdd props.Vertices.Head {X=10.;Y=5.}
+                let legendPos = posAdd props.Vertices.Head {X=10.;Y=5.}
                 text [
                     X legendPos.X
                     Y legendPos.Y
@@ -357,10 +357,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,prevPos,mousePos)))
 
     | UpdateBoundingBoxes (symbolUpdated,wireUpdated) -> 
-        let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-                                                 then {wire with Vertices=updateVertices wireSeg wireUpdated mousePos}
-                                                 else wire ) model.Wires
-        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated,prevPos,mousePos)))
+        // let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
+        //                                          then {wire with Vertices=updateVertices wireSeg wireUpdated mousePos}
+        //                                          else wire ) model.Wires
+        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
         // let updatePorts pType xy mainS no= 
         //     if pType = "Input" then
         //         (fst xy,(snd xy + 65. + (float no)*40.))
