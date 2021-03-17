@@ -123,9 +123,9 @@ let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list 
                                     else None
     let symbolscontained =
         List.mapi overlap model.Wire.Symbol.SymBBoxes
-        |> List.map (fun val1 -> match val1 with
-                                 | Some index -> Some (model.Wire.Symbol.Symbols.[index].Id)
-                                 | None ->  None)
+        |> List.map (fun optionindex -> match optionindex with
+                                        | Some index -> Some (model.Wire.Symbol.Symbols.[index].Id)
+                                        | None ->  None)
         |> List.choose (fun x-> x )
     let wirescontained = 
         List.mapi (fun index segmentsList -> 
