@@ -5,6 +5,9 @@ open Browser
 open Elmish
 open Elmish.React
 open Helpers
+open CommonTypes
+
+
 //------------------------------------------------------------------------//
 //-------------------------------Symbol Types-----------------------------//
 //------------------------------------------------------------------------//
@@ -801,67 +804,73 @@ type private RenderSymbolProps =
 
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
-   let outputText inOrOutText portStat num =
-       let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = sym.IsSliding
-       let slideRect =
-           let portList =
-               if IO = "input" then props.Square.InputPorts.[(int num)].PortPos
-               else props.Square.OutputPorts.[(int num)].PortPos
-           [
-                    circus xSlide ySlide 5. 
-                    line [
-                        X1 portList.X   //fst portList)
-                        Y1 portList.Y   //(snd portList)
-                        X2 xSlide
-                        Y2 ySlide
-                        SVGAttr.StrokeDasharray "4"
-                        // Qualify these props to avoid name collision with CSSProp
-                        SVGAttr.Stroke "black"
-                        SVGAttr.StrokeWidth 5 ] []
-           ]
+    let outputPorts portStat num sym =
+        let individiualPorts = 
+            let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = sym.IsSliding
+            let slideRect =
+                let portList =
+                    if IO = "input" then sym.InputPorts.[(int num)].PortPos
+                    else sym.OutputPorts.[(int num)].PortPos
+                [
+                         circus xSlide ySlide 5. 
+                         line [
+                             X1 portList.X   //fst portList)
+                             Y1 portList.Y   //(snd portList)
+                             X2 xSlide
+                             Y2 ySlide
+                             SVGAttr.StrokeDasharray "4"
+                             // Qualify these props to avoid name collision with CSSProp
+                             SVGAttr.Stroke "black"
+                             SVGAttr.StrokeWidth 5 ] []
+                ]
 
-       let inPorts =
-           [
-             rect [
-                   X props.Square.InputPorts.[int num].PortPos.X   //(fst props.Square.InputPorts.[int num].PortPos)
-                   Y props.Square.InputPorts.[int num].PortPos.Y   //(snd props.Square.InputPorts.[int num].PortPos)
-                   SVGAttr.Width 10.
-                   SVGAttr.Height 10.
-                   SVGAttr.Fill "black"
-                   SVGAttr.Stroke "black"
-                   SVGAttr.StrokeWidth 1
-               ][]
-           ]
-       let outPorts=
-           [
-               rect [
-                   X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
-                   Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
-                   SVGAttr.Width 10.
-                   SVGAttr.Height 10.
-                   SVGAttr.Fill "black"
-                   SVGAttr.Stroke "black"
-                   SVGAttr.StrokeWidth 1
-               ][]
-           ]
+            let inPorts =
+                [
+                   circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.  
+                  //rect [
+                  //      X props.Square.InputPorts.[int num].PortPos.X   //(fst props.Square.InputPorts.[int num].PortPos)
+                  //      Y props.Square.InputPorts.[int num].PortPos.Y   //(snd props.Square.InputPorts.[int num].PortPos)
+                  //      SVGAttr.Width 10.
+                  //      SVGAttr.Height 10.
+                  //      SVGAttr.Fill "black"
+                  //      SVGAttr.Stroke "black"
+                  //      SVGAttr.StrokeWidth 1
+                  //  ][]
+                ]
+            let outPorts=
+                [
+                    circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+                    //rect [
+                    //    X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
+                    //    Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
+                    //    SVGAttr.Width 10.
+                    //    SVGAttr.Height 10.
+                    //    SVGAttr.Fill "black"
+                    //    SVGAttr.Stroke "black"
+                    //    SVGAttr.StrokeWidth 1
+                    //][]
+                ]
 
-       let portSection =
-           match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-           |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
-           |("visible", 70., _, _, _ ) -> outPorts
-           | ("input", 70.,false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs
-           |("output", 20., false,_,_ ) -> inPorts
-           |(_, 70., true, slidePortNum, "output") -> slideRect // for valid ports but the port that slides for a sliding output
-           |(_, 20., true, slidePortNum, "input") -> slideRect // for valid ports but the port that slides
-           |(_, 20., true, slidePortNum, "output") -> inPorts
-           |(_, 70., true, slidePortNum, "input") -> outPorts
-           |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides
-           |("output", 20., true,_,_ ) -> inPorts
-           |_ -> []
+            let portSection =
+                match (portStat, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
+                |("visible", _, _, _ ) -> inPorts @ outPorts 
+                |(_, true, slidePortNum, _) -> slideRect // for valid ports but the port that slides for a sliding output
+                |(_, true, slidePortNum, "output") -> inPorts
+                |(_, true, slidePortNum, "input") -> outPorts//for normal showing ports when nearby
+                |("input",false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs
+                |("output", false,_,_ ) -> inPorts
+                |_ -> []
 
-       match portStat with
-       |"invisible" -> [textSection]
-       |_ -> [textSection; portSection]
+            match portStat with
+            |"invisible" -> []
+            |_ -> [portSection]
+
+        List.map (outputText sym.PortStatus) [(0.)..(float (sym.OutputPorts.Length-1))]
+        |> List.append (List.map (outputText sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
+        |> List.collect (fun x -> x)
+        |> List.collect (fun x->x)
+
+
 
     match comp with
     | Input bits | Output bits ->
@@ -872,8 +881,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
-                    ]
+                g   []
                     [
                         rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth/3.) (gateHeight/4.) color
 
@@ -890,7 +898,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                 g   [ 
                     ]
                     [   rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color
-
+                        
                         
 
                         match props.Comp with

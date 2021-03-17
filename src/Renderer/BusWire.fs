@@ -62,7 +62,8 @@ type Msg =
     | DeleteWire
     | MouseMsg of MouseT
     | SelectWire of (Symbol.Symbol list * Wire list)
-    | Dragging of segWireLists:(CommonTypes.ComponentId list * ( Wire * int) list) * prevPos: XYPos * currPos: XYPos
+    | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
+    | UpdateBoundingBoxes of symUpdated: Symbol.Symbol list * wireUpdated: Wire
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     | EndDragging of wId : CommonTypes.ComponentId
     | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
@@ -349,18 +350,17 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                          else {wire with Selected=false} ) model.Wires
         {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.SelectSymbol symToSel))
 
-    | Dragging ((symbolUpdated, wireUpdated), prevPos, mousePos) ->
-        //
+    | Dragging ((symbolUpdated,[wireUpdated,segIndex]), prevPos, mousePos) ->
         let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-                                                 then {wire with Vertices=updateVertices wireSeg wireUpdated mousePos}
+                                                 then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
                                                  else wire ) model.Wires
-        {model with Wires=updatedWires}, Cmd.none
+        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,prevPos,mousePos)))
 
-    | UpdateBoundingBoxes (wireSeg,wireUpdated, mousePos) -> 
+    | UpdateBoundingBoxes (symbolUpdated,wireUpdated) -> 
         let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
                                                  then {wire with Vertices=updateVertices wireSeg wireUpdated mousePos}
                                                  else wire ) model.Wires
-        {model with Wires=updatedWires}, Cmd.none
+        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated,prevPos,mousePos)))
         // let updatePorts pType xy mainS no= 
         //     if pType = "Input" then
         //         (fst xy,(snd xy + 65. + (float no)*40.))
