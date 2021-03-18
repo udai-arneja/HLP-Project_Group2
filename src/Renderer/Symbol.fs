@@ -169,6 +169,7 @@ let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(
         CommonTypes.Port.HostId = string(comp.Id)
         CommonTypes.Port.PortPos = portPos
         CommonTypes.Port.BusWidth = width
+        CommonTypes.Port.WireAttached = false
     }
 
 //-----------------------Skeleton Message type for symbols---------------------//

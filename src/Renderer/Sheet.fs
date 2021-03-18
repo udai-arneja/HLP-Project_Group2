@@ -253,7 +253,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
                           |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (toggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
-                          | _ -> {model with LastOp=Up}, Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
+                          | _ -> {model with LastOp=Up}, Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
                           // drag group/single 
                 | Down -> {model with IsSelecting = ([],[])}, Cmd.ofMsg (toggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up}, Cmd.none
@@ -284,7 +284,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ({X=10.; Y=10.}, 1, 1, CommonTypes.Nor))) model.Wire 
         {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
     
-    |KeyPress DEL -> 
+    |KeyPress DEL ->
+        {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire)
         // let sModel, sCmd = BusWire.update (BusWire.Symbol (Symbol.DeleteSymbol)) model.Wire
         // let newWSelectList = 
         //     if symList <> [] //if symbols have been selected then check whether wires connected also have to be deleted
@@ -307,7 +308,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //         wireList
         // let wModel, wCmd = BusWire.update (BusWire.DeleteWire newWSelectList) sModel
         // {model with Wire = wModel; IsSelecting = ([],[]); Restore = model.Wire}, Cmd.map Wire wCmd //update model and reset selecting 
-        model, Cmd.none
+        // model, Cmd.none
+        //need to 
     
     | KeyPress AltZ -> {model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); Restore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});

@@ -63,7 +63,7 @@ type Msg =
     | MouseMsg of MouseT
     | SelectWire of (Symbol.Symbol list * Wire list)
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
-    | UpdateBoundingBoxes of symUpdated: Symbol.Symbol list * wireUpdated: Wire
+    | UpdateBoundingBoxes of (CommonTypes.ComponentId list * (Wire * int) list)
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     | EndDragging of wId : CommonTypes.ComponentId
     | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
@@ -82,7 +82,8 @@ type WireRenderProps = {
     ColorP: string
     StrokeWidthP: string 
     IsDragging : bool
-    LastDragPos : XYPos List   
+    LastDragPos : XYPos List 
+    PortInUse : bool
 }
 
 let posDiff (a:XYPos) (b:XYPos) =
@@ -148,7 +149,6 @@ let wireBoundingBoxes (verticesList: XYPos list) =
     |> List.map (fun x -> findBox (fst x) (snd x))
 
 
-
 /// singleWireView maps the list of vertices to a list of segments, then draws each individual line by passing in the XY positions to singularLine.
 /// We are able to view the wire through this function, as well as the bus width legend, and a change in colour if Selected, or if the wire has 
 /// a larger bus width. 
@@ -184,6 +184,20 @@ let singleWireView =
                         DominantBaseline "hanging"
                         ]
                 ] [str <| sprintf "%i" props.BusWidth]
+
+            //let multipleWireCircle =
+                
+            //    circle [
+            //        X legendPos.X
+            //        Y legendPos.Y
+            //        Style [
+            //            FontSize "10px"
+            //            FontWeight "Bold"
+            //            Fill "Black"
+            //            TextAnchor "middle"
+            //            DominantBaseline "hanging"
+            //            ]
+            //    ] [str <| sprintf "%i" props.BusWidth]
                 
             let singleSeg = segmentList props.Vertices // takes in the list of vertices that make up a wire and maps these to segments. 
             let segmentsIntoLine = singleSeg |> List.map singularLine 
@@ -196,18 +210,10 @@ let singleWireView =
 /// The view function takes every wire in the model, and its attributes, and maps this to singleWireView. The helper
 /// function convertIdToXYPos is not my code, but a teammates. 
 let view (model:Model) (dispatch: Dispatch<Msg>)=
+
     let wires = 
         model.Wires 
-        |> List.map (fun w -> 
-            let convertIdToXYPos inOut (id:string) = // this function was not written by me, pmc18. This is a helper function from a teammate.
-                match inOut with 
-                |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
-                      |>List.head
-                    //   |>Symbol.tupleToXYPos 
-                |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a.PortPos] |None -> []) model.Symbol.Symbols
-                      |>List.head
-                    //   |>tupleToXYPos     //find symbol Id --> go through symbol list --> go through inputlist in symbol --> find portid --> find port number --> calc XY pos
-                | _ -> failwithf "Not implemented - view, BusWire line 185"
+        |> List.map (fun w ->
             let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
             let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
             let vertex = newWireRoute final start
@@ -217,7 +223,8 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
             let wireColour = match (BusWidth, Highlighted, Selected) with 
                              | (_, _, true) -> "yellow"
                              | (_, true, false) -> "red"
-                             | (_,_, _) -> "darkorchid"
+                             | (1,false, false) -> "black"
+                             | (_, false, false )-> "darkorchid"
             let props = {
                 key = w.Id
                 WireP = w
@@ -231,7 +238,8 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 StrokeWidthP = "2px"
                 Highlighted = w.Highlighted
                 IsDragging = false 
-                LastDragPos = vertex  }
+                LastDragPos = vertex 
+                PortInUse = CommonTypes.Port.WireAttached}
             singleWireView props) // pass in the props for this given wire into singleWireView
     let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg)) 
     g [] [(g [] wires); symbols] // displaying the wires and symbols 
@@ -275,14 +283,20 @@ let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (m
         }
 
 
+let isEven (segId: int) (wir: Wire): Option<bool> = 
+    let noOfSeg = List.length wir.Vertices
 
-
-let isEven (segId: int) : Option<bool> = 
-    match segId with
-    | 1 -> Some false
-    | 2 -> Some true
-    | 3 -> Some false
-    | _ -> None
+    if noOfSeg = 5
+    then 
+        match segId with
+        | 1 -> Some false
+        | 2 -> Some true
+        | 3 -> Some false
+        | _ -> None
+    else 
+        match segId with
+        | 1 -> Some false
+        | _ -> None
 
 let evenChange (currPos: XYPos) (mPos: XYPos): XYPos =
     {currPos with Y = mPos.Y}
@@ -290,12 +304,11 @@ let oddChange (currPos: XYPos) (mPos: XYPos): XYPos =
     {currPos with X = mPos.X}
 
 let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list = 
-    //let noOfSeg = List.length wir.Vertices
     
-    let trueList idx = 
+    let trueList segindex = 
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then evenChange v mPos else v)  
+        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) then evenChange vertex mPos else vertex)  
 
     let falseList idx = 
         wir.Vertices 
@@ -303,7 +316,7 @@ let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list =
         |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then oddChange v mPos else v)
     
     
-    match isEven(segId) with 
+    match isEven segId wir with 
     | Some true -> trueList segId
     | Some false -> falseList segId
     | None -> failwithf "Error"
@@ -333,15 +346,30 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
 
     | DeleteWire ->
-        let selectedList = 
-            let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBox= 
-                if wireTest.Selected = true
-                then (wiresList@[wireTest], bBoxesList@[boundingBox])
-                else (wiresList, bBoxesList)
+        //first removing wires that are on symbols
+        let remainingWiresAndBoxes = 
+            let checkWire (wiresList, bBoxesList) (wire:Wire) boundingBox =
+                let areAttachedSymbolsSelected =
+                    match wire with
+                    | Symolwire.SrcPort.HostId
+                match wire.Selected with
+                | true -> (wiresList, bBoxesList)
+                | false -> match areAttachedSymbolsSelected with
+                           | true -> (wiresList, bBoxesList)
+                           | false -> (wiresList@[wire], bBoxesList@[boundingBox])
             List.fold2 checkWire ([],[]) model.Wires model.wBB
-        let remainingWires = fst selectedList
-        let remainingBbox = snd selectedList
-        {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.none
+        // let wiresConnectedToSymbols = List.map () model.Wires
+        // //then removing remaining wires selected
+        // let selectedList = 
+        //     let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBox= 
+        //         if wireTest.Selected = true
+        //         then (wiresList@[wireTest], bBoxesList@[boundingBox])
+        //         else (wiresList, bBoxesList)
+        //     List.fold2 checkWire ([],[]) model.Wires model.wBB
+        
+        let remainingWires = fst remainingWiresAndBoxes
+        let remainingBbox = snd remainingWiresAndBoxes
+        {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
 
     | SelectWire (symToSel, wiresToSel) ->
         let selectWires = 
@@ -351,35 +379,34 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.SelectSymbol symToSel))
 
     | Dragging ((symbolUpdated,[wireUpdated,segIndex]), prevPos, mousePos) ->
+        //probably need to unselect the other selected wires?
         let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
                                                  then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
                                                  else wire ) model.Wires
         {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,prevPos,mousePos)))
 
-    | UpdateBoundingBoxes (symbolUpdated,wireUpdated) -> 
-        // let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-        //                                          then {wire with Vertices=updateVertices wireSeg wireUpdated mousePos}
-        //                                          else wire ) model.Wires
-        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
-        // let updatePorts pType xy mainS no= 
-        //     if pType = "Input" then
-        //         (fst xy,(snd xy + 65. + (float no)*40.))
-        //     else
-        //         (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
-        // let dWires = 
-        //     model.Wires
-        //     |> List.map (fun wir ->
-        //         if rank <> wir.Id then
-        //             wir
-        //         else
-        //             let diff = posDiff pagePos wir.LastDragPos
-        //             { wir with
-        //                 Pos = posAdd sym.Pos diff
-        //                 LastDragPos = pagePos
-        //                 InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd wir.Pos diff).X, (posAdd wir.Pos diff).Y) wir num}) wir.InputPorts
-        //                 OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd wir.Pos diff).X, (posAdd wir.Pos diff).Y) wir num}) wir.OutputPorts
-        //             }
-        //     )
+    | UpdateBoundingBoxes (symbolUpdated,[wireUpdated,segIndex]) -> 
+        //let updatedBBoxes = List.map (fun wire -> if wire.Id = wireUpdated.Id
+        //                                          then wireBoundingBoxes wire.Vertices
+        //                                          else wire) model.WX
+        //let updatedBBoxes = List.mapi (fun wireIndex wire -> if wire.Id = wireUpdated.Id
+        //                                                     then wireBoundingBoxes wireUpdated.Vertices
+        //                                                     else wire) model.WX
+        let updatedBBoxes = 
+            let findIndex = 
+                model.Wires
+                |> List.indexed
+                |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.Id )
+            let decodeIndex = match findIndex with 
+                              | [(idx, wire)] -> idx
+                              | _ -> failwithf "Error"
+
+            model.wBB 
+            |> List.indexed
+            |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.Vertices else bb )
+        
+        {model with wBB=updatedBBoxes}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
+
         // let updatesBbox =
         //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Wires
         //     let updateBBox index boxList =
@@ -389,55 +416,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     List.mapi (fun i p -> updateBBox i p) model.wBB
         // {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
 
-    // | DraggingList (rank, pagePos, prevPagePos) ->
-    //     let updatePorts pType xy mainS no= 
-    //         if pType = "Input" then
-    //             (fst xy,(snd xy + 65. + (float no)*40.))
-    //         else
-    //             (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
-    //     let newSym sym =
-    //         let diff = posDiff pagePos prevPagePos
-    //         { sym with
-    //             Pos = posAdd sym.Pos diff
-    //             LastDragPos = pagePos
-    //             InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-    //             OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
-    //         }
-    //     let dSymbols = 
-    //         model.Wires
-    //         |> List.map (fun wir -> (List.tryFind (fun k -> k = wir.Id) rank) |> function |Some a -> newSym wir |None -> wir) //if wire Id is same as the rank -> change the pos of the wire.
-
-            
-    //     let updatesBbox =
-    //         let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Wires) rank
-    //         let updateBBox index boxList =
-    //             let diff2 = posDiff pagePos model.Wires.[index].LastDragPos
-    //             let {X = correctX; Y= correctY} =  posAdd (model.Wires.[index].Pos) diff2
-    //             List.tryFind (fun k -> k = index) indexforBbox 
-    //             |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Wires.[index].W, correctY-10.; correctX+10.+model.Wires.[index].W, correctY+10. + model.Wires.[index].H; correctX-10.,correctY+10.+ model.Wires.[index].H] |None -> boxList
-    //         List.mapi (fun i p -> updateBBox i p) model.wBB
-            
-    //     {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
-
-    // | EndDragging wId ->
-    //     let edSymbols = 
-    //         model.Wires
-    //         |> List.map (fun wir ->
-    //             if wId <> wir.Id then 
-    //                 wir
-    //             else
-    //                 { wir with
-    //                     IsDragging = false 
-    //                 }
-    //         )
-    //     {model with Wires = edSymbols}, Cmd.none
-
-    // |EndDraggingList (wId, pagePos) ->
-    //     let edSymbols = 
-    //         model.Wires
-    //         |> List.map (fun wir -> (List.tryFind (fun k -> k = wir.Id) wId) |> function |Some a -> {wir with IsDragging = false; LastDragPos = pagePos} |None -> wir)
-    //     {model with Wires = edSymbols}, Cmd.none 
-    
 
 //---------------Other interface functions--------------------//
 
