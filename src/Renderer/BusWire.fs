@@ -239,7 +239,7 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 Highlighted = w.Highlighted
                 IsDragging = false 
                 LastDragPos = vertex 
-                PortInUse = CommonTypes.Port.WireAttached}
+                PortInUse = CommonTypes.Port.PortInUse}
             singleWireView props) // pass in the props for this given wire into singleWireView
     let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg)) 
     g [] [(g [] wires); symbols] // displaying the wires and symbols 
