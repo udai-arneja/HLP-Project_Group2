@@ -29,6 +29,7 @@ module CommonTypes
         HostId : string
         PortPos : Helpers.XYPos
         BusWidth : int
+        WireAttached : bool
     }
 
     /// Name identified the LoadedComponent used.
