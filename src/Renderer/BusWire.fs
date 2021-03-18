@@ -83,7 +83,7 @@ type WireRenderProps = {
     StrokeWidthP: string 
     IsDragging : bool
     LastDragPos : XYPos List 
-    PortInUse : bool
+    // PortInUse : bool
 }
 
 let posDiff (a:XYPos) (b:XYPos) =
@@ -239,7 +239,8 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 Highlighted = w.Highlighted
                 IsDragging = false 
                 LastDragPos = vertex 
-                PortInUse = CommonTypes.Port.PortInUse}
+                // PortInUse = CommonTypes.Port.PortInUse
+                }
             singleWireView props) // pass in the props for this given wire into singleWireView
     let symbols = Symbol.view model.Symbol (fun sMsg -> dispatch (Symbol sMsg)) 
     g [] [(g [] wires); symbols] // displaying the wires and symbols 
@@ -327,7 +328,8 @@ let init () =
     let symbols, cmd = Symbol.init()
     {Wires = []; Symbol = symbols;Color = CommonTypes.Red; wBB = []}, Cmd.none
 
-
+/// check through the symbols - if IsSelected=true, filter the wires
+    /// after, check through the wires - Filter(if Selected=true, remove)
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     match msg with
@@ -346,18 +348,31 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
 
     | DeleteWire ->
-        //first removing wires that are on symbols
         let remainingWiresAndBoxes = 
-            let checkWire (wiresList, bBoxesList) (wire:Wire) boundingBox =
-                let areAttachedSymbolsSelected =
-                    match wire with
-                    | Symolwire.SrcPort.HostId
-                match wire.Selected with
-                | true -> (wiresList, bBoxesList)
-                | false -> match areAttachedSymbolsSelected with
-                           | true -> (wiresList, bBoxesList)
-                           | false -> (wiresList@[wire], bBoxesList@[boundingBox])
-            List.fold2 checkWire ([],[]) model.Wires model.wBB
+            List.fold (fun (wires,bBoxes) (symbol:Symbol.Symbol) -> if symbol.IsSelected=true
+                                                                    then let filter (filteredWires, filteredBBoxes) (wire:Wire) boundingBox =
+                                                                                if wire.SrcSymbol = symbol.Id || wire.TargetSymbol = symbol.Id
+                                                                                then (filteredWires, filteredBBoxes)
+                                                                                else match wire.Selected with                                      //either check if everytime or put this in a separate traversal - should be here imo
+                                                                                     | false ->  (filteredWires@[wire], filteredBBoxes@[boundingBox])
+                                                                                     | true -> (filteredWires, filteredBBoxes)
+                                                                         List.fold2 filter ([],[]) wires bBoxes
+                                                                    else (wires,bBoxes) ) (model.Wires,model.wBB) model.Symbol.Symbols
+        let remainingWires = fst remainingWiresAndBoxes
+        let remainingBbox = snd remainingWiresAndBoxes
+        {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
+        //first removing wires that are on symbols
+        // let remainingWiresAndBoxes = 
+        //     let checkWire (wiresList, bBoxesList) (wire:Wire) boundingBox =
+        //         let areAttachedSymbolsSelected =
+        //             match wire with
+        //             | Symolwire.SrcPort.HostId
+        //         match wire.Selected with
+        //         | true -> (wiresList, bBoxesList)
+        //         | false -> match areAttachedSymbolsSelected with
+        //                    | true -> (wiresList, bBoxesList)
+        //                    | false -> (wiresList@[wire], bBoxesList@[boundingBox])
+        //     List.fold2 checkWire ([],[]) model.Wires model.wBB
         // let wiresConnectedToSymbols = List.map () model.Wires
         // //then removing remaining wires selected
         // let selectedList = 
@@ -366,10 +381,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //         then (wiresList@[wireTest], bBoxesList@[boundingBox])
         //         else (wiresList, bBoxesList)
         //     List.fold2 checkWire ([],[]) model.Wires model.wBB
-        
-        let remainingWires = fst remainingWiresAndBoxes
-        let remainingBbox = snd remainingWiresAndBoxes
-        {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
 
     | SelectWire (symToSel, wiresToSel) ->
         let selectWires = 

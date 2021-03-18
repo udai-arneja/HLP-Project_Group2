@@ -61,7 +61,7 @@ type Msg =
     //| DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     //| EndDragging of sId : CommonTypes.ComponentId
     //| EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
-    | AddSymbol of inputs: int list * outputs: int list * comp: CommonTypes.ComponentType// used by demo code to add a circle
+    | AddSymbol of inputs: int list * outputs: int list * comp: CommonTypes.ComponentType
     | DeleteSymbol
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
     | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
@@ -169,7 +169,7 @@ let createportlist (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(
         CommonTypes.Port.HostId = string(comp.Id)
         CommonTypes.Port.PortPos = portPos
         CommonTypes.Port.BusWidth = width
-        CommonTypes.Port.PortInUse = false
+        // CommonTypes.Port.PortInUse = false
     }
 
 //-----------------------Skeleton Message type for symbols---------------------//
