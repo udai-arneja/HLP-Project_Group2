@@ -397,12 +397,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     //                                      else wire ) model.Wires
     //     {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.Hovering symToSel))
 
-    | Dragging ((symbolUpdated,[wireUpdated,segIndex]), prevPos, mousePos) ->
+    | Dragging ((symbolUpdated,wireAndSegList), prevPos, mousePos) ->
         //probably need to unselect the other selected wires?
-        let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-                                                 then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
-                                                 else wire ) model.Wires
-        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
+        match wireAndSegList with
+        | [] -> model, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
+        | _ -> failwithf "Hi"
+        // let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
+        //                                          then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
+        //                                          else wire ) model.Wires
+        // {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
 
     | UpdateBoundingBoxes (symbolUpdated,[wireUpdated,segIndex]) -> 
         //let updatedBBoxes = List.map (fun wire -> if wire.Id = wireUpdated.Id

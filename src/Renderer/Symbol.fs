@@ -203,7 +203,9 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
 
 
 let createNewBoundingBox (inputs: int list) (outputs: int list)=
-    ({X=0.;Y=0.},{X=75.+float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
+    ({X=0.;Y=0.},{X=80.;Y=60.})
+    
+    // +float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
     // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
 
 let portmove portId inputYes model =
@@ -680,7 +682,6 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | DFF ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFF"
                           
-
                             
                         | DFFE ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFFE"
