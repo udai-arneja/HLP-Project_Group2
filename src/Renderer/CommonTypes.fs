@@ -102,6 +102,8 @@ module CommonTypes
     // Other //
     //=======//
 
+    type PortVisibility = |Visible |Invisible |OutputPorts |InputPorts
+
     type NumberBase = | Hex | Dec | Bin | SDec
 
     /// Colors to highlight components

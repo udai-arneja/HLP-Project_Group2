@@ -61,7 +61,8 @@ type Msg =
     | SetColor of CommonTypes.HighLightColor
     | DeleteWire
     | MouseMsg of MouseT
-    | SelectWire of (Symbol.Symbol list * Wire list)
+    | ToggleSelect of (CommonTypes.ComponentId list * (Wire * int) list)
+    // | Hovering of (CommonTypes.ComponentId list * (Wire * int) list)
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | UpdateBoundingBoxes of (CommonTypes.ComponentId list * (Wire * int) list)
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
@@ -282,8 +283,6 @@ let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (m
             LastDragPos = newWireRoute targetPort.PortPos sourcePort.PortPos
             Highlighted = false
         }
-
-
 let isEven (segId: int) (wir: Wire): Option<bool> = 
     let noOfSeg = List.length wir.Vertices
 
@@ -346,7 +345,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Wires=addNewWire; wBB=addNewWireBB}, Cmd.none
 
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
-
+    
     | DeleteWire ->
         let remainingWiresAndBoxes = 
             List.fold (fun (wires,bBoxes) (symbol:Symbol.Symbol) -> if symbol.IsSelected=true
@@ -382,19 +381,28 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //         else (wiresList, bBoxesList)
         //     List.fold2 checkWire ([],[]) model.Wires model.wBB
 
-    | SelectWire (symToSel, wiresToSel) ->
+    | ToggleSelect (symToSel, wireAndSegList ) ->
+        let wiresToSel,segmentsList = List.unzip wireAndSegList
         let selectWires = 
             List.map (fun (wire:Wire) -> if List.contains wire wiresToSel
-                                         then {wire with Selected=true}
-                                         else {wire with Selected=false} ) model.Wires
-        {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.SelectSymbol symToSel))
+                                         then {wire with Selected = not wire.Selected} 
+                                         else wire ) model.Wires
+        {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.ToggleSymbol symToSel))
+
+    // | Hovering (symToSel, wireAndSegList ) -> 
+    //     let wiresToSel,segmentsList = List.unzip wireAndSegList
+    //     let selectWires = 
+    //         List.map (fun (wire:Wire) -> if List.contains wire wiresToSel
+    //                                      then {wire with Highlighted = true} 
+    //                                      else wire ) model.Wires
+    //     {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.Hovering symToSel))
 
     | Dragging ((symbolUpdated,[wireUpdated,segIndex]), prevPos, mousePos) ->
         //probably need to unselect the other selected wires?
         let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
                                                  then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
                                                  else wire ) model.Wires
-        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,prevPos,mousePos)))
+        {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
 
     | UpdateBoundingBoxes (symbolUpdated,[wireUpdated,segIndex]) -> 
         //let updatedBBoxes = List.map (fun wire -> if wire.Id = wireUpdated.Id
