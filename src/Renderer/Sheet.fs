@@ -38,6 +38,8 @@ type SelectingBox={
 //helper functions
 let zoom = 3.0
 
+let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X startPos.Y startPos.X endPos.Y endPos.X endPos.Y endPos.X startPos.Y
+
 //display
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
@@ -73,18 +75,14 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                 [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom
                 [
                 match boxOrWire with 
-                | true ->  rect // to apear for selecting
-                              [ 
-                                  X startPos.X
-                                  Y startPos.Y
-                                  SVGAttr.Width (abs (endPos.X - startPos.X))
-                                  SVGAttr.Height (abs (endPos.Y - startPos.Y))
-                                  SVGAttr.FillOpacity "0.1"
-                                  SVGAttr.Fill "blue"
-                                  SVGAttr.Stroke "blue"
-                                  SVGAttr.StrokeWidth 1
-                              ][]   
-                           svgReact
+                | true -> polygon [
+                                    SVGAttr.Points (dimensions startPos endPos)
+                                    SVGAttr.StrokeWidth "1px"
+                                    SVGAttr.Stroke "Black"
+                                    SVGAttr.FillOpacity 0.1
+                                    SVGAttr.Fill "Blue"
+                                ][]
+                          svgReact
                      // the application code
                 |_ -> svgReact
 
@@ -210,7 +208,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | Drag -> match model.MultiSelectBox with
                           |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
                           | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
-                          // drag group/single 
+
                 | Down -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
 
