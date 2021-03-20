@@ -375,26 +375,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
         //                      SVGAttr.Stroke "black"
         //                      SVGAttr.StrokeWidth 5 ] []
         //         ]
-
-        //     let inPorts =
-        //         [
-        //            circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.
-
-        //         ]
-        //     let outPorts=
-        //         [
-        //             circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        //             //rect [
-        //             //    X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
-        //             //    Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
-        //             //    SVGAttr.Width 10.
-        //             //    SVGAttr.Height 10.
-        //             //    SVGAttr.Fill "black"
-        //             //    SVGAttr.Stroke "black"
-        //             //    SVGAttr.StrokeWidth 1
-        //             //][]
-        //         ]
-
+        //
         //     let portSection =
         //         match (portVisibility, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
         //         |("visible", _, _, _ ) -> inPorts @ outPorts
@@ -488,7 +469,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | _ ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                            renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+                            // renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
 
