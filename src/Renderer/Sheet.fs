@@ -19,6 +19,7 @@ type Model = {
     Restore: BusWire.Model
     LastOp: Helpers.MouseOp;
     Zoom : float
+    LastDragPos : XYPos
     }
 
 type KeyboardMsg =
@@ -35,14 +36,7 @@ type SelectingBox={
 }
 
 //helper functions
-let zoom = 1.0
-
-//INTERFACES TO DO:
-
-// let hovering (symId: CommonTypes.ComponentId list) : Msg = (Wire <| BusWire.Symbol (Symbol.Hovering symId))
-// let toggleSelect (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
-// let updateBBoxes (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
-// let showValidPorts (testtype, portId, mousePos) = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
+let zoom = 3.0
 
 //display
 
@@ -178,7 +172,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let boundingBoxSearchP (symbol: Symbol.Symbol): CommonTypes.Port list=
             let dist (pos1:XYPos) (pos2:XYPos) = sqrt((pos1.X-pos2.X)**2. + (pos1.Y-pos2.Y)**2.)
             let portCalculator portlist =
-                    match List.tryFind (fun (port:CommonTypes.Port) -> (dist port.PortPos mousePos)<40.) portlist with
+                    match List.tryFind (fun (port:CommonTypes.Port) -> (dist port.PortPos mousePos)<0.) portlist with
                     | Some port -> [port]
                     | None -> []
             if mousePos.X <= (symbol.Pos.X+(symbol.W/2.))
@@ -189,47 +183,50 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         match mouseState with
         
-        | Down -> if model.IsDropping = true 
-                  then {model with IsDropping=false;LastOp=Down}, Cmd.none
-                  else match boundingBoxSearchS with
+        | Down -> 
+                //   if model.IsDropping = true 
+                //   then {model with IsDropping=false;LastOp=Down}, Cmd.none
+                //   else 
+                  match boundingBoxSearchS with
                        |[sym] -> match boundingBoxSearchP sym with
                                  | [port] -> match model.IsWiring with
                                               | (None, None) -> match port.PortType with
-                                                                | CommonTypes.Input -> {model with IsWiring=(Some port, None);LastOp=Down},Cmd.none
-                                                                | CommonTypes.Output -> {model with IsWiring=(None, Some port);LastOp=Down},Cmd.none
+                                                                | CommonTypes.Input -> {model with IsWiring=(Some port, None);LastOp=Down;LastDragPos=mousePos},Cmd.none
+                                                                | CommonTypes.Output -> {model with IsWiring=(None, Some port);LastOp=Down;LastDragPos=mousePos},Cmd.none
                                               | (None, Some outputPort)-> match port.PortType with
-                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down}, Cmd.ofMsg (addWire (port,outputPort))
-                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down},Cmd.none
+                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (port,outputPort))
+                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos},Cmd.none
                                               | (Some inputPort, None) -> match port.PortType with
-                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down}, Cmd.ofMsg (addWire (inputPort,port))
-                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down},Cmd.none
+                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (inputPort,port))
+                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos},Cmd.none
                                                | _ -> failwithf "Not implemented - Down Sheet Update function ~ 219"          
-                                 | _ -> {model with IsSelecting = ([sym.Id],[]); LastOp=Down}, Cmd.none
+                                 | _ -> {model with IsSelecting = ([sym.Id],[]); LastOp=Down;LastDragPos=mousePos}, Cmd.none
                                  
                        | _ -> match boundingBoxSearchW with 
-                               |[wireAndSeg] -> {model with IsSelecting = ([],[wireAndSeg]); LastOp=Down}, Cmd.none         //reset wiring to none
-                               |_ -> {model with IsSelecting = ([],[]);LastOp=Down;MultiSelectBox=(true,mousePos,mousePos)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect ([],[]))
+                               |[wireAndSeg] -> {model with IsSelecting = ([],[wireAndSeg]); LastOp=Down;LastDragPos=mousePos}, Cmd.none         //reset wiring to none
+                               |_ -> {model with IsSelecting = ([],[]);LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect ([],[]))
 
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
-                          | _ -> {model with LastOp=Up}, Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
+                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
+                          | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
                           // drag group/single 
-                | Down -> {model with IsSelecting = ([],[]);LastOp=Up}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
-                | _ -> {model with LastOp=Up}, Cmd.none
+                | Down -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
+                | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
 
         | Drag -> match model.MultiSelectBox with 
-                  |(true, p1, p2) -> {model with IsSelecting=([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
-                  |(false, p1, prevPos) -> match model.LastOp with 
-                                           |Down -> {model with LastOp=Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, prevPos, mousePos) ) 
-                                           |Drag -> {model with LastOp=Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, prevPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
-                                           | _ -> model, Cmd.none
+                  |(true, p1, p2) -> {model with IsSelecting=([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos);LastDragPos=mousePos}, Cmd.none
+                  | _ -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
+                  //   |(false, p1, prevPos) -> match model.LastOp with 
+                //                            |Down -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos) ) 
+                //                            |Drag -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
+                //                         //    | _ -> model, Cmd.none
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
-                                  | [symbol] -> {model with LastOp = Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
-                                  | _ -> {model with LastOp = Move}, Cmd.none
-                  |(None,Some port) -> {model with LastOp=Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
-                  |(Some port,None) -> {model with LastOp=Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
+                                  | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
+                                  | _ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.none
+                  |(None,Some port) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
+                  |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                   | _ -> failwithf "Not implemented - Move Sheet Update function ~ 253" 
 
     |Wire wMsg -> 
@@ -277,7 +274,8 @@ let init() =
         MultiSelectBox = (false, {X=0.;Y=0.}, {X=0.;Y=0.})
         Restore = model 
         LastOp = Move
-        Zoom = 1.0
+        Zoom = 3.0
+        LastDragPos={X=0.;Y=0.}
     }, Cmd.map Wire cmds
 
 

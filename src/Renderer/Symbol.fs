@@ -40,8 +40,7 @@ type Symbol =
 type Model = {
     Symbols: Symbol list
     SymBBoxes: (XYPos*XYPos)  List
-    DragMultipleOrSingle: bool * XYPos
-    // MouseInfo : MouseT
+    SingleOrMultiple: bool          //true - single
     }
 
 
@@ -180,7 +179,7 @@ let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(
 /// in its initial form. This is called by the AddSymbol message and need not be exposed.
 let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) = //could match comp for symbols of different heights and widths
     let mainSymbol = {
-                LastDragPos = {X=0.;Y=0.}
+                LastDragPos = {X=10.;Y=10.}
                 IsDragging = false
                 Id = CommonTypes.ComponentId (Helpers.uuid())
                 Type = comp
@@ -199,8 +198,8 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
     {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
 
 
-let createNewBoundingBox (inputs: int list) (outputs: int list)=
-    ({X=0.;Y=0.},{X=80.;Y=60.})
+let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
+    ({X=0.;Y=0.},{X=sym.W+20.;Y=sym.H+20.})
     
     // +float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
     // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
@@ -221,59 +220,72 @@ let portmove portId inputYes model =
     (symbolReturn, portReturn, portNumber)
 
 let init() =
-    {Symbols=[]; SymBBoxes =[]; DragMultipleOrSingle = (false, {X=0.; Y=0.})}, Cmd.none
+    {Symbols=[]; SymBBoxes =[]; SingleOrMultiple=false}, Cmd.none
 
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | AddSymbol(inputno, outputno, compType) ->
-        let newSymbols = List.rev (createNewSymbol inputno outputno compType :: model.Symbols)
-        let newSymbolsBoundingBoxes = List.rev (createNewBoundingBox inputno outputno :: model.SymBBoxes)
-        {model with Symbols=newSymbols; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+        let newSymbol = createNewSymbol inputno outputno compType
+        let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
+        let newSymbolList = List.rev (newSymbol::model.Symbols)
+        let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
+        {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
 
     | Dragging (sId, pagePos, prevPagePos) ->
         //let updatePorts pType xy mainS no=
         //    if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
         //    else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
-        let singleOrMultipleDragBool =
-            model.Symbols 
-            |> List.exists (fun sym -> sId = [sym.Id] && sym.IsSelected = false)
+
+        let isSingleSelected = 
+            List.exists (fun sym -> sId=[sym.Id] && sym.IsSelected = false) model.Symbols
+        //if symbol being dragged is not selected - then you are dragging one component
 
         let diff = posDiff pagePos prevPagePos
 
         let dSymbols=
-            let symFunction (newSym: Symbol) = if singleOrMultipleDragBool=true 
-                                               then newSym.IsSelected = false 
-                                               else sId <> [newSym.Id]
-            model.Symbols
-            |> List.map (fun sym ->
-                if symFunction sym = false then
-                    sym
-                else //check whether symbol is selected
-                    { sym with
-                        Pos = posAdd sym.Pos diff
-                        IsDragging = true
-                        LastDragPos = pagePos
-                        InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
-                        OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
-                    }
-            )  
-        
-        {model with Symbols=dSymbols; DragMultipleOrSingle = (singleOrMultipleDragBool, diff) }, Cmd.none  
-
-             //; SymBBoxes = updateSymBBoxesox
+            let diff = posDiff pagePos prevPagePos//sym.LastDragPos
+            match isSingleSelected with 
+            |true ->
+                    List.map (fun sym -> if sym.IsSelected = true
+                                          then {sym with IsSelected=false}
+                                          else //check whether symbol is selected
+                                                { sym with
+                                                    Pos = posAdd sym.Pos diff
+                                                    IsDragging = true
+                                                    LastDragPos = sym.Pos
+                                                    InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
+                                                    OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
+                                                }) model.Symbols
+            |false -> List.map (fun sym -> if [sym.Id] <> sId
+                                                then sym
+                                                else //check whether symbol is selected
+                                                    { sym with
+                                                        Pos = posAdd sym.Pos diff
+                                                        IsDragging = true
+                                                        LastDragPos = pagePos
+                                                        InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
+                                                        OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
+                                                    }
+                        ) model.Symbols  
+        {model with Symbols=dSymbols; SingleOrMultiple=isSingleSelected}, Cmd.none  
     
     | UpdateBBoxes (sId) ->
-        let (singleDragBool , diff) = model.DragMultipleOrSingle
         let newSymbols, newBox =
-            if singleDragBool = true then  
-                List.map2 (fun sym box -> if sId <> [sym.Id] then (sym, box) else ({sym with IsDragging = false} , (posAdd (fst box) diff, posAdd (snd box) diff))) model.Symbols model.SymBBoxes
-                |> List.unzip
+            if model.SingleOrMultiple = true 
+            then  List.map2 (fun sym box -> if sId <> [sym.Id] 
+                                            then (sym, box) 
+                                            else ({sym with IsDragging=false} , ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                  |> List.unzip
             else
-                List.map2 (fun sym box -> if sym.IsSelected = false then (sym, box) else ({sym with IsDragging = false}, (posAdd (fst box) diff, posAdd (snd box) diff))) model.Symbols model.SymBBoxes
+                List.map2 (fun sym box -> if sym.IsSelected = false 
+                                          then (sym, box) 
+                                          else ({sym with IsDragging = false}, ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
                 |> List.unzip
-                        
-        {model with SymBBoxes = newBox; Symbols = newSymbols}, Cmd.none 
+        // let newBox, newSymbols = 
+        //     if singleDragBool=true
+        //     then 
+        {model with SymBBoxes=newBox; Symbols=newSymbols}, Cmd.none 
     
     | DeleteSymbol ->
         let (remainingSymbols, remainingBBox) =
@@ -478,7 +490,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | _ ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                            // renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+                            renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
                             

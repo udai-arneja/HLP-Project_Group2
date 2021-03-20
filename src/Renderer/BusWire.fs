@@ -389,21 +389,21 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
 
     | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
-        let wireUpdated,segmentsList = List.unzip wireAndSegList
-        let updatedBBoxes = 
-            let findIndex = 
-                model.Wires
-                |> List.indexed
-                |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.[0].Id )
-            let decodeIndex = match findIndex with 
-                              | [(idx, wire)] -> idx
-                              | _ -> failwithf "Error"
+        // let wireUpdated,segmentsList = List.unzip wireAndSegList
+        // let updatedBBoxes = 
+        //     let findIndex = 
+        //         model.Wires
+        //         |> List.indexed
+        //         |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.[0].Id )
+        //     let decodeIndex = match findIndex with 
+        //                       | [(idx, wire)] -> idx
+        //                       | _ -> failwithf "Error"
 
-            model.wBB 
-            |> List.indexed
-            |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.[0].Vertices else bb )
+        //     model.wBB 
+        //     |> List.indexed
+        //     |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.[0].Vertices else bb )
         
-        {model with wBB=updatedBBoxes}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
+        model, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
 
         // let updatesBbox =
         //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Wires
