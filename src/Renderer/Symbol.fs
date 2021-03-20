@@ -384,7 +384,6 @@ type private RenderSymbolProps =
 
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
-<<<<<<< Updated upstream
 
 
         // // let individiualPorts =
@@ -419,14 +418,6 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
         //     match portVisibility with
         //     |"invisible" -> []
         //     |_ -> [portSection]
-=======
-    let renderPorts (portVisibility:PortVisibility) num sym =
-        match portVisibility with
-        | Visible -> circus sym.OutputPorts.[num].PortPos.X  sym.OutputPorts.[num].PortPos.Y 5.
-        | Invisible -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        | ShowInputsOnly -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        | ShowOutputsOnly -> circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. 
->>>>>>> Stashed changes
 
 
 
@@ -1399,68 +1390,3 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //        model.Symbols
     //        |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) sId) |> function |Some a -> {sym with IsDragging = false; LastDragPos = pagePos} |None -> sym)
     //    {model with Symbols = edSymbols}, Cmd.none
-<<<<<<< Updated upstream
-=======
-
-
-
-
-
-
-            // // let individiualPorts = 
-        //     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
-        //     let slideCirc =
-        //         let portList =
-        //             if IO = "input" then sym.InputPorts.[(int num)].PortPos
-        //             else sym.OutputPorts.[(int num)].PortPos
-        //         [
-        //                  circus xSlide ySlide 5. 
-        //                  line [
-        //                      X1 portList.X   //fst portList)
-        //                      Y1 portList.Y   //(snd portList)
-        //                      X2 xSlide
-        //                      Y2 ySlide
-        //                      SVGAttr.StrokeDasharray "4"
-        //                      // Qualify these props to avoid name collision with CSSProp
-        //                      SVGAttr.Stroke "black"
-        //                      SVGAttr.StrokeWidth 5 ] []
-        //         ]
-
-        //     let inPorts =
-        //         [
-        //            circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.  
-                
-        //         ]
-        //     let outPorts=
-        //         [
-        //             circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        //             //rect [
-        //             //    X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
-        //             //    Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
-        //             //    SVGAttr.Width 10.
-        //             //    SVGAttr.Height 10.
-        //             //    SVGAttr.Fill "black"
-        //             //    SVGAttr.Stroke "black"
-        //             //    SVGAttr.StrokeWidth 1
-        //             //][]
-        //         ]
-
-        //     let portSection =
-        //         match (portVisibility, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-        //         |("visible", _, _, _ ) -> inPorts @ outPorts 
-        //         |(_, true, slidePortNum, _) -> slideCirc // for valid ports but the port that slides for a sliding output
-        //         |(_, true, slidePortNum, "output") -> inPorts
-        //         |(_, true, slidePortNum, "input") -> outPorts//for normal showing ports when nearby
-        //         |("input",false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs
-        //         |("output", false,_,_ ) -> inPorts
-        //         |_ -> []
-
-        //     match portVisibility with
-        //     |"invisible" -> []
-        //     |_ -> [portSection]
-
-        // List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.OutputPorts.Length-1))]
-        // |> List.append (List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
-        // |> List.collect (fun x -> x)
-        // |> List.collect (fun x->x)
->>>>>>> Stashed changes
