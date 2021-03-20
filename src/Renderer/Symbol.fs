@@ -347,13 +347,13 @@ type private RenderSymbolProps =
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
     let renderPorts (portVisibility:CommonTypes.PortVisibility) num sym =
         match portVisibility with
-        | Visible -> [
-                       circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.;
-                       circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.
-                      ]
-        | Invisible -> []
-        | OutputPorts -> [circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.]
-        | InputPorts -> [circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. ]
+        | Visible -> 
+                       circus sym.OutputPorts.[num].PortPos.X  sym.OutputPorts.[num].PortPos.Y 1.
+                    //    ;
+                    //    circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.
+        | Invisible -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+        | OutputPorts -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+        | InputPorts -> circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. 
         // let individiualPorts = 
         //     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
         //     let slideCirc =
@@ -480,11 +480,11 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | Not ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) props.Symb.Pos.X (props.Symb.Pos.Y + gateHeight/2.) 2
-                            
+                            renderPorts Visible 1 props.Symb
                         | _ ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                            
+                            renderPorts Visible 1 props.Symb
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
                             

@@ -244,7 +244,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none // do nothing else and return model unchanged
 
     | KeyPress CtrlS -> // add symbol and create a restore point
-        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types
+        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;2], [1;2], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types
         {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
     
     |KeyPress DEL ->
