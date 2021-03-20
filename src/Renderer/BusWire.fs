@@ -413,6 +413,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //         if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Wires.[index].W, correctY-10.; correctX+10.+model.Wires.[index].W, correctY+10. + model.Wires.[index].H; correctX-10.,correctY+10.+ model.Wires.[index].H] else boxList
         //     List.mapi (fun i p -> updateBBox i p) model.wBB
         // {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
+    // | _ -> failwithf "Unmatched in BusWire Update function"
 
 
 //---------------Other interface functions--------------------//
