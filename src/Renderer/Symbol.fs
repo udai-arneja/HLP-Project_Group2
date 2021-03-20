@@ -1,4 +1,4 @@
-module Symbol
+﻿module Symbol
 open Fable.React
 open Fable.React.Props
 open Browser
@@ -197,6 +197,27 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
     let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length outputs)) outputs
     {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
 
+let createCustomSymbol (comp:CommonTypes.CustomComponentType) = 
+    let mainSymbol = {
+                LastDragPos = {X=10.;Y=10.}
+                IsDragging = false
+                Id = CommonTypes.ComponentId (Helpers.uuid())
+                Type = Custom comp
+                InputPorts = []
+                OutputPorts = []
+                Pos = {X=10.;Y=10.}
+                H = max (80.) (float (max (List.length comp.InputLabels) (List.length comp.OutputLabels))*40.)
+                W = 60.
+                IsSelected = false
+                PortStatus = Invisible
+                IsSliding = (false, ShowInputsOnly, 0, {X=0.; Y=0.})
+              }  
+    let _, inputBusWidths = List.unzip comp.InputLabels
+    let _, outputBusWidths = List.unzip comp.OutputLabels
+    let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length comp.InputLabels )) inputBusWidths //comp.InputLabels?
+    let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length comp.OutputLabels)) outputBusWidths
+    {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}            
+
 
 let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
     ({X=0.;Y=0.},{X=sym.W+20.;Y=sym.H+20.})
@@ -226,11 +247,19 @@ let init() =
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | AddSymbol(inputno, outputno, compType) ->
-        let newSymbol = createNewSymbol inputno outputno compType
-        let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
-        let newSymbolList = List.rev (newSymbol::model.Symbols)
-        let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
-        {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+        //need to have anther sheet input parameter for when custom - this could be an option
+        match compType with
+        | CommonTypes.Custom customInformation -> let newSymbol = createCustomSymbol customInformation
+                                                  let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
+                                                  let newSymbolList = List.rev (newSymbol::model.Symbols)
+                                                  let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
+                                                  {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+        | _ -> let newSymbol = createNewSymbol inputno outputno compType
+               let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
+               let newSymbolList = List.rev (newSymbol::model.Symbols)
+               let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
+               {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+        
 
     | Dragging (sId, pagePos, prevPagePos) ->
         //let updatePorts pType xy mainS no=
@@ -355,6 +384,7 @@ type private RenderSymbolProps =
 
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
+<<<<<<< Updated upstream
 
 
         // // let individiualPorts =
@@ -389,11 +419,15 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
         //     match portVisibility with
         //     |"invisible" -> []
         //     |_ -> [portSection]
+=======
+    let renderPorts (portVisibility:PortVisibility) num sym =
+        match portVisibility with
+        | Visible -> circus sym.OutputPorts.[num].PortPos.X  sym.OutputPorts.[num].PortPos.Y 5.
+        | Invisible -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+        | ShowInputsOnly -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+        | ShowOutputsOnly -> circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. 
+>>>>>>> Stashed changes
 
-        // List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.OutputPorts.Length-1))]
-        // |> List.append (List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
-        // |> List.collect (fun x -> x)
-        // |> List.collect (fun x->x)
 
 
 
@@ -838,6 +872,72 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
                 ]
         )
+    | Custom customSymbol ->    //custom symbol contains - name of component; list of input and output ports with name & buswidth
+        
+            
+            
+            //list of port names
+           
+            //generate lines
+
+            //generate ports
+            
+         FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+                let color =
+                    if props.Symb.IsSelected then
+                        "green"
+                    else
+                        "grey"
+                let generatePortsList index portName inoutput =
+                    let inputPortNum = List.length props.Symb.InputPorts
+                    let outputPortNum = List.length props.Symb.OutputPorts
+                    let inputPortName = printfn (Printf.TextWriterFormat<_> (fst customSymbol.InputLabels.[index]) )
+                    let outputPortName = printfn (Printf.TextWriterFormat<_> (fst customSymbol.OutputLabels.[index]) )
+                    match inoutput with 
+                    | true -> (homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) "start" "Middle" "10px" inputPortName),
+                              (creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) (props.Symb.Pos.X) (props.Symb.Pos.Y + (float(index + 1)/(float inputPortNum + 1.)*props.Symb.H)) 2) 
+
+                    | false -> (homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + (float(index + 1)/(float outputPortNum + 1.)*props.Symb.H)) "start" "Middle" "10px" outputPortName),
+                               (creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + (float(index + 1)/(float inputPortNum + 1.)*props.Symb.H)) 2 )
+
+                let generateSVGChild =
+                    let standard  =
+                        [
+                            //shape - done
+                            rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth props.Symb.H color props //can do gateHeight*max inputs/outputs
+
+                            //name of component - potentially change width based on name size - done
+                            let name = printfn (Printf.TextWriterFormat<_> customSymbol.Name)                                                    
+                            homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + props.Symb.H/8.) "middle" "Middle" "14px" name
+                            
+                            // let Y0 = fst customSymbol.InputLabels.[int num]
+                             
+                            // homotextual (props.Symb.Pos.X + gateWidth -   inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" ("%A"  Y0)//change Y0 to custom output e.g. C
+                            
+                          
+                            
+                            // // renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+                            // homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
+                            // creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
+                                
+                            
+                            
+                            // creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2
+                        ]      
+                    List.mapi (fun index (portName,_) -> generatePortsList index portName true) customSymbol.InputLabels
+                    |> List.append (List.mapi (fun index (portName,_) -> generatePortsList index portName false) customSymbol.OutputLabels)
+                    |> List.unzip
+                    |> (fun (reactList1, reactList2) -> reactList1@reactList2)
+                    |> List.append standard
+
+
+                g   [
+                    //generating the ports - done
+                    ](Seq.ofList(generateSVGChild))
+
+            )
+
     |_-> failwithf"not yet implemented"
 
 
@@ -1299,3 +1399,68 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //        model.Symbols
     //        |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) sId) |> function |Some a -> {sym with IsDragging = false; LastDragPos = pagePos} |None -> sym)
     //    {model with Symbols = edSymbols}, Cmd.none
+<<<<<<< Updated upstream
+=======
+
+
+
+
+
+
+            // // let individiualPorts = 
+        //     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
+        //     let slideCirc =
+        //         let portList =
+        //             if IO = "input" then sym.InputPorts.[(int num)].PortPos
+        //             else sym.OutputPorts.[(int num)].PortPos
+        //         [
+        //                  circus xSlide ySlide 5. 
+        //                  line [
+        //                      X1 portList.X   //fst portList)
+        //                      Y1 portList.Y   //(snd portList)
+        //                      X2 xSlide
+        //                      Y2 ySlide
+        //                      SVGAttr.StrokeDasharray "4"
+        //                      // Qualify these props to avoid name collision with CSSProp
+        //                      SVGAttr.Stroke "black"
+        //                      SVGAttr.StrokeWidth 5 ] []
+        //         ]
+
+        //     let inPorts =
+        //         [
+        //            circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.  
+                
+        //         ]
+        //     let outPorts=
+        //         [
+        //             circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+        //             //rect [
+        //             //    X props.Square.OutputPorts.[int num].PortPos.X      //(fst props.Square.OutputPorts.[int num].PortPos)
+        //             //    Y props.Square.OutputPorts.[int num].PortPos.Y      //(snd props.Square.OutputPorts.[int num].PortPos)
+        //             //    SVGAttr.Width 10.
+        //             //    SVGAttr.Height 10.
+        //             //    SVGAttr.Fill "black"
+        //             //    SVGAttr.Stroke "black"
+        //             //    SVGAttr.StrokeWidth 1
+        //             //][]
+        //         ]
+
+        //     let portSection =
+        //         match (portVisibility, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
+        //         |("visible", _, _, _ ) -> inPorts @ outPorts 
+        //         |(_, true, slidePortNum, _) -> slideCirc // for valid ports but the port that slides for a sliding output
+        //         |(_, true, slidePortNum, "output") -> inPorts
+        //         |(_, true, slidePortNum, "input") -> outPorts//for normal showing ports when nearby
+        //         |("input",false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs
+        //         |("output", false,_,_ ) -> inPorts
+        //         |_ -> []
+
+        //     match portVisibility with
+        //     |"invisible" -> []
+        //     |_ -> [portSection]
+
+        // List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.OutputPorts.Length-1))]
+        // |> List.append (List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
+        // |> List.collect (fun x -> x)
+        // |> List.collect (fun x->x)
+>>>>>>> Stashed changes
