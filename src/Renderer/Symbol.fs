@@ -113,7 +113,7 @@ let circus xPos yPos rad = // cheeky bit of kareem abstraction
             SVGAttr.Stroke "Black"
             SVGAttr.StrokeWidth 2
         ] [ ]
-        
+
 let homotextual xPos yPos textAnchor domBaseline fontSize displayText = // cheeky bit of kareem abstraction
     text
         [ X xPos
@@ -157,11 +157,11 @@ let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(
         //               then {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
         //               else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/3.))}
         |_ -> match (portType, numPorts) with 
-              | (CommonTypes.Input, 1) -> {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.H/2.))}
-              | (CommonTypes.Input, 2) -> {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber))*2. + 1.)*(comp.H/4.)}
-              | (CommonTypes.Input, 3) -> {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
-              | (_, 1) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
-              | (_, 2) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+ (float (portNumber))*2. + 1.)*(comp.H/4.)}  
+              | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.H/2.))}
+              | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.H)/2.) + comp.H/4.)}
+              | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
+              | (_, 1) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ( comp.H/2.) )}
+              | (_, 2) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ((float (portNumber))*2. + 1.)*(comp.H/4.))}  // this one
               |_ -> failwithf "Error on portlist"
     {
         CommonTypes.Port.Id = Helpers.uuid()
@@ -338,16 +338,13 @@ type private RenderSymbolProps =
         Comp : CommonTypes.ComponentType
     }
 
-/// View for one symbol with caching for efficient execution when input does not change
+/// View for one symbol with caching for efficient execution when input does not change        
+
 
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
-    let renderPorts (portVisibility:PortVisibility) num sym =
-        match portVisibility with
-        | Visible -> circus sym.OutputPorts.[num].PortPos.X  sym.OutputPorts.[num].PortPos.Y 5.
-        | Invisible -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        | ShowInputsOnly -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        | ShowOutputsOnly -> circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. 
+    
+
         // // let individiualPorts = 
         //     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
         //     let slideCirc =
@@ -404,6 +401,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
         // |> List.append (List.map (outputPorts sym.PortStatus) [(0.)..(float (sym.InputPorts.Length-1))])
         // |> List.collect (fun x -> x)
         // |> List.collect (fun x->x)
+
 
 
     match comp with
@@ -478,7 +476,8 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | _ ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                            // renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+                            
+
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
                             
@@ -488,7 +487,23 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                             creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2
                         | _ ->
                             creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2
-                            
+
+                        //let renderPorts (portVisibility:PortVisibility) num sym =
+                        let num = ((List.length props.Symb.OutputPorts)-1)
+                        match props.Symb.PortStatus with
+                        | Visible ->    circus props.Symb.OutputPorts.[int num].PortPos.X  props.Symb.OutputPorts.[int num].PortPos.Y 5.
+                                        circus props.Symb.InputPorts.[int num].PortPos.X  props.Symb.InputPorts.[int num].PortPos.Y 5.
+                                        circus props.Symb.InputPorts.[int num+1].PortPos.X  props.Symb.InputPorts.[int num+1].PortPos.Y 5.
+
+                                        
+                        | Invisible ->  circus 0 0 0
+                        | ShowInputsOnly -> circus props.Symb.InputPorts.[int num].PortPos.X  props.Symb.InputPorts.[int num].PortPos.Y 5.
+                                            circus props.Symb.InputPorts.[int num+1].PortPos.X  props.Symb.InputPorts.[int num+1].PortPos.Y 5.            
+                        | ShowOutputsOnly -> circus props.Symb.OutputPorts.[int num].PortPos.X  props.Symb.OutputPorts.[int num].PortPos.Y 5.
+
+                        //renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+
+
                     ]
 
         )
@@ -853,27 +868,7 @@ type private RenderCircleProps =
 /// View for one symbol with caching for efficient execution when input does not change
 /// View function for symbol layer of SVG
 
-// let view (model : Model) (dispatch : Msg -> unit) =
-//     //model
-//     //|> List.map (fun ({Id = CommonTypes.ComponentId id} as circle) ->
-//     //    renderCircle
-//     //        {
-//     //            Circle = circle
-//     //            Dispatch = dispatch
-//     //            key = id
-//     //        }
-//     //)
-//     //|> ofList
-//     model.Symbols
-//     |> List.map (fun ({Id = CommonTypes.ComponentId ii} as custom) -> //match each symbol with its t
-//         renderCustom
-//             {
-//                 Custom = custom
-//                 Dispatch = dispatch
-//                 key = ii // to make it string by type matching
-//             }
-//     )
-//     |> ofList
+
 
 let view (model : Model) (dispatch : Msg -> unit) = 
     model.Symbols
