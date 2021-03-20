@@ -18,10 +18,11 @@ type Model = {
     MultiSelectBox: bool * XYPos * XYPos  //boxOrWire,startPos, endPos multi-select box
     Restore: BusWire.Model
     LastOp: Helpers.MouseOp;
+    Zoom : float
     }
 
 type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl 
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown
 
 type Msg =
     | Wire of BusWire.Msg
@@ -49,14 +50,14 @@ let zoom = 1.0
 //display
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
-    let sizeInPixels = sprintf "%.2fpx" ((1000. * zoom))
+    let sizeInPixels = sprintf "%.2fpx" ((1000. * model.Zoom))
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = 
         if ev.buttons <> 0. then true else false
     /// Dispatch a BusWire MouseMsg message
     /// the screen mouse coordinates are compensated for the zoom transform
     let mouseOp op (ev:Types.MouseEvent) = 
-        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / zoom ; Y = ev.clientY / zoom}})
+        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / model.Zoom ; Y = ev.clientY / model.Zoom}})
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
     div [ Style 
             [ 
@@ -78,7 +79,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                 ]
             ]
             [ g // group list of elements with list of attributes
-                [ Style [Transform (sprintf "scale(%f)" zoom)]] // top-level transform style attribute for zoom
+                [ Style [Transform (sprintf "scale(%f)" model.Zoom)]] // top-level transform style attribute for zoom
                 [
                 match boxOrWire with 
                 | true ->  rect // to apear for selecting
@@ -251,6 +252,14 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress AltZ -> {model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); Restore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});
+    | KeyPress AltUp ->
+        printfn "Zoom In"
+        {model with Zoom=model.Zoom+0.1}, Cmd.none
+
+    | KeyPress AltDown ->
+        printfn "Zoom Out"
+        {model with Zoom=model.Zoom-0.1}, Cmd.none
+
     | KeyPress s -> 
         let c =
             match s with
@@ -258,6 +267,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | AltV -> CommonTypes.Green
             | _ -> CommonTypes.Grey
         model, Cmd.ofMsg (Wire <| BusWire.SetColor c)
+
+    
 
 
 let init() = 
@@ -271,6 +282,7 @@ let init() =
         MultiSelectBox = (false, {X=0.;Y=0.}, {X=0.;Y=0.})
         Restore = model 
         LastOp = Move
+        Zoom = 1.0
     }, Cmd.map Wire cmds
 
 
