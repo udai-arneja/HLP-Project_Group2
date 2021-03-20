@@ -33,8 +33,8 @@ type Symbol =
         H : float
         W : float
         IsSelected: bool
-        PortStatus: string
-        IsSliding: bool * string * int * XYPos
+        PortStatus: PortVisibility
+        IsSliding: bool * PortVisibility * int * XYPos
     }
 
 type Model = {
@@ -54,9 +54,6 @@ type Model = {
 type Msg =
     /// Mouse info with coords adjusted form top-level zoom
     | MouseMsg of MouseT
-    /// coords not adjusted for top-level zoom
-    //| StartDragging of sId : CommonTypes.ComponentId * pagePos: XYPos
-    /// coords not adjusted for top-level zoom
     //| Dragging of sId : CommonTypes.ComponentId * pagePos: XYPos
     | Dragging of sId : CommonTypes.ComponentId list * pagePos: XYPos * prevPagePos: XYPos
     //| DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
@@ -67,7 +64,7 @@ type Msg =
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
     | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
     | Hovering of portSymbol:CommonTypes.ComponentId list
-    | ShowValidPorts of inOut:string* portId:string * mousePos:XYPos
+    | ShowValidPorts of inOut:PortVisibility * portId:string * mousePos:XYPos
     | UpdateBBoxes of CommonTypes.ComponentId list
     // | SelectSymbol of Symbol list
     
@@ -193,8 +190,8 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
                 H = 80.
                 W = 60.
                 IsSelected = false
-                PortStatus = "invisible"
-                IsSliding = (false, "input" , 0, {X=0.; Y=0.})
+                PortStatus = Invisible
+                IsSliding = (false, ShowInputsOnly, 0, {X=0.; Y=0.})
               }
     
     let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length inputs)) inputs
@@ -214,8 +211,8 @@ let portmove portId inputYes model =
                                                                |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
                                                                | _ -> failwithf "not implemented - findPort Function, Symbol line 152"
     let portReturn = match inputYes with //haaate this
-                     | "input" -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol
-                     | "output" -> List.fold (findPort 0) [] model |> List.head
+                     | ShowInputsOnly -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol
+                     | ShowOutputsOnly -> List.fold (findPort 0) [] model |> List.head
                      | _ -> failwithf "not implemented - portReturn Function, Symbol line 155"
     let symbolReturn = List.find (fun x -> x.Id = CommonTypes.ComponentId portReturn.HostId) model
     let portNumber = match portReturn.PortNumber with
@@ -316,19 +313,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     |Hovering (sId) ->
         let showPortSymbols =
             model.Symbols
-            |> List.map (fun sym -> if [sym.Id] = sId then { sym with PortStatus = "visible"}  else { sym with PortStatus = "invisible"})
+            |> List.map (fun sym -> if [sym.Id] = sId then { sym with PortStatus = Visible}  else { sym with PortStatus = Invisible})
         {model with Symbols = showPortSymbols}, Cmd.none
 
     |ShowValidPorts (iO, portId, posi) ->
         let validPortSymbols =
             match portmove portId iO model.Symbols with
-            | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
+            | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding=(true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
 
     | MouseMsg {Pos = {X=posX; Y=posY}; Op = Down} ->
         let showPorts =
             model.Symbols
-            |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
+            |> List.map (fun x -> { x with PortStatus=Invisible; IsSliding=(false, ShowInputsOnly , 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
     | _ -> failwith "Not Implemented, Symbol Update Function, Symbol line 299" // allow unused mouse messags
 
@@ -345,16 +342,13 @@ type private RenderSymbolProps =
 
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
-    let renderPorts (portVisibility:CommonTypes.PortVisibility) num sym =
+    let renderPorts (portVisibility:PortVisibility) num sym =
         match portVisibility with
-        | Visible -> 
-                       circus sym.OutputPorts.[num].PortPos.X  sym.OutputPorts.[num].PortPos.Y 1.
-                    //    ;
-                    //    circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.
+        | Visible -> circus sym.OutputPorts.[num].PortPos.X  sym.OutputPorts.[num].PortPos.Y 5.
         | Invisible -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        | OutputPorts -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
-        | InputPorts -> circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. 
-        // let individiualPorts = 
+        | ShowInputsOnly -> circus sym.OutputPorts.[int num].PortPos.X  sym.OutputPorts.[int num].PortPos.Y 5.
+        | ShowOutputsOnly -> circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5. 
+        // // let individiualPorts = 
         //     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
         //     let slideCirc =
         //         let portList =
@@ -480,11 +474,11 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | Not ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) props.Symb.Pos.X (props.Symb.Pos.Y + gateHeight/2.) 2
-                            renderPorts Visible 1 props.Symb
+                            // Seq.ofList (renderPorts Visible 1 props.Symb)
                         | _ ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                            renderPorts Visible 1 props.Symb
+                            // renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
                             

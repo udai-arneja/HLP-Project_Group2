@@ -58,7 +58,7 @@ type Model = {
 type Msg =
     | Symbol of Symbol.Msg
     | AddWire of (CommonTypes.Port * CommonTypes.Port)
-    | SetColor of CommonTypes.HighLightColor
+    // | SetColor of CommonTypes.HighLightColor
     | DeleteWire
     | MouseMsg of MouseT
     | ToggleSelect of (CommonTypes.ComponentId list * (Wire * int) list)
@@ -66,8 +66,8 @@ type Msg =
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | UpdateBoundingBoxes of (CommonTypes.ComponentId list * (Wire * int) list)
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
-    | EndDragging of wId : CommonTypes.ComponentId
-    | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
+    // | EndDragging of wId : CommonTypes.ComponentId
+    // | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
 
 
 
@@ -332,6 +332,7 @@ let init () =
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     match msg with
+
     | Symbol sMsg -> 
         //cmoe back to this - moving the symbol and its effect on wires
         let newBB = 
@@ -360,26 +361,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let remainingWires = fst remainingWiresAndBoxes
         let remainingBbox = snd remainingWiresAndBoxes
         {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
-        //first removing wires that are on symbols
-        // let remainingWiresAndBoxes = 
-        //     let checkWire (wiresList, bBoxesList) (wire:Wire) boundingBox =
-        //         let areAttachedSymbolsSelected =
-        //             match wire with
-        //             | Symolwire.SrcPort.HostId
-        //         match wire.Selected with
-        //         | true -> (wiresList, bBoxesList)
-        //         | false -> match areAttachedSymbolsSelected with
-        //                    | true -> (wiresList, bBoxesList)
-        //                    | false -> (wiresList@[wire], bBoxesList@[boundingBox])
-        //     List.fold2 checkWire ([],[]) model.Wires model.wBB
-        // let wiresConnectedToSymbols = List.map () model.Wires
-        // //then removing remaining wires selected
-        // let selectedList = 
-        //     let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBox= 
-        //         if wireTest.Selected = true
-        //         then (wiresList@[wireTest], bBoxesList@[boundingBox])
-        //         else (wiresList, bBoxesList)
-        //     List.fold2 checkWire ([],[]) model.Wires model.wBB
 
     | ToggleSelect (symToSel, wireAndSegList ) ->
         let wiresToSel,segmentsList = List.unzip wireAndSegList
@@ -401,31 +382,26 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //probably need to unselect the other selected wires?
         match wireAndSegList with
         | [] -> model, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
-        | _ -> failwithf "Hi"
+        | _ -> failwithf "BusWire Dragging - in the update function ~ 387"
         // let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
         //                                          then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
         //                                          else wire ) model.Wires
         // {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
 
-    | UpdateBoundingBoxes (symbolUpdated,[wireUpdated,segIndex]) -> 
-        //let updatedBBoxes = List.map (fun wire -> if wire.Id = wireUpdated.Id
-        //                                          then wireBoundingBoxes wire.Vertices
-        //                                          else wire) model.WX
-        //let updatedBBoxes = List.mapi (fun wireIndex wire -> if wire.Id = wireUpdated.Id
-        //                                                     then wireBoundingBoxes wireUpdated.Vertices
-        //                                                     else wire) model.WX
+    | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
+        let wireUpdated,segmentsList = List.unzip wireAndSegList
         let updatedBBoxes = 
             let findIndex = 
                 model.Wires
                 |> List.indexed
-                |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.Id )
+                |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.[0].Id )
             let decodeIndex = match findIndex with 
                               | [(idx, wire)] -> idx
                               | _ -> failwithf "Error"
 
             model.wBB 
             |> List.indexed
-            |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.Vertices else bb )
+            |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.[0].Vertices else bb )
         
         {model with wBB=updatedBBoxes}, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
 
@@ -483,3 +459,24 @@ let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component
 
 
 
+
+    //first removing wires that are on symbols
+        // let remainingWiresAndBoxes = 
+        //     let checkWire (wiresList, bBoxesList) (wire:Wire) boundingBox =
+        //         let areAttachedSymbolsSelected =
+        //             match wire with
+        //             | Symolwire.SrcPort.HostId
+        //         match wire.Selected with
+        //         | true -> (wiresList, bBoxesList)
+        //         | false -> match areAttachedSymbolsSelected with
+        //                    | true -> (wiresList, bBoxesList)
+        //                    | false -> (wiresList@[wire], bBoxesList@[boundingBox])
+        //     List.fold2 checkWire ([],[]) model.Wires model.wBB
+        // let wiresConnectedToSymbols = List.map () model.Wires
+        // //then removing remaining wires selected
+        // let selectedList = 
+        //     let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBox= 
+        //         if wireTest.Selected = true
+        //         then (wiresList@[wireTest], bBoxesList@[boundingBox])
+        //         else (wiresList, bBoxesList)
+        //     List.fold2 checkWire ([],[]) model.Wires model.wBB

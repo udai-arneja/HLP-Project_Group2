@@ -39,9 +39,6 @@ let zoom = 1.0
 
 //INTERFACES TO DO:
 
-//209 - update bounding boxes
-//212 - AddWire
-
 // let hovering (symId: CommonTypes.ComponentId list) : Msg = (Wire <| BusWire.Symbol (Symbol.Hovering symId))
 // let toggleSelect (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
 // let updateBBoxes (symId, wireId) : Msg = (Wire <| BusWire.Symbol (Symbol.DeleteSymbol))
@@ -226,13 +223,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                   |(false, p1, prevPos) -> match model.LastOp with 
                                            |Down -> {model with LastOp=Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, prevPos, mousePos) ) 
                                            |Drag -> {model with LastOp=Drag; MultiSelectBox = (false, {X=0.;Y=0.}, mousePos)}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, prevPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
-                                           
+                                           | _ -> model, Cmd.none
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp = Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
                                   | _ -> {model with LastOp = Move}, Cmd.none
-                  |(None,Some port) -> {model with LastOp=Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts ("Input", port.Id, mousePos)) )
-                  |(Some port,None) -> {model with LastOp=Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts ("Output", port.Id, mousePos)) )
+                  |(None,Some port) -> {model with LastOp=Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
+                  |(Some port,None) -> {model with LastOp=Move}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                   | _ -> failwithf "Not implemented - Move Sheet Update function ~ 253" 
 
     |Wire wMsg -> 
@@ -266,10 +263,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | AltC -> CommonTypes.Blue
             | AltV -> CommonTypes.Green
             | _ -> CommonTypes.Grey
-        model, Cmd.ofMsg (Wire <| BusWire.SetColor c)
-
-    
-
+        model, Cmd.none
+        // Cmd.ofMsg (Wire <| BusWire.SetColor c)
 
 let init() = 
     let model,cmds = (BusWire.init)() //initial model state

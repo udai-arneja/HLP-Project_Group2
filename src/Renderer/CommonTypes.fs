@@ -102,7 +102,7 @@ module CommonTypes
     // Other //
     //=======//
 
-    type PortVisibility = |Visible |Invisible |OutputPorts |InputPorts
+    type PortVisibility = |Visible |Invisible |ShowInputsOnly |ShowOutputsOnly
 
     type NumberBase = | Hex | Dec | Bin | SDec
 
