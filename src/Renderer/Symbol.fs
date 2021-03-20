@@ -40,8 +40,7 @@ type Symbol =
 type Model = {
     Symbols: Symbol list
     SymBBoxes: (XYPos*XYPos)  List
-    DragMultipleOrSingle: bool * XYPos
-    // MouseInfo : MouseT
+    SingleOrMultiple: bool          //true - single
     }
 
 
@@ -67,7 +66,7 @@ type Msg =
     | ShowValidPorts of inOut:PortVisibility * portId:string * mousePos:XYPos
     | UpdateBBoxes of CommonTypes.ComponentId list
     // | SelectSymbol of Symbol list
-    
+
 //---------------------------------helper types and functions----------------//
 
 
@@ -101,7 +100,7 @@ let rectum xPos yPos width height colour props  = // cheeky bit of kareem abstra
                 SVGAttr.StrokeWidth 2
             ]
             [ ]
-            
+
 
 let circus xPos yPos rad = // cheeky bit of kareem abstraction
     circle
@@ -117,7 +116,7 @@ let circus xPos yPos rad = // cheeky bit of kareem abstraction
 let homotextual xPos yPos textAnchor domBaseline fontSize displayText = // cheeky bit of kareem abstraction
     text
         [ X xPos
-          Y yPos 
+          Y yPos
           Style
                 [
                     TextAnchor textAnchor
@@ -139,7 +138,7 @@ let creditLines x1Pos y1Pos x2Pos y2Pos width = // cheeky bit of kareem abstract
                 [
                     CSSProp.Stroke "Black"
                     CSSProp.StrokeWidth width
-                    
+
                 ]
         ]
         []
@@ -149,14 +148,14 @@ let creditLines x1Pos y1Pos x2Pos y2Pos width = // cheeky bit of kareem abstract
 
 let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(width:int)(numPorts): CommonTypes.Port =
     let portPos =
-        match comp.Type with 
-        // |RAM -> if portType = CommonTypes.Input 
+        match comp.Type with
+        // |RAM -> if portType = CommonTypes.Input
         //            then {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float(portNumber + 1))*(comp.H/6.))}
         //            else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/2.))}
-        // |NbitAdder -> if portType = CommonTypes.Input 
+        // |NbitAdder -> if portType = CommonTypes.Input
         //               then {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
         //               else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/3.))}
-        |_ -> match (portType, numPorts) with 
+        |_ -> match (portType, numPorts) with
               | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.H/2.))}
               | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.H)/2.) + comp.H/4.)}
               | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
@@ -180,7 +179,7 @@ let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(
 /// in its initial form. This is called by the AddSymbol message and need not be exposed.
 let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) = //could match comp for symbols of different heights and widths
     let mainSymbol = {
-                LastDragPos = {X=0.;Y=0.}
+                LastDragPos = {X=10.;Y=10.}
                 IsDragging = false
                 Id = CommonTypes.ComponentId (Helpers.uuid())
                 Type = comp
@@ -193,15 +192,15 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
                 PortStatus = Invisible
                 IsSliding = (false, ShowInputsOnly, 0, {X=0.; Y=0.})
               }
-    
+
     let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length inputs)) inputs
     let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length outputs)) outputs
     {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
 
 
-let createNewBoundingBox (inputs: int list) (outputs: int list)=
-    ({X=0.;Y=0.},{X=80.;Y=60.})
-    
+let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
+    ({X=0.;Y=0.},{X=sym.W+20.;Y=sym.H+20.})
+
     // +float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
     // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
 
@@ -221,70 +220,83 @@ let portmove portId inputYes model =
     (symbolReturn, portReturn, portNumber)
 
 let init() =
-    {Symbols=[]; SymBBoxes =[]; DragMultipleOrSingle = (false, {X=0.; Y=0.})}, Cmd.none
+    {Symbols=[]; SymBBoxes =[]; SingleOrMultiple=false}, Cmd.none
 
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
     | AddSymbol(inputno, outputno, compType) ->
-        let newSymbols = List.rev (createNewSymbol inputno outputno compType :: model.Symbols)
-        let newSymbolsBoundingBoxes = List.rev (createNewBoundingBox inputno outputno :: model.SymBBoxes)
-        {model with Symbols=newSymbols; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+        let newSymbol = createNewSymbol inputno outputno compType
+        let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
+        let newSymbolList = List.rev (newSymbol::model.Symbols)
+        let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
+        {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
 
     | Dragging (sId, pagePos, prevPagePos) ->
         //let updatePorts pType xy mainS no=
         //    if pType = "Input" then {X=fst xy;Y=(snd xy+65.+(float no)*40.)}
         //    else {X=fst xy+mainS.W - 10.;Y=(snd xy+65.+(float no)*40.)}
-        let singleOrMultipleDragBool =
-            model.Symbols 
-            |> List.exists (fun sym -> sId = [sym.Id] && sym.IsSelected = false)
+
+        let isSingleSelected =
+            List.exists (fun sym -> sId=[sym.Id] && sym.IsSelected = false) model.Symbols
+        //if symbol being dragged is not selected - then you are dragging one component
 
         let diff = posDiff pagePos prevPagePos
 
         let dSymbols=
-            let symFunction (newSym: Symbol) = if singleOrMultipleDragBool=true 
-                                               then newSym.IsSelected = false 
-                                               else sId <> [newSym.Id]
-            model.Symbols
-            |> List.map (fun sym ->
-                if symFunction sym = false then
-                    sym
-                else //check whether symbol is selected
-                    { sym with
-                        Pos = posAdd sym.Pos diff
-                        IsDragging = true
-                        LastDragPos = pagePos
-                        InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
-                        OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
-                    }
-            )  
-        
-        {model with Symbols=dSymbols; DragMultipleOrSingle = (singleOrMultipleDragBool, diff) }, Cmd.none  
+            let diff = posDiff pagePos prevPagePos//sym.LastDragPos
+            match isSingleSelected with
+            |true ->
+                    List.map (fun sym -> if sym.IsSelected = true
+                                          then {sym with IsSelected=false}
+                                          else //check whether symbol is selected
+                                                { sym with
+                                                    Pos = posAdd sym.Pos diff
+                                                    IsDragging = true
+                                                    LastDragPos = sym.Pos
+                                                    InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
+                                                    OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
+                                                }) model.Symbols
+            |false -> List.map (fun sym -> if [sym.Id] <> sId
+                                                then sym
+                                                else //check whether symbol is selected
+                                                    { sym with
+                                                        Pos = posAdd sym.Pos diff
+                                                        IsDragging = true
+                                                        LastDragPos = pagePos
+                                                        InputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.InputPorts
+                                                        OutputPorts = List.map (fun port -> {port with PortPos = posAdd port.PortPos diff}) sym.OutputPorts
+                                                    }
+                        ) model.Symbols
+        {model with Symbols=dSymbols; SingleOrMultiple=isSingleSelected}, Cmd.none
 
-             //; SymBBoxes = updateSymBBoxesox
-    
     | UpdateBBoxes (sId) ->
-        let (singleDragBool , diff) = model.DragMultipleOrSingle
         let newSymbols, newBox =
-            if singleDragBool = true then  
-                List.map2 (fun sym box -> if sId <> [sym.Id] then (sym, box) else ({sym with IsDragging = false} , (posAdd (fst box) diff, posAdd (snd box) diff))) model.Symbols model.SymBBoxes
-                |> List.unzip
+            if model.SingleOrMultiple = true
+            then  List.map2 (fun sym box -> if sId <> [sym.Id]
+                                            then (sym, box)
+                                            else ({sym with IsDragging=false} , ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                  |> List.unzip
             else
-                List.map2 (fun sym box -> if sym.IsSelected = false then (sym, box) else ({sym with IsDragging = false}, (posAdd (fst box) diff, posAdd (snd box) diff))) model.Symbols model.SymBBoxes
+                List.map2 (fun sym box -> if sym.IsSelected = false
+                                          then (sym, box)
+                                          else ({sym with IsDragging = false}, ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
                 |> List.unzip
-                        
-        {model with SymBBoxes = newBox; Symbols = newSymbols}, Cmd.none 
-    
+        // let newBox, newSymbols =
+        //     if singleDragBool=true
+        //     then
+        {model with SymBBoxes=newBox; Symbols=newSymbols}, Cmd.none
+
     | DeleteSymbol ->
         let (remainingSymbols, remainingBBox) =
-             List.fold2 (fun remainingValues sym box -> if sym.IsSelected = false 
-                                                        then remainingValues @ [(sym, box)] 
+             List.fold2 (fun remainingValues sym box -> if sym.IsSelected = false
+                                                        then remainingValues @ [(sym, box)]
                                                         else remainingValues ) [] model.Symbols model.SymBBoxes
              |> List.unzip
         {model with Symbols=remainingSymbols; SymBBoxes = remainingBBox}, Cmd.none
 
-        // let selectedList = 
-        //     let checkSymbol (wiresList, bBoxesList) (wireTest) (boundingBox:XYPos*XYPos)= 
+        // let selectedList =
+        //     let checkSymbol (wiresList, bBoxesList) (wireTest) (boundingBox:XYPos*XYPos)=
         //         if wireTest.IsSelected = true
         //         then (wireTest::wiresList, bBoxesList@[boundingBox])
         //         else (wiresList, bBoxesList)
@@ -305,8 +317,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
     | ToggleSymbol (sId) ->
         let selectedSymbolList =
-            List.map (fun sym -> if sId = [sym.Id] 
-                                 then {sym with IsSelected = not sym.IsSelected} 
+            List.map (fun sym -> if sId = [sym.Id]
+                                 then {sym with IsSelected = not sym.IsSelected}
                                  else sym ) model.Symbols
         {model with Symbols = selectedSymbolList}, Cmd.none
 
@@ -338,21 +350,21 @@ type private RenderSymbolProps =
         Comp : CommonTypes.ComponentType
     }
 
-/// View for one symbol with caching for efficient execution when input does not change        
+/// View for one symbol with caching for efficient execution when input does not change
 
 
 
 let private RenderSymbol (comp: CommonTypes.ComponentType)=
-    
 
-        // // let individiualPorts = 
+
+        // // let individiualPorts =
         //     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
         //     let slideCirc =
         //         let portList =
         //             if IO = "input" then sym.InputPorts.[(int num)].PortPos
         //             else sym.OutputPorts.[(int num)].PortPos
         //         [
-        //                  circus xSlide ySlide 5. 
+        //                  circus xSlide ySlide 5.
         //                  line [
         //                      X1 portList.X   //fst portList)
         //                      Y1 portList.Y   //(snd portList)
@@ -366,8 +378,8 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
         //     let inPorts =
         //         [
-        //            circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.  
-                
+        //            circus sym.InputPorts.[int num].PortPos.X  sym.InputPorts.[int num].PortPos.Y 5.
+
         //         ]
         //     let outPorts=
         //         [
@@ -385,7 +397,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
         //     let portSection =
         //         match (portVisibility, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-        //         |("visible", _, _, _ ) -> inPorts @ outPorts 
+        //         |("visible", _, _, _ ) -> inPorts @ outPorts
         //         |(_, true, slidePortNum, _) -> slideCirc // for valid ports but the port that slides for a sliding output
         //         |(_, true, slidePortNum, "output") -> inPorts
         //         |(_, true, slidePortNum, "input") -> outPorts//for normal showing ports when nearby
@@ -435,7 +447,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                         // OnMouseUp (fun ev ->
                         //     document.removeEventListener("mousemove", handleMouseMove.current)
                         //     // EndDragging props.Square.Id
@@ -455,7 +467,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                                 circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius
                             | _ ->
                                 circus 0 0 0
-                                
+
                         match props.Comp with
                             | Not -> homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "1"
                             | And -> homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"
@@ -467,7 +479,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                             | _ -> homotextual 0 0 "" "" "" ""
 
                         homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"
-                        
+
                         match props.Comp with
                         | Not ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"
@@ -476,12 +488,11 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         | _ ->
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                            
-
+                            renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
                             homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
-                            
-                        
+
+
                         match props.Comp with
                         | And | Or | Xor ->
                             creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2
@@ -495,10 +506,10 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                                         circus props.Symb.InputPorts.[int num].PortPos.X  props.Symb.InputPorts.[int num].PortPos.Y 5.
                                         circus props.Symb.InputPorts.[int num+1].PortPos.X  props.Symb.InputPorts.[int num+1].PortPos.Y 5.
 
-                                        
+
                         | Invisible ->  circus 0 0 0
                         | ShowInputsOnly -> circus props.Symb.InputPorts.[int num].PortPos.X  props.Symb.InputPorts.[int num].PortPos.Y 5.
-                                            circus props.Symb.InputPorts.[int num+1].PortPos.X  props.Symb.InputPorts.[int num+1].PortPos.Y 5.            
+                                            circus props.Symb.InputPorts.[int num+1].PortPos.X  props.Symb.InputPorts.[int num+1].PortPos.Y 5.
                         | ShowOutputsOnly -> circus props.Symb.OutputPorts.[int num].PortPos.X  props.Symb.OutputPorts.[int num].PortPos.Y 5.
 
                         //renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
@@ -516,7 +527,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
                     [
                         rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
@@ -524,21 +535,21 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         match props.Comp with
                         | Mux2 ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"
-                            
+
                             homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
                             homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2//Mux output
-                            
 
-                            
+
+
                         | Demux2 ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX"
 
                             homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0"
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
-                            
+
                             homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1"
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2//Mux output
 
@@ -551,7 +562,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
 
-          
+
                     ]
 
         )
@@ -564,13 +575,13 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                             "green"
                         else
                             "grey"
-                    g   [ 
+                    g   [
                         ]
                         [
                             rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
 
                             text
-                                [   X (props.Symb.Pos.X + gateWidth) 
+                                [   X (props.Symb.Pos.X + gateWidth)
                                     Y (props.Symb.Pos.Y + gateHeight/8.)
                                     Style
                                         [
@@ -599,10 +610,10 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
                             homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(3./2.)) "end" "Middle" "10px" "Cout"
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(3./2.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(3./2.)) 2//Mux output
-                            
+
 
                             ]
-                                   
+
         )
     | MergeWires ->
         FunctionComponent.Of(
@@ -612,37 +623,37 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
                     [   // first pure vertical line
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2
                         // Second horizontal line top of shape
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y) 2
                         // Third horizontal line bottom of shape
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y + gateHeight/3.) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y + gateHeight/3.) 2
                         // 4th line in the middle; output line
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y + gateHeight/6.) 2 
-                                              
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y + gateHeight/6.) 2
 
-                        ]           
+
+                        ]
         )
     | SplitWire bits ->
         FunctionComponent.Of(
             fun (props : RenderSymbolProps) ->
-                   
+
                 let color =
                     if props.Symb.IsDragging then
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
-                     
+
                     [   //let formatted = String.Format ("(1:{0})", bits) wtf
 
                     //    homotextual (props.Symb.Pos.X) (props.Symb.Pos.Y - gateHeight/8.) "middle" "middle" "14px" formatted
                         text
-                            [ X (props.Symb.Pos.X ) 
+                            [ X (props.Symb.Pos.X )
                               Y (props.Symb.Pos.Y - gateHeight/8.)
                               Style
                                     [
@@ -652,25 +663,25 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                                          FontWeight "Bold"
                                          Fill "Black"
                                      ]
-                            ] 
+                            ]
                             [str <| sprintf "(1:%A)" bits]
 
 
                         // first pure vertical line
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2
                         // Second horizontal line top of shape
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y) 2
                         // Third horizontal line bottom of shape
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y + gateHeight/3.) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y + gateHeight/3.) 2
                         // 4th line in the middle; output line
-                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y + gateHeight/6.) 2 
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y + gateHeight/6.) 2
 
-                       
+
 
                         ]
-                        
 
-                
+
+
         )
     | DFF | DFFE ->
         FunctionComponent.Of(
@@ -681,7 +692,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
                     [
                         rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
@@ -690,14 +701,14 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         match props.Comp with
                         | DFF ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFF"
-                          
-                            
+
+
                         | DFFE ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFFE"
 
                             homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
-               
+
                         | _ ->
                             homotextual 0 0 "" "" "" ""
 
@@ -711,7 +722,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1 // CLK
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1 // CLK
-                        
+
 
                 ]
 
@@ -725,40 +736,40 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
                     [
                         rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
-                        
-                        
+
+
                         match props.Comp with
                         | Register bits ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "Register"
-                                                  
-                        
-                                                    
+
+
+
                         | RegisterE bits ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RegisterE"
-                        
+
                             homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN"
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
-                                       
+
                         | _ ->
                             homotextual 0 0 "" "" "" ""
-                        
+
                         homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Data-in"
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-                        
+
                         homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Data-out"
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
-                        
-                        
+
+
                         homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1 // CLK
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1 // CLK
-                                                
-                        
-                       
+
+
+
                 ]
 
         )
@@ -771,7 +782,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
                     [
                         rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
@@ -784,27 +795,27 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                             line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(5./4.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
                             line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(10./9.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
 
-                                                  
-                        
-                                                    
+
+
+
                         | AsyncROM memorySize ->
                             homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "AsyncROM"
-                        
-                                       
+
+
                         | _ ->
                             homotextual 0 0 "" "" "" ""
-                        
-   
+
+
                         homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Addr"
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
 
-                       
+
                         homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out"
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
-                        
-                       
+
+
                 ]
 
         )
@@ -817,14 +828,14 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [ 
+                g   [
                     ]
                     [
                         rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
 
                         homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RAM"
-                       
-   
+
+
                         homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/6.) "start" "middle" "10px" "Addr"
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) 2 // CLK
 
@@ -839,7 +850,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out"
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
-       
+
                         homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
                         line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(5./4.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
                         line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(10./9.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
@@ -870,7 +881,7 @@ type private RenderCircleProps =
 
 
 
-let view (model : Model) (dispatch : Msg -> unit) = 
+let view (model : Model) (dispatch : Msg -> unit) =
     model.Symbols
     |> List.map (fun rect ->
         RenderSymbol rect.Type
@@ -939,7 +950,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
 
 /// Input to react component (which does not re-evaluate when inputs stay the same)
 /// This generates View (react virtual DOM SVG elements) for one symbol
-    /// these are all the different types of symbols we can have here 
+    /// these are all the different types of symbols we can have here
 
 
 
@@ -951,7 +962,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //         Dispatch: Dispatch<Msg>
     //         key:string
     //     }
-    
+
     // let renderSquare =
     //     FunctionComponent.Of(
     //         fun (props : RenderSquareProps) ->
@@ -970,7 +981,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                     "red"
     //                 else
     //                     "grey"
-    
+
     //             let outputText inOrOutText portStat num =
     //                 let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Square.IsSliding
     //                 let textSection =
@@ -984,7 +995,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                                 FontSize "20px"
     //                                 FontWeight "Bold"
     //                                 Fill "Black" // demo font color
-    
+
     //                             ]
     //                         ] [str <| string num]
     //                     ]
@@ -1012,7 +1023,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                             SVGAttr.Stroke "black"
     //                             SVGAttr.StrokeWidth 5 ] []
     //                     ]
-    
+
     //                 let inPorts =
     //                     [
     //                       rect [
@@ -1037,7 +1048,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                             SVGAttr.StrokeWidth 1
     //                         ][]
     //                     ]
-    
+
     //                 let portSection =
     //                     match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
     //                     |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
@@ -1051,11 +1062,11 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                     |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides
     //                     |("output", 20., true,_,_ ) -> inPorts
     //                     |_ -> []
-    
+
     //                 match portStat with
     //                 |"invisible" -> [textSection]
     //                 |_ -> [textSection; portSection]
-    
+
     //             let initialoutline =
     //                 [
     //                     rect
@@ -1079,7 +1090,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                             SVGAttr.Stroke color
     //                             SVGAttr.StrokeWidth 1
     //                         ][]
-    
+
     //                     text [ // a demo text svg element
     //                             X (props.Square.Pos.X + 30.);
     //                             Y (props.Square.Pos.Y + 10.);
@@ -1116,7 +1127,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     // let renderCustom =
     //     FunctionComponent.Of(
     //         fun (props : RenderCustomProps) ->
-              
+
     //             let color =
     //                 if props.Custom.IsDragging && not props.Custom.IsSelected then
     //                     "lightblue"
@@ -1124,7 +1135,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                     "red"
     //                 else
     //                     "grey"
-    
+
     //             let outputText inOrOutText portStat num =
     //                 let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Custom.IsSliding
     //                 let textSection =
@@ -1138,7 +1149,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                                 FontSize "20px"
     //                                 FontWeight "Bold"
     //                                 Fill "Black" // demo font color
-    
+
     //                             ]
     //                         ] [if inOrOutText = 20. then str <| (string (match (props.Custom.Type) with
     //                                                                      | CommonTypes.Custom customSymbol -> fst customSymbol.InputLabels.[int num]
@@ -1151,7 +1162,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                     let portList =
     //                         if IO = "input" then props.Custom.InputPorts.[(int num)].PortPos else props.Custom.OutputPorts.[(int num)].PortPos
     //                     [
-    //                         circus xSlide ySlide 5. 
+    //                         circus xSlide ySlide 5.
     //                         line [
     //                             X1 portList.X   //fst portList)
     //                             Y1 portList.Y   //(snd portList)
@@ -1162,7 +1173,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                             SVGAttr.Stroke "black"
     //                             SVGAttr.StrokeWidth 5 ] []
     //                     ]
-    
+
     //                 let inPorts =
     //                     [
     //                       rect [
@@ -1187,7 +1198,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                             SVGAttr.StrokeWidth 1
     //                         ][]
     //                     ]
-    
+
     //                 let portSection =
     //                     match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
     //                     |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
@@ -1201,11 +1212,11 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                     |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides
     //                     |("output", 20., true,_,_ ) -> inPorts
     //                     |_ -> []
-    
+
     //                 match portStat with
     //                 |"invisible" -> [textSection]
     //                 |_ -> [textSection; portSection]
-    
+
     //             let initialoutline =
     //                 [
     //                     rect
@@ -1229,7 +1240,7 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //                             SVGAttr.Stroke color
     //                             SVGAttr.StrokeWidth 1
     //                         ][]
-    
+
     //                     text [ // a demo text svg element
     //                             X (props.Custom.Pos.X + 30.);
     //                             Y (props.Custom.Pos.Y + 10.);
@@ -1254,8 +1265,8 @@ let extractComponents (symModel: Model) : CommonTypes.Component list =
     //     , "Custom"
     //     , equalsButFunctions
     //     )
-    
-    
+
+
 
 
 
