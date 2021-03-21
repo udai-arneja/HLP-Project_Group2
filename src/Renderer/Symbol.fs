@@ -878,13 +878,13 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                 let generatePortsList index portName inoutput =
                     let inputPortNum = List.length props.Symb.InputPorts
                     let outputPortNum = List.length props.Symb.OutputPorts
-                    // let inputPortName = printfn (Printf.TextWriterFormat<_> (fst customSymbol.InputLabels.[index]) )
-                    // let outputPortName = printfn (Printf.TextWriterFormat<_> (fst customSymbol.OutputLabels.[index]) )
+                    let inputPortName = Printf.StringFormat<string> (fst customSymbol.InputLabels.[index]) 
+                    // let outputPortName = Printf.StringFormat<string> (fst customSymbol.OutputLabels.[index]) 
                     match inoutput with 
-                    | true -> (homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) "start" "Middle" "10px" "IN"),
+                    | true -> (homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) "start" "Middle" "10px" inputPortName),
                               (creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) (props.Symb.Pos.X) (props.Symb.Pos.Y + (float(index + 1)/(float inputPortNum + 1.)*props.Symb.H)) 2) 
 
-                    | false -> (homotextual (props.Symb.Pos.X + gateWidth - inOutLines*1.7) (props.Symb.Pos.Y + (float(index + 1)/(float outputPortNum + 1.)*props.Symb.H)) "start" "Middle" "10px" "OP"),
+                    | false -> (homotextual (props.Symb.Pos.X + gateWidth - inOutLines*1.7) (props.Symb.Pos.Y + (float(index + 1)/(float outputPortNum + 1.)*props.Symb.H)) "start" "Middle" "10px" "op"),
                                (creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) 2 )
 
                 let generateSVGChild =
@@ -894,8 +894,8 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                             rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth props.Symb.H color props //can do gateHeight*max inputs/outputs
 
                             //name of component - potentially change width based on name size - done
-                            // let name = printfn (Printf.TextWriterFormat<_> customSymbol.Name)                                                    
-                            homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + props.Symb.H/8.) "middle" "Middle" "14px" "Kurtangle"
+                            let name = Printf.StringFormat<string> customSymbol.Name                                     
+                            homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + props.Symb.H/8.) "middle" "Middle" "14px" name
                         ]      
                     List.mapi (fun index (portName,_) -> generatePortsList index portName true) customSymbol.InputLabels
                     |> List.append (List.mapi (fun index (portName,_) -> generatePortsList index portName false) customSymbol.OutputLabels)
