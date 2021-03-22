@@ -221,16 +221,10 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
     let wires = 
         model.Wires 
         |> List.map (fun w ->
-<<<<<<< Updated upstream
             let start = (convertIdToPort 0 w.SrcPort).PortPos
             let final = (convertIdToPort 1 w.TargetPort).PortPos
             printfn "startport %A finalport %A startportid %A finalportid %A" start final w.SrcPort w.TargetPort
             let vertex = newWireRoute final start
-=======
-            let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
-            let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
-            // let vertex = newWireRoute final start
->>>>>>> Stashed changes
             let BusWidth = w.BusWidth
             let Selected = w.Selected
             let Highlighted = w.Highlighted 
