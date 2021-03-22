@@ -177,7 +177,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             then portCalculator symbol.InputPorts
             else portCalculator symbol.OutputPorts
 
-        let addWire (ports: CommonTypes.Port * CommonTypes.Port): Msg = (Wire <| BusWire.AddWire ports)
+        let addWire (ports: string * string): Msg = (Wire <| BusWire.AddWire ports)
 
         match mouseState with
         
@@ -192,10 +192,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                                                 | CommonTypes.Input -> {model with IsWiring=(Some port, None);LastOp=Down;LastDragPos=mousePos},Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                                                                 | CommonTypes.Output -> {model with IsWiring=(None, Some port);LastOp=Down;LastDragPos=mousePos},Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                                               | (None, Some outputPort)-> match port.PortType with
-                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (port,outputPort))
+                                                                          | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (string port.Id,string outputPort.Id))
                                                                           | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos},Cmd.none
                                               | (Some inputPort, None) -> match port.PortType with
-                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (inputPort,port))
+                                                                          | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (string inputPort.Id,string port.Id))
                                                                           | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos},Cmd.none
                                                | _ -> failwithf "Not implemented - Down Sheet Update function ~ 219"          
                                  | _ -> {model with IsSelecting = ([sym.Id],[]); LastOp=Down;LastDragPos=mousePos}, Cmd.none
