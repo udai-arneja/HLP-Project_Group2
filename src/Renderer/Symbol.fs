@@ -308,7 +308,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                                                         OutputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.OutputPorts
                                                     }
                         ) model.Symbols
-        printfn "Ports %A diff %A" dSymbols diff 
+        printfn "Ports %A" dSymbols
         {model with Symbols=dSymbols; SingleOrMultiple=isSingleSelected}, Cmd.none
 
     | UpdateBBoxes (sId) ->

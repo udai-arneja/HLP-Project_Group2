@@ -31,8 +31,8 @@ type Wire = {
     Id: CommonTypes.ConnectionId 
     SrcSymbol: string//CommonTypes.ComponentId // source symbol
     TargetSymbol: string//CommonTypes.ComponentId // target symbol
-    SrcPort: string
-    TargetPort: string
+    SrcPort: CommonTypes.Port
+    TargetPort: CommonTypes.Port
     Vertices: XYPos List
     Highlighted: bool
     Selected: bool
@@ -57,7 +57,7 @@ type Model = {
 /// for highlighting, width inference, etc
 type Msg =
     | Symbol of Symbol.Msg
-    | AddWire of (string * string)
+    | AddWire of (CommonTypes.Port * CommonTypes.Port)
     // | SetColor of CommonTypes.HighLightColor
     | DeleteWire
     | MouseMsg of MouseT
@@ -103,7 +103,8 @@ let wire (wModel: Model)(wId: CommonTypes.ConnectionId): Option<Wire> =
 /// newWireRoute calculates the wire route between 2 port positions. It returns a list of XY Positions, which are in the 
 /// form of vertices, including the source port and target port positions. It calculates how many segments the wire
 /// will have. 
-let newWireRoute  (targetPort: XYPos) (sourcePort: XYPos) : XYPos list =
+let newWireRoute (sourcePort: XYPos) (targetPort: XYPos) : XYPos list =
+    
     let threeSegWire : XYPos list =
         let xDifference = targetPort.X - sourcePort.X
         let midpoint = float (xDifference/2.0)
@@ -208,22 +209,14 @@ let singleWireView =
                     )
 
 /// The view function takes every wire in the model, and its attributes, and maps this to singleWireView. The helper
-/// function convertIdToPort is not my code, but a teammates. 
+/// function convertIdToXYPos is not my code, but a teammates. 
 let view (model:Model) (dispatch: Dispatch<Msg>)=
-    let convertIdToPort inOut (id:string) =
-        match inOut with 
-        |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
-              |>List.head
-        |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
-              |>List.head
 
-    printfn "chickem"
     let wires = 
         model.Wires 
         |> List.map (fun w ->
-            let start = (convertIdToPort 0 w.SrcPort).PortPos
-            let final = (convertIdToPort 1 w.TargetPort).PortPos
-            printfn "startport %A finalport %A startportid %A finalportid %A" start final w.SrcPort w.TargetPort
+            let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
+            let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
             let vertex = newWireRoute final start
             let BusWidth = w.BusWidth
             let Selected = w.Selected
@@ -258,43 +251,36 @@ let createNewBB outp inp=
     wireBoundingBoxes (newWireRoute (inp) (outp))
 
 /// A function which creates a new wire. This is called from the AddWire message in the update function. 
-let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
-    let convertIdToPort inOut (id:string) =
-        match inOut with 
-        |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
-              |>List.head
-        |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
-              |>List.head
-
-    if (convertIdToPort 0 targetPort).BusWidth <>(convertIdToPort 1 sourcePort).BusWidth
+let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (model:Model) : Wire =
+    if sourcePort.BusWidth <> targetPort.BusWidth
     then 
         let wireId = CommonTypes.ConnectionId (Helpers.uuid())
         {
-            SrcSymbol = (convertIdToPort 1 sourcePort).HostId
-            TargetSymbol = (convertIdToPort 0 targetPort).HostId
+            SrcSymbol = sourcePort.HostId
+            TargetSymbol = targetPort.HostId
             Id = wireId 
-            SrcPort = (convertIdToPort 0 targetPort).Id
-            TargetPort = (convertIdToPort 1 sourcePort).Id
-            Vertices = newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos //CHECK
+            SrcPort = sourcePort
+            TargetPort = targetPort
+            Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
             Selected = false
             BusWidth = 1                                                            //need to set this to something
             Highlighted = true                                                            
             IsDragging = false
-            LastDragPos =  newWireRoute  (convertIdToPort 0 targetPort).PortPos (convertIdToPort 1 sourcePort).PortPos
+            LastDragPos = newWireRoute targetPort.PortPos sourcePort.PortPos
         }
     else 
         let wireId = CommonTypes.ConnectionId (Helpers.uuid())
         {
-            SrcSymbol = (convertIdToPort 1 sourcePort).HostId
-            TargetSymbol = (convertIdToPort 0 targetPort).HostId
+            SrcSymbol = sourcePort.HostId
+            TargetSymbol = targetPort.HostId
             Id = wireId 
-            SrcPort = (convertIdToPort 0 targetPort).Id
-            TargetPort = (convertIdToPort 1 sourcePort).Id
-            Vertices =  newWireRoute  (convertIdToPort 0 targetPort).PortPos (convertIdToPort 1 sourcePort).PortPos              //newWireRoute  (convertIdToPort 0 targetPortId) (convertIdToPort 1 sourcePortId)
+            SrcPort = sourcePort
+            TargetPort = targetPort
+            Vertices = newWireRoute targetPort.PortPos sourcePort.PortPos               //newWireRoute  (convertIdToXYPos 0 targetPortId) (convertIdToXYPos 1 sourcePortId)
             Selected = false
-            BusWidth = (convertIdToPort 0 targetPort).BusWidth
+            BusWidth = sourcePort.BusWidth
             IsDragging = false
-            LastDragPos =  newWireRoute  (convertIdToPort 0 targetPort).PortPos (convertIdToPort 1 sourcePort).PortPos
+            LastDragPos = newWireRoute targetPort.PortPos sourcePort.PortPos
             Highlighted = false
         }
 let isEven (segId: int) (wir: Wire): Option<bool> = 
@@ -359,24 +345,18 @@ let init () =
     /// after, check through the wires - Filter(if Selected=true, remove)
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
-    let convertIdToPort inOut (id:string) =
-        match inOut with 
-        |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
-              |>List.head
-        |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
-              |>List.head
     match msg with
 
     | Symbol sMsg -> 
         //cmoe back to this - moving the symbol and its effect on wires
         let newBB = 
-            List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToPort 0 w.SrcPort).PortPos (convertIdToPort 1 w.TargetPort).PortPos)) model.Wires // NOT 
+            List.map (fun w -> wireBoundingBoxes (newWireRoute w.TargetPort.PortPos w.SrcPort.PortPos)) model.Wires
         let sm,sCmd = Symbol.update sMsg model.Symbol 
         {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd
 
     | AddWire (inputPort,outputPort) -> 
-        let addNewWire = (createNewWire inputPort outputPort model):: model.Wires //NOT 
-        let addNewWireBB = (createNewBB  (convertIdToPort 0 outputPort).PortPos (convertIdToPort 1 inputPort).PortPos):: model.wBB //NOT
+        let addNewWire = (createNewWire inputPort outputPort model):: model.Wires
+        let addNewWireBB = (createNewBB inputPort.PortPos outputPort.PortPos):: model.wBB
         {model with Wires=addNewWire; wBB=addNewWireBB}, Cmd.none
 
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
