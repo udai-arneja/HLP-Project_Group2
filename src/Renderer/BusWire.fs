@@ -29,8 +29,8 @@ open Helpers
 
 type Wire = {
     Id: CommonTypes.ConnectionId 
-    SrcSymbol: CommonTypes.ComponentId // source symbol
-    TargetSymbol: CommonTypes.ComponentId // target symbol
+    SrcSymbol: string//CommonTypes.ComponentId // source symbol
+    TargetSymbol: string//CommonTypes.ComponentId // target symbol
     SrcPort: CommonTypes.Port
     TargetPort: CommonTypes.Port
     Vertices: XYPos List
@@ -256,8 +256,8 @@ let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (m
     then 
         let wireId = CommonTypes.ConnectionId (Helpers.uuid())
         {
-            SrcSymbol = CommonTypes.ComponentId (Helpers.uuid()) 
-            TargetSymbol = CommonTypes.ComponentId (Helpers.uuid())
+            SrcSymbol = sourcePort.HostId
+            TargetSymbol = targetPort.HostId
             Id = wireId 
             SrcPort = sourcePort
             TargetPort = targetPort
@@ -271,8 +271,8 @@ let createNewWire (sourcePort:CommonTypes.Port) (targetPort:CommonTypes.Port) (m
     else 
         let wireId = CommonTypes.ConnectionId (Helpers.uuid())
         {
-            SrcSymbol = CommonTypes.ComponentId (Helpers.uuid()) 
-            TargetSymbol = CommonTypes.ComponentId (Helpers.uuid())
+            SrcSymbol = sourcePort.HostId
+            TargetSymbol = targetPort.HostId
             Id = wireId 
             SrcPort = sourcePort
             TargetPort = targetPort
@@ -301,19 +301,24 @@ let isEven (segId: int) (wir: Wire): Option<bool> =
 let evenChange (currPos: XYPos) (mPos: XYPos): XYPos =
     {currPos with Y = mPos.Y}
 let oddChange (currPos: XYPos) (mPos: XYPos): XYPos =
+    printfn "False List"
     {currPos with X = mPos.X}
 
 let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list = 
     
     let trueList segindex = 
+        printfn "True List"
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) then evenChange vertex mPos else vertex)  
+        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) then evenChange vertex {X=400.;Y=400.} else vertex)  
 
     let falseList idx = 
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (i,v) -> if (i = idx || i = idx+1) then oddChange v mPos else v)
+        |> List.map (fun (i,v) -> 
+                                  if (i = idx || i = idx+1) 
+                                  then oddChange v {X=400.;Y=400.} 
+                                  else v)
     
     
     match isEven segId wir with 
@@ -348,18 +353,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
     
     | DeleteWire ->
+        
+        let checkWiress (wires,bBoxes)= 
+            let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBoxTest = if wireTest.Selected = true
+                                                                                      then (wiresList@[wireTest], bBoxesList@[boundingBoxTest])
+                                                                                      else (wiresList, bBoxesList)
+            List.fold2 checkWire ([],[]) wires bBoxes
         let remainingWiresAndBoxes = 
             List.fold (fun (wires,bBoxes) (symbol:Symbol.Symbol) -> if symbol.IsSelected=true
                                                                     then let filter (filteredWires, filteredBBoxes) (wire:Wire) boundingBox =
-                                                                                if wire.SrcSymbol = symbol.Id || wire.TargetSymbol = symbol.Id
+                                                                                if wire.SrcSymbol = string symbol.Id || wire.TargetSymbol = string symbol.Id
                                                                                 then (filteredWires, filteredBBoxes)
                                                                                 else match wire.Selected with                                      //either check if everytime or put this in a separate traversal - should be here imo
                                                                                      | false ->  (filteredWires@[wire], filteredBBoxes@[boundingBox])
                                                                                      | true -> (filteredWires, filteredBBoxes)
                                                                          List.fold2 filter ([],[]) wires bBoxes
                                                                     else (wires,bBoxes) ) (model.Wires,model.wBB) model.Symbol.Symbols
-        let remainingWires = fst remainingWiresAndBoxes
-        let remainingBbox = snd remainingWiresAndBoxes
+        let remainingWires = fst (checkWiress remainingWiresAndBoxes) //(fst ) (snd remainingWiresAndBoxes))
+        let remainingBbox = snd (checkWiress remainingWiresAndBoxes)//(fst remainingWiresAndBoxes) (snd remainingWiresAndBoxes))
         {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
 
     | ToggleSelect (symToSel, wireAndSegList ) ->
@@ -381,12 +392,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | Dragging ((symbolUpdated,wireAndSegList), prevPos, mousePos) ->
         //probably need to unselect the other selected wires?
         match wireAndSegList with
-        | [] -> model, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
-        | _ -> failwithf "BusWire Dragging - in the update function ~ 387"
-        // let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-        //                                          then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
-        //                                          else wire ) model.Wires
-        // {model with Wires=updatedWires}, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
+        | [] -> model, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))    //autoroute
+        | [wireUpdated,segIndex] -> let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
+                                                                               then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
+                                                                               else wire ) model.Wires
+                                    {model with Wires=updatedWires}, Cmd.none
+        
 
     | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
         // let wireUpdated,segmentsList = List.unzip wireAndSegList

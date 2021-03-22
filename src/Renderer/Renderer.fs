@@ -49,6 +49,7 @@
                    makeKeyItem "Default"  "Alt+E" (fun () -> dispatch KeyboardMsg.DEL)
                    makeKeyItem "Red" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
                    makeKeyItem "ZoomI" "Alt+Up" (fun () -> dispatch KeyboardMsg.AltUp)
+                   makeKeyItem "ZoomI" "Alt+O" (fun () -> dispatch KeyboardMsg.PrintSelected)
                    makeKeyItem "ZoomO" "Alt+Down" (fun () -> dispatch KeyboardMsg.AltDown)
                    menuSeparator
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)

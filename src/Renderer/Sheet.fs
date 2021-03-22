@@ -23,7 +23,7 @@ type Model = {
     }
 
 type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected
 
 type Msg =
     | Wire of BusWire.Msg
@@ -84,8 +84,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                                 ][]
                           svgReact
                      // the application code
-                |_ -> svgReact
-
+                | _ -> svgReact
                 ]
             ]
         ]
@@ -170,7 +169,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let boundingBoxSearchP (symbol: Symbol.Symbol): CommonTypes.Port list=
             let dist (pos1:XYPos) (pos2:XYPos) = sqrt((pos1.X-pos2.X)**2. + (pos1.Y-pos2.Y)**2.)
             let portCalculator portlist =
-                    match List.tryFind (fun (port:CommonTypes.Port) -> (dist port.PortPos mousePos)<0.) portlist with
+                    printfn "over a port"
+                    match List.tryFind (fun (port:CommonTypes.Port) -> (dist port.PortPos mousePos)<5.) portlist with
                     | Some port -> [port]
                     | None -> []
             if mousePos.X <= (symbol.Pos.X+(symbol.W/2.))
@@ -189,8 +189,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                        |[sym] -> match boundingBoxSearchP sym with
                                  | [port] -> match model.IsWiring with
                                               | (None, None) -> match port.PortType with
-                                                                | CommonTypes.Input -> {model with IsWiring=(Some port, None);LastOp=Down;LastDragPos=mousePos},Cmd.none
-                                                                | CommonTypes.Output -> {model with IsWiring=(None, Some port);LastOp=Down;LastDragPos=mousePos},Cmd.none
+                                                                | CommonTypes.Input -> {model with IsWiring=(Some port, None);LastOp=Down;LastDragPos=mousePos},Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
+                                                                | CommonTypes.Output -> {model with IsWiring=(None, Some port);LastOp=Down;LastDragPos=mousePos},Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                                               | (None, Some outputPort)-> match port.PortType with
                                                                           | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (port,outputPort))
                                                                           | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos},Cmd.none
@@ -214,7 +214,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         | Drag -> match model.MultiSelectBox with 
                   |(true, p1, p2) -> {model with IsSelecting=([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos);LastDragPos=mousePos}, Cmd.none
-                  | _ -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
+                  | _ -> {model with LastOp=Drag;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
                   //   |(false, p1, prevPos) -> match model.LastOp with 
                 //                            |Down -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos) ) 
                 //                            |Drag -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
@@ -233,10 +233,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress AltShiftZ -> 
         printStats() // print and reset the performance statistics in dev tools window
-        model, Cmd.none // do nothing else and return model unchanged
+        model, Cmd.none
 
     | KeyPress CtrlS -> // add symbol and create a restore point
-        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], (CommonTypes.Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})))) model.Wire    // [1], [1] - this needs to be different for different types
+        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
         {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
     
     |KeyPress DEL ->
@@ -251,6 +251,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress AltDown ->
         printfn "Zoom Out"
         {model with Zoom=model.Zoom-0.1}, Cmd.none
+    
+    // | KeyPress PrintSelected ->
+    //     let nothing = 
+    //         List.map (fun symbol -> printfn symbol.IsSelected;symbol) model.Wire.Symbol.Symbols
+    //     {model with Wire with Symbol with Symbols=nothing} , Cmd.none
 
     | KeyPress s -> 
         let c =
@@ -259,7 +264,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
             | AltV -> CommonTypes.Green
             | _ -> CommonTypes.Grey
         model, Cmd.none
-        // Cmd.ofMsg (Wire <| BusWire.SetColor c)
+
 
 let init() = 
     let model,cmds = (BusWire.init)() //initial model state
