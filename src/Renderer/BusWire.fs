@@ -221,10 +221,16 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
     let wires = 
         model.Wires 
         |> List.map (fun w ->
+<<<<<<< Updated upstream
             let start = (convertIdToPort 0 w.SrcPort).PortPos
             let final = (convertIdToPort 1 w.TargetPort).PortPos
             printfn "startport %A finalport %A startportid %A finalportid %A" start final w.SrcPort w.TargetPort
             let vertex = newWireRoute final start
+=======
+            let start = w.SrcPort.PortPos//convertIdToXYPos 1 w.SrcPort
+            let final = w.TargetPort.PortPos//convertIdToXYPos 0 w.TargetPort
+            // let vertex = newWireRoute final start
+>>>>>>> Stashed changes
             let BusWidth = w.BusWidth
             let Selected = w.Selected
             let Highlighted = w.Highlighted 
@@ -240,13 +246,13 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                 BusWidth = w.BusWidth
                 SrcP = start 
                 TgtP = final 
-                Vertices = vertex
+                Vertices = w.Vertices
                 //ColorP = model.Color.Text()
                 ColorP = wireColour
                 StrokeWidthP = "2px"
                 Highlighted = w.Highlighted
                 IsDragging = false 
-                LastDragPos = vertex 
+                LastDragPos = w.Vertices
                 // PortInUse = CommonTypes.Port.PortInUse
                 }
             singleWireView props) // pass in the props for this given wire into singleWireView
@@ -299,15 +305,18 @@ let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
         }
 let isEven (segId: int) (wir: Wire): Option<bool> = 
     let noOfSeg = List.length wir.Vertices
-
-    if noOfSeg = 5
+    printfn "isevenfunction"
+    if noOfSeg = 6
     then 
+        printfn "%A" noOfSeg
         match segId with
         | 1 -> Some false
-        | 2 -> Some true
+        | 2 -> printfn "segment two"
+               Some true
         | 3 -> Some false
         | _ -> None
     else 
+        printfn "%A" noOfSeg
         match segId with
         | 1 -> Some false
         | _ -> None
@@ -315,30 +324,36 @@ let isEven (segId: int) (wir: Wire): Option<bool> =
 let evenChange (currPos: XYPos) (mPos: XYPos): XYPos =
     {currPos with Y = mPos.Y}
 let oddChange (currPos: XYPos) (mPos: XYPos): XYPos =
-    printfn "False List"
     {currPos with X = mPos.X}
 
 let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list = 
     
     let trueList segindex = 
-        printfn "True List"
+        printfn "true list"
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) then evenChange vertex {X=400.;Y=400.} else vertex)  
+        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) 
+                                           then evenChange vertex mPos
+                                           else vertex)  
 
     let falseList idx = 
+        printfn "false list"
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (i,v) -> 
-                                  if (i = idx || i = idx+1) 
-                                  then oddChange v {X=400.;Y=400.} 
-                                  else v)
+        |> List.map (fun (i,vertices) -> if (i = idx || i = idx+1) 
+                                         then oddChange vertices mPos
+                                         else vertices)
+        // |> printfn "%A" 
     
     
     match isEven segId wir with 
-    | Some true -> trueList segId
-    | Some false -> falseList segId
+
+    | Some true -> printfn "even"
+                   trueList segId
+    | Some false -> printfn "odd"
+                    falseList segId
     | None -> failwithf "Error"
+
 
 
     /// Initialisation function. Begins with no wires, and uses the Symbol model as a base. 
@@ -413,10 +428,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //probably need to unselect the other selected wires?
         match wireAndSegList with
         | [] -> model, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))    //autoroute
-        | [wireUpdated,segIndex] -> let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-                                                                               then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
-                                                                               else wire ) model.Wires
-                                    {model with Wires=updatedWires}, Cmd.none
+        | [wireUpdated,segIndex] -> printfn "%A" model.Wires.[0].Vertices
+                                    let updatedWires = List.map (fun wire -> printfn "DEEP INSIDE"
+                                                                             if wire.Id = wireUpdated.Id
+                                                                             then printfn "special vertex"
+                                                                                  {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
+                                                                             else wire ) model.Wires
+                                    printfn "%A, %A, %A " model.Wires.[0].Vertices mousePos segIndex
+                                    {model with Wires=updatedWires}, Cmd.none//Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))
+        | _ -> failwithf "HELLO"
         
 
     | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
