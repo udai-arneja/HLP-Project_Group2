@@ -36,7 +36,7 @@ type SelectingBox={
 }
 
 //helper functions
-let zoom = 3.0
+let zoom = 1.0
 
 let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X startPos.Y startPos.X endPos.Y endPos.X endPos.Y endPos.X startPos.Y
 
@@ -52,14 +52,15 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     let mouseOp op (ev:Types.MouseEvent) = 
         dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / model.Zoom ; Y = ev.clientY / model.Zoom}})
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
-    let background = "linear-gradient(to right, grey 1px, transparent 1px), linear-gradient(to bottom, grey 1px, transparent 1px)"
+    let backgroundSize = string (30.*model.Zoom) + "px " + string (30.*model.Zoom) + "px" 
+    let background = "linear-gradient(to right, LightGrey 1px, transparent 1px), linear-gradient(to bottom, LightGrey 1px, transparent 1px)"
     div [ Style 
             [ 
                 Height "100vh" 
                 MaxWidth "100vw"
                 CSSProp.OverflowX OverflowOptions.Auto 
                 CSSProp.OverflowY OverflowOptions.Auto
-                BackgroundSize "40px 40px"
+                BackgroundSize backgroundSize
                 BackgroundImage background
             ] 
           OnMouseDown (fun ev -> (mouseOp Down ev))
@@ -287,7 +288,7 @@ let init() =
         MultiSelectBox = (false, {X=0.;Y=0.}, {X=0.;Y=0.})
         Restore = model 
         LastOp = Move
-        Zoom = 3.0
+        Zoom = 1.0
         LastDragPos={X=0.;Y=0.}
     }, Cmd.map Wire cmds
 
