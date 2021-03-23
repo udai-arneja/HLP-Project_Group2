@@ -66,6 +66,12 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
         [ svg
             [ Style 
                 [
+                  
+                    match model.IsWiring with 
+                    |(None, Some Port) -> Cursor "grabbing"
+                    |(Some Port, None) -> Cursor "grabbing"
+                    |(None, None) -> Cursor "default"
+
                     Border "3px solid green"
                     Height sizeInPixels
                     Width sizeInPixels           
