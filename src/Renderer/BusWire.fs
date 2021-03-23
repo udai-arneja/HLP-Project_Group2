@@ -65,7 +65,7 @@ type Msg =
     | ToggleSelect of (CommonTypes.ComponentId list * (Wire * int) list)
     // | Hovering of (CommonTypes.ComponentId list * (Wire * int) list)
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
-    | UpdateBoundingBoxes of (CommonTypes.ComponentId list * (Wire * int) list)
+    | SnaptoGrid of (CommonTypes.ComponentId list * (Wire * int) list)
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     // | EndDragging of wId : CommonTypes.ComponentId
     // | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
@@ -666,42 +666,73 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match wireAndSegList, symbolUpdated with
         | [], [symbolUpdated] -> let newBB = List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToPort 1 w.TargetPort).PortPos (convertIdToPort 0 w.SrcPort).PortPos  model)) model.Wires
                                  {model with AutoRouting=true; wBB = newBB}, Cmd.ofMsg (Symbol (Symbol.Dragging ([symbolUpdated],mousePos,prevPos)))    //autoroute       // with 
-        | [wireUpdated,segIndex],_ -> printfn "autoroutingd"
-                                      let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
+        | [wireUpdated,segIndex],_ -> let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
                                                                                then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
                                                                                else wire ) model.Wires
                                       let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
                                                                                     then wireBoundingBoxes wire.Vertices
                                                                                     else BB) updatedWires model.wBB
                                       {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none   //;
+
+    | SnaptoGrid (symToSel, wireAndSegList ) -> 
+            match wireAndSegList, symToSel with
+            |[wireUpdated,segIndex],_ ->if segIndex % 2 <> 0 //vertical
+                                                     then let updatedWires = List.map (fun wire ->  if wire.Id = wireUpdated.Id
+                                                                                                    then let div =  (wire.Vertices.[segIndex].X % 30.)
+                                                                                                         if div > 15.
+                                                                                                            then let newPos = {X = float ((int (wire.Vertices.[segIndex].X / 30.))+1)* 30.; Y = 0.}
+                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
+                                                                                                            else let newPos = {X = float ((int (wire.Vertices.[segIndex].X / 30.)))* 30.; Y = 0.}
+                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
+                                                                                                    else wire ) model.Wires
+                                                          let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
+                                                                                                        then wireBoundingBoxes wire.Vertices
+                                                                                                        else BB) updatedWires model.wBB
+                                                          {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none
+                                                     else 
+                                                        let updatedWires = List.map (fun wire ->  if wire.Id = wireUpdated.Id
+                                                                                                    then let div =  (wire.Vertices.[segIndex].Y % 30.)
+                                                                                                         if div > 15.
+                                                                                                            then let newPos = {X = 0.; Y = float ((int (wire.Vertices.[segIndex].Y / 30.))+1)* 30.}
+                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
+                                                                                                            else let newPos = {X = 0.; Y = float ((int (wire.Vertices.[segIndex].Y / 30.)))* 30.}
+                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
+                                                                                                    else wire ) model.Wires
+                                                        let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
+                                                                                                        then wireBoundingBoxes wire.Vertices
+                                                                                                        else BB) updatedWires model.wBB
+                                                        {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none
+            |[], [symToSel] -> model, Cmd.ofMsg (Symbol (Symbol.SnapSymbolToGrid [symToSel]))
+    
+                                                    
         
 
-    | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
-        // let wireUpdated,segmentsList = List.unzip wireAndSegList
-        // let updatedBBoxes = 
-        //     let findIndex = 
-        //         model.Wires
-        //         |> List.indexed
-        //         |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.[0].Id )
-        //     let decodeIndex = match findIndex with 
-        //                       | [(idx, wire)] -> idx
-        //                       | _ -> failwithf "Error"
+    //| UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
+    //    // let wireUpdated,segmentsList = List.unzip wireAndSegList
+    //    // let updatedBBoxes = 
+    //    //     let findIndex = 
+    //    //         model.Wires
+    //    //         |> List.indexed
+    //    //         |> List.filter (fun (idx, wire) -> wire.Id = wireUpdated.[0].Id )
+    //    //     let decodeIndex = match findIndex with 
+    //    //                       | [(idx, wire)] -> idx
+    //    //                       | _ -> failwithf "Error"
 
-        //     model.wBB 
-        //     |> List.indexed
-        //     |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.[0].Vertices else bb )
-        // 
-        model, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
+    //    //     model.wBB 
+    //    //     |> List.indexed
+    //    //     |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.[0].Vertices else bb )
+    //    // 
+    //    model, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
 
-        // let updatesBbox =
-        //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Wires
-        //     let updateBBox index boxList =
-        //         let diff2 = posDiff pagePos model.Wires.[index].LastDragPos
-        //         let {X = correctX; Y= correctY} =  posAdd (model.Wires.[index].Pos) diff2 
-        //         if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Wires.[index].W, correctY-10.; correctX+10.+model.Wires.[index].W, correctY+10. + model.Wires.[index].H; correctX-10.,correctY+10.+ model.Wires.[index].H] else boxList
-        //     List.mapi (fun i p -> updateBBox i p) model.wBB
-        // {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
-    // | _ -> failwithf "Unmatched in BusWire Update function"
+    //    // let updatesBbox =
+    //    //     let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Wires
+    //    //     let updateBBox index boxList =
+    //    //         let diff2 = posDiff pagePos model.Wires.[index].LastDragPos
+    //    //         let {X = correctX; Y= correctY} =  posAdd (model.Wires.[index].Pos) diff2 
+    //    //         if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Wires.[index].W, correctY-10.; correctX+10.+model.Wires.[index].W, correctY+10. + model.Wires.[index].H; correctX-10.,correctY+10.+ model.Wires.[index].H] else boxList
+    //    //     List.mapi (fun i p -> updateBBox i p) model.wBB
+    //    // {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
+    //// | _ -> failwithf "Unmatched in BusWire Update function"
 
         |_ -> {model with AutoRouting = false}, Cmd.none
 //---------------Other interface functions--------------------//

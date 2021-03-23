@@ -23,7 +23,7 @@ type Model = {
     }
 
 type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected
+    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS
 
 type Msg =
     | Wire of BusWire.Msg
@@ -69,6 +69,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
           OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+          OnKeyPress (fun K -> printfn "cheese")
         ]
         [ svg
             [ Style 
@@ -221,7 +222,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
                           |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
-                          | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
+                          | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
 
                 | Down -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.})}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
@@ -249,7 +250,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         printStats() // print and reset the performance statistics in dev tools window
         model, Cmd.none
 
-    | KeyPress CtrlS -> // add symbol and create a restore point
+    | KeyPress CtrlN -> // add symbol and create a restore point
         let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
         {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
     
@@ -265,6 +266,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress AltDown ->
         printfn "Zoom Out"
         {model with Zoom=model.Zoom-0.1}, Cmd.none
+
+   
+
+    |KeyPress CtrlS ->  model, Cmd.none
     
     // | KeyPress PrintSelected ->
     //     let nothing = 
