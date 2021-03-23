@@ -66,6 +66,7 @@ type Msg =
     // | Hovering of (CommonTypes.ComponentId list * (Wire * int) list)
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | UpdateBoundingBoxes of (CommonTypes.ComponentId list * (Wire * int) list)
+    | SnaptoGrid of (CommonTypes.ComponentId list * (Wire * int) list)
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     // | EndDragging of wId : CommonTypes.ComponentId
     // | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
@@ -622,6 +623,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Wires=addNewWire; wBB=addNewWireBB; AutoRouting = false}, Cmd.none
 
     | MouseMsg mMsg ->  model , Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
+
+    | SnaptoGrid (symToSel, wireAndSegList ) -> model , Cmd.ofMsg (Symbol (Symbol.SnapSymbolToGrid symToSel))
     
     | DeleteWire ->
         

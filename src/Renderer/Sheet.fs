@@ -44,7 +44,7 @@ let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X st
 //display
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
-    let sizeInPixels = sprintf "%.2fpx" ((1000. * model.Zoom))
+    let sizeInPixels = sprintf "%.2fpx" ((1000. * 3.))
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = 
         if ev.buttons <> 0. then true else false
@@ -53,16 +53,16 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     let mouseOp op (ev:Types.MouseEvent) = 
         dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / model.Zoom ; Y = ev.clientY / model.Zoom}})
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
-    let backgroundSize = sprintf "%fpx %fpx" (30.*model.Zoom) (30.*model.Zoom)
-    let background = "linear-gradient(to right, LightGrey 1px, transparent 1px), linear-gradient(to bottom, LightGrey 1px, transparent 1px)"
+    let backgroundSize = sprintf "%fpx %fpx" (30.* model.Zoom) (30.*model.Zoom)
+    let background = "linear-gradient(to right, LightGrey 2px, transparent 1px), linear-gradient(to bottom, LightGrey 2px, transparent 1px)"
     div [ Style 
             [ 
                 Height "100vh" 
                 MaxWidth "100vw"
                 CSSProp.OverflowX OverflowOptions.Auto 
                 CSSProp.OverflowY OverflowOptions.Auto
-                BackgroundSize backgroundSize
-                BackgroundImage background
+                // BackgroundSize backgroundSize
+                // BackgroundImage background
             ] 
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
@@ -79,7 +79,9 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
 
                     Border "3px solid green"
                     Height sizeInPixels
-                    Width sizeInPixels           
+                    Width sizeInPixels  
+                    BackgroundSize backgroundSize
+                    BackgroundImage background        
                 ]
             ]
             [ g // group list of elements with list of attributes
@@ -219,7 +221,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
                           |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
-                          | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
+                          | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
 
                 | Down -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.})}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
