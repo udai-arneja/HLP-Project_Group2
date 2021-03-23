@@ -52,12 +52,15 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     let mouseOp op (ev:Types.MouseEvent) = 
         dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / model.Zoom ; Y = ev.clientY / model.Zoom}})
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
+    let background = "linear-gradient(to right, grey 1px, transparent 1px), linear-gradient(to bottom, grey 1px, transparent 1px)"
     div [ Style 
             [ 
                 Height "100vh" 
                 MaxWidth "100vw"
                 CSSProp.OverflowX OverflowOptions.Auto 
                 CSSProp.OverflowY OverflowOptions.Auto
+                BackgroundSize "40px 40px"
+                BackgroundImage background
             ] 
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
