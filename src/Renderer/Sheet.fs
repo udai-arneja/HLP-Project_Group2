@@ -78,8 +78,8 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                     |(None, None) -> Cursor "default"
 
                     Border "3px solid green"
-                    Height sizeInPixels
-                    Width sizeInPixels  
+                    Height "100vh"
+                    Width "100vw"  
                     BackgroundSize backgroundSize
                     BackgroundImage background        
                 ]

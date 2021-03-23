@@ -279,8 +279,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
 
         let updatePortPos (currentPortPos:XYPos) (oldSymbolPos:XYPos) = {X=currentPortPos.X - (snapDifference oldSymbolPos.X);Y=currentPortPos.Y - (snapDifference oldSymbolPos.Y)}
 
-        
-
         let snappedSymbols=
             match isSingleSelected with
             |true ->List.map (fun sym -> if [sym.Id] = sId
