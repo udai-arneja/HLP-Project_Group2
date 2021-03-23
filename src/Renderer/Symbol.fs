@@ -66,6 +66,7 @@ type Msg =
     | Hovering of portSymbol:CommonTypes.ComponentId list
     | ShowValidPorts of inOut:PortVisibility  * portId:string * mousePos:XYPos
     | UpdateBBoxes of CommonTypes.ComponentId list
+    | SnapSymbolToGrid of CommonTypes.ComponentId list
     // | SelectSymbol of Symbol list
 
 //---------------------------------helper types and functions----------------//
@@ -263,6 +264,53 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
                {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
         
+    | SnapSymbolToGrid (sId) ->
+
+        let isSingleSelected = printfn "%A" model.Symbols
+                               List.exists (fun sym -> sId=[sym.Id] && sym.IsSelected = false) model.Symbols
+
+        let snapDifference coord= if coord % 30. < 15.
+                                  then coord % 30.
+                                  else -(30. - (coord % 30.))
+
+        let roundCoord coord : float= coord - snapDifference coord
+
+        let roundSymbolPos (symPos:XYPos) = {X=(roundCoord symPos.X);Y=(roundCoord symPos.Y)}
+
+        let updatePortPos (currentPortPos:XYPos) (oldSymbolPos:XYPos) = {X=currentPortPos.X - (snapDifference oldSymbolPos.X);Y=currentPortPos.Y - (snapDifference oldSymbolPos.Y)}
+
+        
+
+        let snappedSymbols=
+            match isSingleSelected with
+            |true ->List.map (fun sym -> if [sym.Id] = sId
+                                         then { sym with 
+                                                    InputPorts = List.map (fun port -> {port with PortPos=updatePortPos port.PortPos sym.Pos}) sym.InputPorts
+                                                    OutputPorts = List.map (fun port -> {port with PortPos=updatePortPos port.PortPos sym.Pos}) sym.OutputPorts
+                                                    Pos = roundSymbolPos sym.Pos
+                                                    LastDragPos = sym.Pos
+                                                }
+                                         else {sym with IsSelected=false} ) model.Symbols
+            |false -> List.map (fun sym -> if [sym.Id] <> sId
+                                                then if sym.IsSelected = true
+                                                     then { sym with
+                                                                InputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.InputPorts
+                                                                OutputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.OutputPorts
+                                                                Pos = roundSymbolPos sym.Pos
+                                                                IsDragging = true
+                                                           }
+                                                     else sym
+                                                else //check whether symbol is selected
+                                                    { sym with
+                                                        InputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.InputPorts
+                                                        OutputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.OutputPorts
+                                                        Pos = roundSymbolPos sym.Pos
+                                                        IsDragging = true
+                                                        // LastDragPos = pagePos
+                                                    }
+                        ) model.Symbols
+        {model with Symbols=snappedSymbols; SingleOrMultiple=isSingleSelected}, Cmd.none//bbouning boxes
+
 
     | Dragging (sId, pagePos, prevPagePos) ->
          
