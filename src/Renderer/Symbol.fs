@@ -308,8 +308,19 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                                                         OutputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.OutputPorts
                                                     }
                         ) model.Symbols
+        let newSymbols, newBox =
+            if isSingleSelected = true
+            then  List.map2 (fun sym box -> if sId <> [sym.Id]
+                                            then (sym, box)
+                                            else ({sym with IsDragging=false} , ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                  |> List.unzip
+            else
+                List.map2 (fun sym box -> if sym.IsSelected = false
+                                          then (sym, box)
+                                          else ({sym with IsDragging = false}, ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                |> List.unzip
         printfn "Ports %A diff %A" dSymbols diff 
-        {model with Symbols=dSymbols; SingleOrMultiple=isSingleSelected}, Cmd.none
+        {model with Symbols=dSymbols; SingleOrMultiple=isSingleSelected; SymBBoxes = newBox}, Cmd.none
 
     | UpdateBBoxes (sId) ->
         let newSymbols, newBox =

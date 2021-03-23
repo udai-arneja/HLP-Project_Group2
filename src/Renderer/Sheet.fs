@@ -134,7 +134,7 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) 
                                |(a,b),1 -> (b,a)
                                |(a,b),0 -> (a,b)
                                | _ -> failwithf "Not Implemented"
-            if (pos.X <= box1.X && pos.X >= box2.X) && (pos.Y <= box2.Y && pos.Y >= box1.Y) 
+            if ((pos.X <= box1.X && pos.X >= box2.X) && (pos.Y <= box2.Y && pos.Y >= box1.Y)) ||  ((pos.X >= box1.X && pos.X <= box2.X) && (pos.Y >= box2.Y && pos.Y <= box1.Y))
             then (true, wire, indexSeg) 
             else (false, wire, indexSeg)            
         bBoxList 
@@ -149,7 +149,8 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) 
         |> List.filter (fun (x,y,indexSeg) -> x=true) 
 
     match mapToBB with 
-    | [(true, wire,indexSeg)] -> [(wire,indexSeg)]
+    | [(true, wire,indexSeg)] ->printfn "wire %A seg %A"  wire indexSeg
+                                [(wire,indexSeg)]
     | _ -> []
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =

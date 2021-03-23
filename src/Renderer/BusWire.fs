@@ -46,6 +46,7 @@ type Model = {
     Wires: Wire list
     Color: CommonTypes.HighLightColor
     wBB: (XYPos*XYPos) list List
+    AutoRouting: bool
     }
 
 //----------------------------Message Type-----------------------------------//
@@ -100,28 +101,256 @@ let wire (wModel: Model)(wId: CommonTypes.ConnectionId): Option<Wire> =
     wModel.Wires
     |> List.tryPick (function {Id = wId} as x -> Some x) 
 
+let midpoint (startPoint:XYPos) (endPoint:XYPos) = 
+    if startPoint.Y = endPoint.Y then 
+        endPoint.X 
+    else
+        ((endPoint.X - startPoint.X)/2.0 + startPoint.X)
+        
+
+let rec autoroute (isHorizontal: bool) (nextPort: XYPos) (startPort:XYPos) (endPort: XYPos) (model:Model) (lastPos: XYPos) (count:int)=
+    let boundingBoxSearchS Port=
+        List.filter (fun (BB:(XYPos*XYPos)) -> (Port.X >= (fst BB).X && Port.X <= (snd BB).X) || (Port.X <= (fst BB).X && Port.X >= (snd BB).X)) model.Symbol.SymBBoxes// go through to find all bboxlists in symbol with correct x range 
+        |> List.filter ( fun BB -> (Port.Y >= (fst BB).Y && Port.Y <= (snd BB).Y) || (Port.Y <= (fst BB).Y && Port.Y >= (snd BB).Y) ) 
+    let checkBBHorizontal = List.filter (fun (sym:(XYPos*XYPos)) -> (nextPort.X >  ((fst sym).X)) && (lastPos.X < (fst sym).X)) model.Symbol.SymBBoxes
+                            |> List.filter ( fun sym -> ((fst sym).Y < nextPort.Y) && ((snd sym).Y > nextPort.Y))// we will change this to 
+                            |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)) && ([sym] <> (boundingBoxSearchS endPort)))
+                            //|> List.filter (fun sym -> (startPort.X <= fst sym.[0] && endPort.X >= fst sym.[0]))
+    let checkBBVertical = List.filter (fun (sym:(XYPos*XYPos)) -> (nextPort.Y >  (snd sym).Y) && (lastPos.Y < (fst sym).Y)) model.Symbol.SymBBoxes
+                          |> List.filter ( fun sym -> ((fst sym).X < nextPort.X) && ((snd sym).X > nextPort.X))
+                          |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)) && ([sym] <> (boundingBoxSearchS endPort)))// we will change this to 
+                          |> List.filter (fun sym -> (if startPort.Y <=endPort.Y then (startPort.Y <= (snd sym).Y && endPort.Y >= (snd sym).Y) || (startPort.Y <= (fst sym).Y && endPort.Y >= (fst sym).Y) else (startPort.Y <= (snd sym).Y && endPort.Y >= (snd sym).Y) || (startPort.Y <= (fst sym).Y && endPort.Y >= (fst sym).Y) ))
+    let checkBBY = List.filter (fun (BB:(XYPos*XYPos)) -> (nextPort.Y > (fst BB).Y) && nextPort.Y < ((snd BB).Y)) model.Symbol.SymBBoxes
+                   |> List.filter (fun (BB:(XYPos*XYPos)) -> (nextPort.X < (snd BB).X) && endPort.X > ((snd BB).X))
+                   |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)))
+    let checkBBX = List.filter (fun (BB:(XYPos*XYPos)) -> (nextPort.X > (fst BB).X) && nextPort.X < (snd BB).X) model.Symbol.SymBBoxes
+                   |> List.filter (fun (BB:(XYPos*XYPos)) -> (nextPort.Y >= (fst BB).Y && endPort.Y <= (fst BB).Y) || (nextPort.Y <= (fst BB).Y && endPort.Y >= (fst BB).Y)) 
+                   |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)))
+
+    //printfn "bbhor %A checkbbx %A checkBBy %A np %A sp %A ep %A lp %A bbox %A" checkBBHorizontal  checkBBX checkBBY nextPort startPort endPort lastPos model.Symbol.sBB
+    //printfn "bbver %A veorho %A" checkBBVertical isHorizontal
+    if count = 20
+    then []
+    else
+        if nextPort = endPort then 
+            []
+            else 
+                match isHorizontal with 
+                |true -> match checkBBHorizontal with 
+                              |[BBIntersect] -> (*printfn "First Horizontal with intersect %A" BBIntersect*)
+                                                if (nextPort.Y - (fst BBIntersect).Y) > ((snd BBIntersect).Y- nextPort.Y)
+                                                then {X = (fst BBIntersect).X - 5.; Y = nextPort.Y} :: autoroute (not isHorizontal) {X = (fst BBIntersect).X - 5.; Y = (snd BBIntersect).Y + 10.} startPort endPort model {X = (fst BBIntersect).X - 5.; Y = nextPort.Y} (count+1)
+                                                else {X = (fst BBIntersect).X - 5.; Y = nextPort.Y} :: autoroute (not isHorizontal) {X = (fst BBIntersect).X - 5.; Y = (fst BBIntersect).Y - 10.} startPort endPort model {X = (fst BBIntersect).X - 5.; Y = nextPort.Y} (count+1)
+                              |[] ->        let minBBoxHList = List.sortByDescending (fun (bb:(XYPos*XYPos)) -> abs((fst bb).X - nextPort.X)) checkBBX  
+                                            let listcalc = List.map (fun (bb:(XYPos*XYPos)) -> abs((fst bb).X - nextPort.X)) checkBBX 
+                                            //printfn "Horizontal vertical hit %A listorder %A" minBBoxHList listcalc
+                                            if minBBoxHList <> [] && ([List.last minBBoxHList] <> (boundingBoxSearchS endPort))
+                                               then let minBBoxH = minBBoxHList |> List.last
+                                                    //printfn "Horizontal Vertical Hit List Head %A" minBBoxH
+                                                    //printfn "hola %A hola2 %A" ((fst minBBoxH.[2]) - nextPort.X) (nextPort.X - (fst minBBoxH.[0]))
+                                                    if ((snd minBBoxH).X - nextPort.X) > (nextPort.X - (fst minBBoxH).X)
+                                                    then if boundingBoxSearchS {X = (fst minBBoxH).X; Y = endPort.Y} = [] 
+                                                         then {X=(fst minBBoxH).X; Y=nextPort.Y} :: autoroute (not isHorizontal) {X = (fst minBBoxH).X; Y = endPort.Y} startPort endPort model {X=(fst minBBoxH).X; Y=nextPort.Y} (count+1)
+                                                         else {X=(snd minBBoxH).X; Y=nextPort.Y} :: autoroute (not isHorizontal) {X = (snd minBBoxH).X; Y = endPort.Y} startPort endPort model {X=(snd minBBoxH).X; Y=nextPort.Y} (count+1)
+                                                    else {X=((snd minBBoxH).X); Y=nextPort.Y} :: autoroute (not isHorizontal) {X = ((snd minBBoxH).X); Y = endPort.Y} startPort endPort model {X=(snd minBBoxH).X; Y=nextPort.Y} (count+1)
+                                               else 
+                                                    nextPort :: autoroute (not isHorizontal) {X=nextPort.X; Y = endPort.Y } startPort endPort model nextPort (count+1)
+                  |false ->   match checkBBVertical with 
+                              |[BBIntersect] -> (*printfn "Vertical Intersect %A" BBIntersect*)
+                                                if endPort.Y > startPort.Y
+                                                then {X = nextPort.X; Y = ((fst BBIntersect).Y-5.)} :: autoroute (not isHorizontal) {X = (midpoint {X = nextPort.X; Y = (fst BBIntersect).Y-5.} endPort); Y =(fst BBIntersect).Y-5.} startPort endPort model {X = nextPort.X; Y = (fst BBIntersect).Y-5.} (count+1)
+                                                else {X = nextPort.X; Y = ((snd BBIntersect).Y-5.)} :: autoroute (not isHorizontal) {X = (midpoint {X = nextPort.X; Y = (snd BBIntersect).Y-5.} endPort); Y =(snd BBIntersect).Y-5.} startPort endPort model {X = nextPort.X; Y = (snd BBIntersect).Y-5.} (count+1)
+                              |[] -> let minBBoxList = List.sortByDescending (fun (bb:(XYPos*XYPos)) -> abs((fst bb).X - nextPort.X)) checkBBY 
+                                     //printfn "Vertical Horizontal Hit List Head %A" minBBoxList
+                                     if (minBBoxList <> []) && ([List.last minBBoxList] <> (boundingBoxSearchS endPort))
+                                     then let minBBox = List.last minBBoxList
+                                          if ((snd minBBox).Y - nextPort.Y) > (nextPort.Y - ((fst minBBox).Y))
+                                          then if boundingBoxSearchS {X = (midpoint nextPort endPort); Y=(((fst minBBox).Y))} = [] 
+                                               then {X=nextPort.X; Y=((fst minBBox).Y)} :: autoroute (not isHorizontal) {X = (midpoint nextPort endPort); Y=((fst minBBox).Y)} startPort endPort model {X=nextPort.X; Y=((fst minBBox).Y)} (count+1)
+                                               else {X=nextPort.X; Y=((snd minBBox).Y)} :: autoroute (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox).Y)} startPort endPort model {X=nextPort.X; Y=((snd minBBox).Y)} (count+1)
+                                          else 
+                                               if boundingBoxSearchS {X = (midpoint nextPort endPort); Y=((snd minBBox).Y)} = [] 
+                                               then {X=nextPort.X; Y=((snd minBBox).Y)} :: autoroute (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox).Y)} startPort endPort model {X=nextPort.X; Y=((snd minBBox).Y)} (count+1)
+                                               else {X=nextPort.X; Y=((fst minBBox).Y)} :: autoroute (not isHorizontal) {X = (midpoint nextPort endPort); Y=((fst minBBox).Y)} startPort endPort model {X=nextPort.X; Y=((fst minBBox).Y)} (count+1)
+                                     else 
+                                             nextPort :: autoroute (not isHorizontal) {X = (midpoint nextPort endPort); Y = nextPort.Y} startPort endPort model nextPort (count+1)
+                              
+
+let rec autoroute5 (isHorizontal: bool) (nextPort: XYPos) (startPort:XYPos) (endPort: XYPos) (model:Model)(lastPos:XYPos) (count:int)=
+    //let boundingBoxSearchS Port=
+    //    List.filter (fun (x:(float*float) list) -> (Port.X >= fst x.[0] && Port.X <= fst x.[1]) || (Port.X <= fst x.[0] && Port.X >= fst x.[1])) model.Symbol.SymBBoxes// go through to find all bboxlists in symbol with correct x range 
+    //    |> List.filter ( fun x -> (Port.Y >= snd x.[0] && Port.Y <= snd x.[3]) || (Port.Y <= snd x.[0] && Port.Y >= snd x.[3]) ) 
+    //let checkBBHorizontal = List.filter (fun (sym:(float*float) list) -> nextPort.X >  (fst sym.[0])) model.Symbol.SymBBoxes
+    //                        |> List.filter ( fun sym -> (snd sym.[0]) < nextPort.Y && (snd sym.[2]) > nextPort.Y)// we will change this to 
+    //let checkBBVertical = List.filter (fun (sym:(float*float) list) -> nextPort.Y >  (snd sym.[0])) model.Symbol.SymBBoxes
+    //                      |> List.filter ( fun sym -> (fst sym.[0]) < nextPort.X && (fst sym.[2]) > nextPort.X)
+    //let checkBBY = List.filter (fun (x:(float*float) list) -> (nextPort.Y >= snd x.[0] && nextPort.Y <= snd x.[2])) model.Symbol.sBB
+                   
+    //let checkBBX = List.filter (fun (x:(float*float) list) -> (nextPort.X >= fst x.[0] && nextPort.X <= fst x.[2])) model.Symbol.sBB
+
+    ////printfn "bbhor %A bbvert %A checkBB %A np %A sp %A ep %A bbox %A" checkBBHorizontal  checkBBX checkBBY nextPort startPort endPort model.Symbol.sBB
+    //if nextPort = endPort then 
+    //    [nextPort]
+    //    else 
+    //        match isHorizontal with 
+    //        |true -> if nextPort.Y = startPort.Y 
+    //                 then match checkBBHorizontal with 
+    //                      |[BBIntersect] when [BBIntersect] <> boundingBoxSearchS startPort -> {X = (fst BBIntersect.[0]) - 5.; Y = nextPort.Y} :: autoroute5 (not isHorizontal) {X = (fst BBIntersect.[0]) - 5.; Y = (snd BBIntersect.[0]) - 10.} startPort endPort model
+    //                      |[] -> let minBBox2h = List.sortByDescending (fun (bb:(float*float) list) -> abs((fst bb.[0]) - nextPort.X)) checkBBX  
+    //                             //printfn "pot %A" minBBox2h
+    //                             if minBBox2h <> []
+    //                                then let minBBoxh = minBBox2h |> List.last
+    //                                     if ((fst minBBoxh.[2]) - nextPort.X) > (nextPort.X - (fst minBBoxh.[0]))
+    //                                     then {X=(fst minBBoxh.[0]); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = (fst minBBoxh.[0]); Y = endPort.Y} startPort endPort model
+    //                                     else {X=(fst minBBoxh.[2]); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = (fst minBBoxh.[2]); Y = endPort.Y} startPort endPort model
+    //                                else 
+    //                                        nextPort :: autoroute5 (not isHorizontal) {X=nextPort.X; Y = endPort.Y } startPort endPort model                     
+    //                 else 
+    //                      let minBBox2h = List.sortByDescending (fun (bb:(float*float) list) -> abs((fst bb.[0]) - nextPort.X)) checkBBX  
+    //                      //printfn "pot %A" minBBox2h
+    //                      if minBBox2h <> []
+    //                         then let minBBoxh = minBBox2h |> List.last
+    //                              if ((fst minBBoxh.[2]) - nextPort.X) > (nextPort.X - (fst minBBoxh.[0]))
+    //                              then {X=(fst minBBoxh.[0]); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = (fst minBBoxh.[0]); Y = endPort.Y} startPort endPort model
+    //                              else {X=(fst minBBoxh.[2]); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = (fst minBBoxh.[2]); Y = endPort.Y} startPort endPort model
+    //                         else 
+    //                              nextPort :: autoroute5 (not isHorizontal) {X=nextPort.X; Y = endPort.Y } startPort endPort model
+
+    //        |false -> if nextPort.Y = startPort.Y
+    //                  then match checkBBVertical with 
+    //                        |[BBIntersect] when [BBIntersect] = boundingBoxSearchS startPort -> let minBBox2 = List.sortByDescending (fun (bb:(float*float) list) -> abs((fst bb.[0]) - nextPort.X)) checkBBY  
+    //                                                                                            if minBBox2 <> []
+    //                                                                                            then let minBBox = minBBox2 |> List.last
+    //                                                                                                 if ((snd minBBox.[2]) - nextPort.X) > (nextPort.X - (snd minBBox.[0]))
+    //                                                                                                 then {X=nextPort.X; Y=((snd minBBox.[0]))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox.[0]))} startPort endPort model
+    //                                                                                                 else {X=nextPort.X; Y=((snd minBBox.[2]))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox.[2]))} startPort endPort model
+    //                                                                                            else 
+    //                                                                                                 nextPort :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y = nextPort.Y} startPort endPort model
+    //                        |[BBIntersect::BBOther] -> if startPort.Y >= endPort.Y
+    //                                                        then {X = nextPort.X; Y = (snd BBOther.[0])} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y =(snd BBOther.[2])} startPort endPort model
+    //                                                        else {X = nextPort.X; Y = (snd BBOther.[0])} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y =nextPort.X} startPort endPort model
+
+    //                        |[] -> let minBBox2 = List.sortByDescending (fun (bb:(float*float) list) -> abs((fst bb.[0]) - nextPort.X)) checkBBY  
+    //                               if minBBox2 <> []
+    //                               then let minBBox = minBBox2 |> List.last
+    //                                    if ((snd minBBox.[2]) - nextPort.X) > (nextPort.X - (snd minBBox.[0]))
+    //                                    then {X=nextPort.X; Y=((snd minBBox.[0]))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox.[0]))} startPort endPort model
+    //                                    else {X=nextPort.X; Y=((snd minBBox.[2]))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox.[2]))} startPort endPort model
+    //                               else 
+    //                                       nextPort :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y = nextPort.Y} startPort endPort model
+    //                        else
+    //                            let minBBox2 = List.sortByDescending (fun (bb:(float*float) list) -> abs((fst bb.[0]) - nextPort.X)) checkBBY  
+    //                            if minBBox2 <> []
+    //                            then let minBBox = minBBox2 |> List.last
+    //                                 if ((snd minBBox.[2]) - nextPort.X) > (nextPort.X - (snd minBBox.[0]))
+    //                                 then {X=nextPort.X; Y=((snd minBBox.[0]))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox.[0]))} startPort endPort model
+    //                                 else {X=nextPort.X; Y=((snd minBBox.[2]))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=((snd minBBox.[2]))} startPort endPort model
+    //                            else 
+    //                                    nextPort :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y = nextPort.Y} startPort endPort model
+    let boundingBoxSearchS Port=
+        List.filter (fun (BB:(XYPos*XYPos)) -> (Port.X >= (fst BB).X && Port.X <= (snd BB).X) || (Port.X <= (fst BB).X && Port.X >= (snd BB).X)) model.Symbol.SymBBoxes// go through to find all bboxlists in symbol with correct x range 
+        |> List.filter ( fun BB -> (Port.Y >= (fst BB).Y && Port.Y <= (snd BB).Y) || (Port.Y <= (fst BB).Y && Port.Y >= (snd BB).Y) ) 
+    let checkBBHorizontal = List.filter (fun (sym:(XYPos*XYPos)) -> (nextPort.X > (fst sym).X) && (lastPos.X < (fst sym).X)) model.Symbol.SymBBoxes
+                            |> List.filter ( fun sym -> ((fst sym).Y) < nextPort.Y && ((snd sym).Y) > nextPort.Y)// we will change this to 
+                            |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)) && ([sym] <> (boundingBoxSearchS endPort)))
+                            //|> List.filter (fun sym -> (startPort.X <= fst sym.[0] && endPort.X >= fst sym.[0]))
+    let checkBBVertical = List.filter (fun (sym:(XYPos*XYPos)) -> (nextPort.Y >  ((fst sym).Y)) && (lastPos.Y < ((fst sym).Y)))model.Symbol.SymBBoxes
+                          |> List.filter ( fun sym -> ((fst sym).X) < nextPort.X && ((snd sym).X) > nextPort.X)
+                          |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)) && ([sym] <> (boundingBoxSearchS endPort)))// we will change this to 
+                          |> List.filter (fun sym -> (if startPort.Y <=endPort.Y then (startPort.Y <= (snd sym).Y && endPort.Y >= (snd sym).Y) || (startPort.Y <= (fst sym).Y && endPort.Y >= (fst sym).Y) else (startPort.Y <= (snd sym).Y && endPort.Y >= (snd sym).Y) || (startPort.Y <= (fst sym).Y && endPort.Y >= (fst sym).Y) ))
+    let checkBBY = List.filter (fun (BB:(XYPos*XYPos)) -> (nextPort.Y > (fst BB).Y && nextPort.Y < (snd BB).Y)) model.Symbol.SymBBoxes
+                   |> List.filter (fun (BB:(XYPos*XYPos)) -> (nextPort.X < (snd BB).X && endPort.X > (snd BB).X))
+                   |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)))
+    let checkBBX = List.filter (fun (x:(XYPos*XYPos)) -> (nextPort.X > (fst x).X && nextPort.X < (snd x).X)) model.Symbol.SymBBoxes
+                   |> List.filter (fun (x:(XYPos*XYPos)) -> (nextPort.Y >= (snd x).Y && endPort.Y <= (snd x).Y) || (nextPort.Y <= (fst x).Y && endPort.Y >= (fst x).Y)) 
+                   |> List.filter (fun sym -> ([sym] <> (boundingBoxSearchS startPort)))
+
+    printfn "bbhor %A checkbbx %A checkBBy %A np %A sp %A ep %A lp %A bbox %A" checkBBHorizontal  checkBBX checkBBY nextPort startPort endPort lastPos model.Symbol.SymBBoxes
+    printfn "bbver %A veorho %A" checkBBVertical isHorizontal
+    if count = 20
+    then []
+    else
+        if nextPort = endPort then 
+            [nextPort]
+            else 
+                match isHorizontal with 
+                |true -> match checkBBHorizontal with 
+                              |[BBIntersect] -> printfn "First Horizontal with intersect %A" BBIntersect
+                                                if (nextPort.Y - ((fst BBIntersect).Y)) > (((snd BBIntersect).Y)- nextPort.Y)
+                                                then {X = ((fst BBIntersect).X)- 5.; Y = nextPort.Y} :: autoroute5 (not isHorizontal) {X = ((fst BBIntersect).X)- 5.; Y = ((snd BBIntersect).Y)+ 10.} startPort endPort model {X = ((fst BBIntersect).X)- 5.; Y = nextPort.Y} (count+1)
+                                                else {X = ((fst BBIntersect).X)- 5.; Y = nextPort.Y} :: autoroute5 (not isHorizontal) {X = ((fst BBIntersect).X)- 5.; Y = ((fst BBIntersect).Y)- 10.} startPort endPort model {X = ((fst BBIntersect).X)- 5.; Y = nextPort.Y} (count+1)
+                              |[] ->        let minBBoxHList = List.sortByDescending (fun (bb:(XYPos*XYPos)) -> abs(((fst bb).X) - nextPort.X)) checkBBX  
+                                            let listcalc = List.map (fun (bb:(XYPos*XYPos)) -> abs(((fst bb).X) - nextPort.X)) checkBBX 
+                                            printfn "Horizontal vertical hit %A listorder %A" minBBoxHList listcalc
+                                            if minBBoxHList <> [] && ([List.last minBBoxHList] <> (boundingBoxSearchS endPort))
+                                               then let minBBoxH = minBBoxHList |> List.last
+                                                    printfn "Horizontal Vertical Hit List Head %A" minBBoxH
+                                                    printfn "hola %A hola2 %A" (((snd minBBoxH).X) - nextPort.X) (nextPort.X - ((fst minBBoxH).X))
+                                                    if (((snd minBBoxH).X) - nextPort.X) > (nextPort.X - ((fst minBBoxH).X))
+                                                    then if boundingBoxSearchS {X = ((fst minBBoxH).X); Y = endPort.Y} = [] 
+                                                         then {X=((fst minBBoxH).X); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = ((fst minBBoxH).X); Y = endPort.Y} startPort endPort model {X=((fst minBBoxH).X); Y=nextPort.Y} (count+1)
+                                                         else {X=((snd minBBoxH).X); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = ((snd minBBoxH).X); Y = endPort.Y} startPort endPort model {X=((snd minBBoxH).X); Y=nextPort.Y} (count+1)
+                                                    else {X=((snd minBBoxH).X); Y=nextPort.Y} :: autoroute5 (not isHorizontal) {X = ((snd minBBoxH).X); Y = endPort.Y} startPort endPort model {X=((snd minBBoxH).X); Y=nextPort.Y} (count+1)
+                                               else 
+                                                    nextPort :: autoroute5 (not isHorizontal) {X=nextPort.X; Y = endPort.Y } startPort endPort model nextPort (count+1)
+                  |false ->   match checkBBVertical with 
+                              |[BBIntersect] -> printfn "Vertical Intersect %A" BBIntersect
+                                                if endPort.Y > startPort.Y
+                                                then {X = nextPort.X; Y = ((fst BBIntersect).Y)-5.} :: autoroute5 (not isHorizontal) {X = (midpoint {X = nextPort.X; Y = ((fst BBIntersect).Y)-5.} endPort); Y =((fst BBIntersect).Y)-5.} startPort endPort model {X = nextPort.X; Y = ((fst BBIntersect).Y)-5.} (count+1)
+                                                else {X = nextPort.X; Y = ((snd BBIntersect).Y)-5.} :: autoroute5 (not isHorizontal) {X = (midpoint {X = nextPort.X; Y = ((snd BBIntersect).Y)-5.} endPort); Y =((snd BBIntersect).Y)-5.} startPort endPort model {X = nextPort.X; Y = ((snd BBIntersect).Y)-5.} (count+1)
+                              |[] -> let minBBoxList = List.sortByDescending (fun (bb:(XYPos*XYPos)) -> abs(((fst bb).X) - nextPort.X)) checkBBY 
+                                     printfn "Vertical Horizontal Hit List Head %A" minBBoxList
+                                     if (minBBoxList <> []) && ([List.last minBBoxList] <> (boundingBoxSearchS endPort))
+                                     then let minBBox = List.last minBBoxList
+                                          if (((snd minBBox).Y) - nextPort.Y) > (nextPort.Y - ((fst minBBox).Y))
+                                          then if boundingBoxSearchS {X = (midpoint nextPort endPort); Y=((fst minBBox).Y)} = [] 
+                                               then {X=nextPort.X; Y=(((fst minBBox).Y))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=(((fst minBBox).Y))} startPort endPort model {X=nextPort.X; Y=(((fst minBBox).Y))} (count+1)
+                                               else {X=nextPort.X; Y=(((snd minBBox).Y))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=(((snd minBBox).Y))} startPort endPort model {X=nextPort.X; Y=(((snd minBBox).Y))} (count+1)
+                                          else 
+                                               if boundingBoxSearchS {X = (midpoint nextPort endPort); Y=((snd minBBox).Y)} = [] 
+                                               then {X=nextPort.X; Y=((snd minBBox).Y)} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=(((snd minBBox).Y))} startPort endPort model {X=nextPort.X; Y=(((snd minBBox).Y))} (count+1)
+                                               else {X=nextPort.X; Y=(((fst minBBox).Y))} :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y=(((fst minBBox).Y))} startPort endPort model {X=nextPort.X; Y=(((fst minBBox).Y))} (count+1)
+                                     else 
+                                             nextPort :: autoroute5 (not isHorizontal) {X = (midpoint nextPort endPort); Y = nextPort.Y} startPort endPort model nextPort (count+1)
+
+let newWireRoute  (tgtPort:XYPos) (sourcePort:XYPos) (model:Model) : XYPos list =
+    if sourcePort.X < tgtPort.X 
+    then 
+        let newtgt = {X=tgtPort.X - 15.; Y = tgtPort.Y}
+        let calcMid = midpoint sourcePort newtgt
+        let final = (autoroute true {X=calcMid; Y = sourcePort.Y} sourcePort newtgt model sourcePort 0) @ [tgtPort]
+                    |> List.append [sourcePort]
+        printfn "add 1 %A" final 
+        final 
+            
+        
+    else 
+        let calcMidSwap = midpoint  tgtPort sourcePort
+        List.rev (autoroute5 false {X= tgtPort.X - 15. ; Y = sourcePort.Y} {X= tgtPort.X - 15.; Y= tgtPort.Y} {X= sourcePort.X + 15.; Y = sourcePort.Y} model {X= tgtPort.X - 15.; Y= tgtPort.Y} 0) @ [{X= tgtPort.X - 15.; Y= tgtPort.Y};tgtPort]
+        |> List.append [sourcePort; {X= sourcePort.X + 15.; Y = sourcePort.Y}]
+
 /// newWireRoute calculates the wire route between 2 port positions. It returns a list of XY Positions, which are in the 
 /// form of vertices, including the source port and target port positions. It calculates how many segments the wire
 /// will have. 
-let newWireRoute  (targetPort: XYPos) (sourcePort: XYPos) : XYPos list =
-    let threeSegWire : XYPos list =
-        let xDifference = targetPort.X - sourcePort.X
-        let midpoint = float (xDifference/2.0)
-        let midX = sourcePort.X + midpoint
-        [{X= sourcePort.X ; Y= sourcePort.Y}; {X= midX ; Y=sourcePort.Y}; {X= midX; Y= targetPort.Y}; {X=targetPort.X; Y= targetPort.Y}]
+//let newWireRoute  (targetPort: XYPos) (sourcePort: XYPos) : XYPos list =
+//    let threeSegWire : XYPos list =
+//        let xDifference = targetPort.X - sourcePort.X
+//        let midpoint = float (xDifference/2.0)
+//        let midX = sourcePort.X + midpoint
+//        [{X= sourcePort.X ; Y= sourcePort.Y}; {X= midX ; Y=sourcePort.Y}; {X= midX; Y= targetPort.Y}; {X=targetPort.X; Y= targetPort.Y}]
     
-    let fiveSegWire : XYPos list = 
-        let xDifference = targetPort.X - sourcePort.X
-        let yDifference = targetPort.Y - sourcePort.Y
-        let xMidpoint = float (xDifference/2.0)
-        let yMidpoint = float (yDifference/2.0)
-        let midX = sourcePort.X + xMidpoint
-        let midY = sourcePort.Y + yMidpoint
-        let offset = 20.0
-        [{X=sourcePort.X; Y=sourcePort.Y};{X=(sourcePort.X+offset); Y= sourcePort.Y};{X=(sourcePort.X+offset); Y= midY};{X= float (targetPort.X - offset); Y= midY};{X=float(targetPort.X - offset); Y= targetPort.Y}; {X= targetPort.X ; Y=targetPort.Y}]
+//    let fiveSegWire : XYPos list = 
+//        let xDifference = targetPort.X - sourcePort.X
+//        let yDifference = targetPort.Y - sourcePort.Y
+//        let xMidpoint = float (xDifference/2.0)
+//        let yMidpoint = float (yDifference/2.0)
+//        let midX = sourcePort.X + xMidpoint
+//        let midY = sourcePort.Y + yMidpoint
+//        let offset = 20.0
+//        [{X=sourcePort.X; Y=sourcePort.Y};{X=(sourcePort.X+offset); Y= sourcePort.Y};{X=(sourcePort.X+offset); Y= midY};{X= float (targetPort.X - offset); Y= midY};{X=float(targetPort.X - offset); Y= targetPort.Y}; {X= targetPort.X ; Y=targetPort.Y}]
     
-    if sourcePort.X + 10.< targetPort.X then threeSegWire 
-    else fiveSegWire
+//    if sourcePort.X + 10.< targetPort.X then threeSegWire 
+//    else fiveSegWire
 
 /// A useful function to convert the list of vertices into a list of segments. A list of vertices is an XYPos list, whereas a list of
 /// segments is a list in which each element is XYPos*XYPos (to represent start and end points).
@@ -217,15 +446,17 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
               |>List.head
 
-    printfn "chickem"
     let wires = 
         model.Wires 
         |> List.map (fun w ->
             let start = (convertIdToPort 0 w.SrcPort).PortPos
             let final = (convertIdToPort 1 w.TargetPort).PortPos
             printfn "startport %A finalport %A startportid %A finalportid %A" start final w.SrcPort w.TargetPort
-            let vertex = newWireRoute final start
+            let vertex = if model.AutoRouting
+                          then newWireRoute final start model
+                          else w.Vertices
             let BusWidth = w.BusWidth
+            //let vertex = newWireRoute final start model
             let Selected = w.Selected
             let Highlighted = w.Highlighted 
             let wireColour = match (BusWidth, Highlighted, Selected) with 
@@ -254,8 +485,8 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
     g [] [(g [] wires); symbols] // displaying the wires and symbols 
 
 /// A function which creates a new Bounding Box for a wire. 
-let createNewBB outp inp= 
-    wireBoundingBoxes (newWireRoute (inp) (outp))
+let createNewBB outp inp model= 
+    wireBoundingBoxes (newWireRoute (inp) (outp) model)
 
 /// A function which creates a new wire. This is called from the AddWire message in the update function. 
 let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
@@ -266,7 +497,7 @@ let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
               |>List.head
 
-    if (convertIdToPort 0 targetPort).BusWidth <>(convertIdToPort 1 sourcePort).BusWidth
+    if (convertIdToPort 0 targetPort).BusWidth <> (convertIdToPort 1 sourcePort).BusWidth
     then 
         let wireId = CommonTypes.ConnectionId (Helpers.uuid())
         {
@@ -275,12 +506,12 @@ let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
             Id = wireId 
             SrcPort = (convertIdToPort 0 targetPort).Id
             TargetPort = (convertIdToPort 1 sourcePort).Id
-            Vertices = newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos //CHECK
+            Vertices = newWireRoute (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model//CHECK
             Selected = false
             BusWidth = 1                                                            //need to set this to something
             Highlighted = true                                                            
             IsDragging = false
-            LastDragPos =  newWireRoute  (convertIdToPort 0 targetPort).PortPos (convertIdToPort 1 sourcePort).PortPos
+            LastDragPos =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model
         }
     else 
         let wireId = CommonTypes.ConnectionId (Helpers.uuid())
@@ -290,27 +521,33 @@ let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
             Id = wireId 
             SrcPort = (convertIdToPort 0 targetPort).Id
             TargetPort = (convertIdToPort 1 sourcePort).Id
-            Vertices =  newWireRoute  (convertIdToPort 0 targetPort).PortPos (convertIdToPort 1 sourcePort).PortPos              //newWireRoute  (convertIdToPort 0 targetPortId) (convertIdToPort 1 sourcePortId)
+            Vertices =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model             //newWireRoute  (convertIdToPort 0 targetPortId) (convertIdToPort 1 sourcePortId)
             Selected = false
             BusWidth = (convertIdToPort 0 targetPort).BusWidth
             IsDragging = false
-            LastDragPos =  newWireRoute  (convertIdToPort 0 targetPort).PortPos (convertIdToPort 1 sourcePort).PortPos
+            LastDragPos =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model
             Highlighted = false
         }
-let isEven (segId: int) (wir: Wire): Option<bool> = 
-    let noOfSeg = List.length wir.Vertices
 
-    if noOfSeg = 5
-    then 
-        match segId with
-        | 1 -> Some false
-        | 2 -> Some true
-        | 3 -> Some false
-        | _ -> None
-    else 
-        match segId with
-        | 1 -> Some false
-        | _ -> None
+let isEven (segId: int) (wir: Wire): Option<bool> = 
+    let noOfSeg = (List.length wir.Vertices)-1
+    printfn "segno %A" noOfSeg
+    if segId = 0 || segId = noOfSeg-1
+    then None
+    else if segId % 2 = 1 
+         then Some false 
+         else Some true 
+    //if noOfSeg = 5
+    //then 
+    //    match segId with
+    //    | 1 -> Some false
+    //    | 2 -> Some true
+    //    | 3 -> Some false
+    //    | _ -> None
+    //else 
+    //    match segId with
+    //    | 1 -> Some false
+    //    | _ -> None
 
 let evenChange (currPos: XYPos) (mPos: XYPos): XYPos =
     {currPos with Y = mPos.Y}
@@ -324,14 +561,16 @@ let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list =
         printfn "True List"
         wir.Vertices 
         |> List.indexed
-        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) then evenChange vertex {X=400.;Y=400.} else vertex)  
+        |> List.map (fun (index,vertex) -> if (index = segindex || index = segindex+1) 
+                                           then evenChange vertex mPos //{X=400.;Y=400.} 
+                                           else vertex)  
 
     let falseList idx = 
         wir.Vertices 
         |> List.indexed
         |> List.map (fun (i,v) -> 
                                   if (i = idx || i = idx+1) 
-                                  then oddChange v {X=400.;Y=400.} 
+                                  then oddChange v mPos //{X=400.;Y=400.} 
                                   else v)
     
     
@@ -341,15 +580,19 @@ let updateVertices (segId: int) (wir: Wire) (mPos: XYPos) : XYPos list =
     | None -> failwithf "Error"
 
 
+
+
+
     /// Initialisation function. Begins with no wires, and uses the Symbol model as a base. 
 let init () = 
     let symbols, cmd = Symbol.init()
-    {Wires = []; Symbol = symbols;Color = CommonTypes.Red; wBB = []}, Cmd.none
+    {Wires = []; Symbol = symbols;Color = CommonTypes.Red; wBB = []; AutoRouting=false }, Cmd.none  //; AutoRouting=true
 
 /// check through the symbols - if IsSelected=true, filter the wires
     /// after, check through the wires - Filter(if Selected=true, remove)
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
+    printfn "autoroute %A" model.AutoRouting
     let convertIdToPort inOut (id:string) =
         match inOut with 
         |1 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.InputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
@@ -358,19 +601,27 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
               |>List.head
     match msg with
 
+
     | Symbol sMsg -> 
         //cmoe back to this - moving the symbol and its effect on wires
-        let newBB = 
-            List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToPort 0 w.SrcPort).PortPos (convertIdToPort 1 w.TargetPort).PortPos)) model.Wires // NOT 
+        // NOT 
         let sm,sCmd = Symbol.update sMsg model.Symbol 
-        {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd
+        match sMsg with
+        |Symbol.Dragging(_,_,_) -> {model with Symbol=sm; AutoRouting = true }, Cmd.map Symbol sCmd
+        |_ -> if model.AutoRouting = true 
+              then let newWire = List.map (fun (w:Wire) -> {w with Vertices = (newWireRoute  (convertIdToPort 1 w.TargetPort).PortPos (convertIdToPort 0 w.SrcPort).PortPos model)}) model.Wires
+                   {model with Symbol=sm; AutoRouting = false; Wires= newWire }, Cmd.map Symbol sCmd
+              else {model with Symbol=sm; AutoRouting = false }, Cmd.map Symbol sCmd
+        
 
     | AddWire (inputPort,outputPort) -> 
-        let addNewWire = (createNewWire inputPort outputPort model):: model.Wires //NOT 
-        let addNewWireBB = (createNewBB  (convertIdToPort 0 outputPort).PortPos (convertIdToPort 1 inputPort).PortPos):: model.wBB //NOT
-        {model with Wires=addNewWire; wBB=addNewWireBB}, Cmd.none
+        let addNewWire = (createNewWire inputPort outputPort model) :: model.Wires //NOT 
+        printfn "add %A" addNewWire
+        let addNewWireBB = (createNewBB  (convertIdToPort 0 outputPort).PortPos (convertIdToPort 1 inputPort).PortPos) model :: model.wBB //NOT
+        printfn "add %A" addNewWireBB
+        {model with Wires=addNewWire; wBB=addNewWireBB; AutoRouting = false}, Cmd.none
 
-    | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
+    | MouseMsg mMsg ->  model , Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
     
     | DeleteWire ->
         
@@ -411,12 +662,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | Dragging ((symbolUpdated,wireAndSegList), prevPos, mousePos) ->
         //probably need to unselect the other selected wires?
-        match wireAndSegList with
-        | [] -> model, Cmd.ofMsg (Symbol (Symbol.Dragging (symbolUpdated,mousePos,prevPos)))    //autoroute
-        | [wireUpdated,segIndex] -> let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
+        
+        match wireAndSegList, symbolUpdated with
+        | [], [symbolUpdated] -> let newBB = List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToPort 1 w.TargetPort).PortPos (convertIdToPort 0 w.SrcPort).PortPos  model)) model.Wires
+                                 {model with AutoRouting=true; wBB = newBB}, Cmd.ofMsg (Symbol (Symbol.Dragging ([symbolUpdated],mousePos,prevPos)))    //autoroute       // with 
+        | [wireUpdated,segIndex],_ -> printfn "autoroutingd"
+                                      let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
                                                                                then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
                                                                                else wire ) model.Wires
-                                    {model with Wires=updatedWires}, Cmd.none
+                                      {model with Wires=updatedWires; AutoRouting=false}, Cmd.none   //;
         
 
     | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
@@ -433,7 +687,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         //     model.wBB 
         //     |> List.indexed
         //     |> List.map (fun (index, bb) -> if index = decodeIndex then wireBoundingBoxes wireUpdated.[0].Vertices else bb )
-        
+        // 
         model, Cmd.ofMsg (Symbol (Symbol.UpdateBBoxes (symbolUpdated)))
 
         // let updatesBbox =
@@ -446,7 +700,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         // {model with Wires = dSymbols; wBB = updatesBbox}, Cmd.none
     // | _ -> failwithf "Unmatched in BusWire Update function"
 
-
+        |_ -> {model with AutoRouting = false}, Cmd.none
 //---------------Other interface functions--------------------//
 
 /// look up wire in WireModel
