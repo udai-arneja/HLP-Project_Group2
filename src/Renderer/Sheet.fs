@@ -36,7 +36,7 @@ type SelectingBox={
 }
 
 //helper functions
-let zoom = 1.0
+//let zoom = 1.0
 
 let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X startPos.Y startPos.X endPos.Y endPos.X endPos.Y endPos.X startPos.Y
 
@@ -45,6 +45,7 @@ let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X st
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
     let sizeInPixels = sprintf "%.2fpx" ((1000. * model.Zoom))
+
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = 
         if ev.buttons <> 0. then true else false
@@ -55,6 +56,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
     let backgroundSize = sprintf "%fpx %fpx" (30.*model.Zoom) (30.*model.Zoom)
     let background = "linear-gradient(to right, LightGrey 1px, transparent 1px), linear-gradient(to bottom, LightGrey 1px, transparent 1px)"
+    
     div [ Style 
             [ 
                 Height "100vh" 
@@ -103,7 +105,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
 let view (model:Model) (dispatch : Msg -> unit) =
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
-    displaySvgWithZoom zoom wireSvg dispatch model
+    displaySvgWithZoom model.Zoom wireSvg dispatch model
 
 let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list * (BusWire.Wire*int) list) =
     let corners = if sc.X < ec.X     //dragging left to right

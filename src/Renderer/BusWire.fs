@@ -670,7 +670,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                       let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
                                                                                then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
                                                                                else wire ) model.Wires
-                                      {model with Wires=updatedWires; AutoRouting=false}, Cmd.none   //;
+                                      let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
+                                                                                    then wireBoundingBoxes wire.Vertices
+                                                                                    else BB) updatedWires model.wBB
+                                      {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none   //;
         
 
     | UpdateBoundingBoxes (symbolUpdated,wireAndSegList) ->     //can only have one element here right?
