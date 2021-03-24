@@ -30,15 +30,10 @@ type Symbol =
         H : float
         W : float
         IsSelected: bool
-<<<<<<< Updated upstream
-        PortStatus: string
-        IsSliding: bool* string*int*XYPos
-=======
         IsHighlighted: bool 
         PortStatus: PortVisibility
         IsSliding: PortVisibility * string * int * XYPos 
         // BoundingBox : 
->>>>>>> Stashed changes
     }
 
 type Model = {
@@ -67,12 +62,6 @@ type Msg =
     | AddSymbol of pos: XYPos *inputs: int * outputs: int * comp: CommonTypes.ComponentType// used by demo code to add a circle
     | DeleteSymbol of int list
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
-<<<<<<< Updated upstream
-    | SelectSymbol of int list
-    | ShowPorts of int list
-    | ShowValidPorts of string*string*XYPos
-
-=======
     | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
     | Hovering of portSymbol:CommonTypes.ComponentId list
     | ShowValidPorts of inOut:PortVisibility  * portId:string * mousePos:XYPos
@@ -81,7 +70,6 @@ type Msg =
     | HighlightSymbol of CommonTypes.ComponentId list
     | DuplicateSymbol of CommonTypes.ComponentId list
     // | SelectSymbol of Symbol list
->>>>>>> Stashed changes
 
 //---------------------------------helper types and functions----------------//
 
@@ -139,33 +127,6 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
                 H = 65. + float (max inputno outputno)*40.
                 W = 100.   
                 IsSelected = false
-<<<<<<< Updated upstream
-                PortStatus = "invisible"
-                IsSliding = (false, "input" , 0, {X=0.; Y=0.})
-              }
-    //| Mux2 | DeMux2 ->
-      //   let mainSymbol = {
-        //        LastDragPos = {X=0.;Y=0.}
-          //      IsDragging = false
-            //    Id = CommonTypes.ComponentId (Helpers.uuid())
-              //  Type = CommonTypes.ComponentType.Not
-                //InputPorts = []
-                //OutputPorts = []
-                //Pos = start
-               // H = 65. + float (max inputno outputno)*40.
-                //W = 100.   
-                //IsSelected = false
-                //PortStatus = "invisible"
-                //IsSliding = (false, "input" , 0, {X=0.; Y=0.})
-              //}          
-    let InputPortsList = List.collect (fun x -> createportlist mainSymbol CommonTypes.PortType.Input (string mainSymbol.Id) x) [0..(inputno-1)]
-    let OutputPortsList = List.collect (fun x -> createportlist mainSymbol CommonTypes.PortType.Output (string mainSymbol.Id) x) [0..(outputno-1)] 
-    {mainSymbol with InputPorts = InputPortsList; OutputPorts = OutputPortsList}
- 
-
-let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
-    [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
-=======
                 IsHighlighted = false
                 PortStatus = Invisible
                 IsSliding = (ShowInputsOnly, "null", 0, {X=0.; Y=0.})
@@ -203,7 +164,6 @@ let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
 
     // +float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
     // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
->>>>>>> Stashed changes
 
 let portmove portId inputYes model =
     let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with 
@@ -231,122 +191,6 @@ let init() =
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
-<<<<<<< Updated upstream
-    | AddSymbol(pos, inputno, outputno, comp) -> 
-       {model with Symbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols); sBB = List.rev (createNewBoundingBox pos inputno outputno :: model.sBB)} , Cmd.none
-    | StartDragging (sId, pagePos) ->
-        let sdSymbols = 
-            model.Symbols
-            |> List.map (fun sym ->
-                if sId <> sym.Id then
-                    sym
-                else
-                    {sym with
-                        LastDragPos = pagePos
-                        IsDragging = true
-                    }
-            )
-        {model with Symbols = sdSymbols}, Cmd.none
-
-    | Dragging (rank, pagePos) ->
-        let updatePorts pType xy mainS no= 
-            if pType = "Input" then
-                (fst xy,(snd xy + 65. + (float no)*40.))
-            else
-                (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
-        let dSymbols = 
-            model.Symbols
-            |> List.map (fun sym ->
-                if rank <> sym.Id then
-                    sym
-                else
-                    let diff = posDiff pagePos sym.LastDragPos
-                    { sym with
-                        Pos = posAdd sym.Pos diff
-                        LastDragPos = pagePos
-                        InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-                        OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
-                    }
-            )
-        let updatesBbox =
-            let indexforBbox = List.findIndex (fun w -> w.Id = rank) model.Symbols
-            let updateBBox index boxList =
-                let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-                let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2 
-                if index = indexforBbox then [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] else boxList
-            List.mapi (fun i p -> updateBBox i p) model.sBB
-        {model with Symbols = dSymbols; sBB = updatesBbox}, Cmd.none
-
-    | DraggingList (rank, pagePos, prevPagePos) ->
-        let updatePorts pType xy mainS no= 
-            if pType = "Input" then
-                (fst xy,(snd xy + 65. + (float no)*40.))
-            else
-                (fst xy+mainS.W - 10.,(snd xy + 65. + (float no)*40.))
-        let newSym sym =
-            let diff = posDiff pagePos prevPagePos
-            { sym with
-                Pos = posAdd sym.Pos diff
-                LastDragPos = pagePos
-                InputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Input" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.InputPorts
-                OutputPorts = List.mapi (fun num port -> {port with PortPos = updatePorts "Output" ((posAdd sym.Pos diff).X, (posAdd sym.Pos diff).Y) sym num}) sym.OutputPorts
-            }
-        let dSymbols = 
-            model.Symbols
-            |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) rank) |> function |Some a -> newSym sym |None -> sym)
-
-            
-        let updatesBbox =
-            let indexforBbox = List.map (fun k -> List.findIndex (fun w -> w.Id = k) model.Symbols) rank
-            let updateBBox index boxList =
-                let diff2 = posDiff pagePos model.Symbols.[index].LastDragPos
-                let {X = correctX; Y= correctY} =  posAdd (model.Symbols.[index].Pos) diff2
-                List.tryFind (fun k -> k = index) indexforBbox 
-                |> function |Some a -> [correctX-10.,correctY-10.;correctX+10.+model.Symbols.[index].W, correctY-10.; correctX+10.+model.Symbols.[index].W, correctY+10. + model.Symbols.[index].H; correctX-10.,correctY+10.+ model.Symbols.[index].H] |None -> boxList
-            List.mapi (fun i p -> updateBBox i p) model.sBB
-            
-        {model with Symbols = dSymbols; sBB = updatesBbox}, Cmd.none
-
-    | EndDragging sId ->
-        let edSymbols = 
-            model.Symbols
-            |> List.map (fun sym ->
-                if sId <> sym.Id then 
-                    sym
-                else
-                    { sym with
-                        IsDragging = false 
-                    }
-            )
-        {model with Symbols = edSymbols}, Cmd.none
-
-    |EndDraggingList (sId, pagePos) ->
-        let edSymbols = 
-            model.Symbols
-            |> List.map (fun sym -> (List.tryFind (fun k -> k = sym.Id) sId) |> function |Some a -> {sym with IsDragging = false; LastDragPos = pagePos} |None -> sym)
-        {model with Symbols = edSymbols}, Cmd.none 
-
-    | DeleteSymbol (sIdList) ->
-        let symbolsToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) sIdList |> function |Some a -> false |None -> true) [0..lst]
-        let dSymbols = 
-             symbolsToKeepIndex ((model.Symbols.Length)- 1)
-             |> List.map (fun i -> model.Symbols.[i]) // (fun index value ->  List.tryFind (fun x -> x = index) sIdList |> function |Some a -> [] |None -> [value]) 
-        let dBbox =
-            symbolsToKeepIndex ((model.sBB.Length)- 1)
-            |> List.map (fun i -> model.sBB.[i])
-        {model with Symbols = dSymbols; sBB = dBbox}, Cmd.none
-    | SelectSymbol (sId) -> 
-        let selectedSymbolList =
-            let defaultList = List.map (fun x -> {x with IsSelected = false; IsDragging = false}) model.Symbols
-            let checker x =
-                let outcome = 
-                    List.tryFind (fun w -> w = x) sId
-                match outcome with 
-                    |Some a -> {defaultList.[x] with IsSelected = true; IsDragging = false}
-                    |None -> {defaultList.[x] with IsSelected = false; IsDragging = false}
-            [0..(defaultList.Length-1)]
-            |> List.map checker    
-=======
     | AddSymbol(inputno, outputno, compType) ->
         //need to have anther sheet input parameter for when custom - this could be an option
         // let customInformation: CustomComponentType= 
@@ -548,7 +392,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             
             
         printfn "syms %A" selectedSymbolList
->>>>>>> Stashed changes
         {model with Symbols = selectedSymbolList}, Cmd.none
     |ShowPorts (sId) -> 
         let showPortSymbols = 
@@ -560,15 +403,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             match portmove portId iO model.Symbols with 
             | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
-<<<<<<< Updated upstream
-    | MouseMsg {Pos = {X = posX; Y=posY}; Op = Down} -> 
-        let showPorts = 
-=======
 
     | MouseMsg sMsg ->
         printfn "symbol %A" sMsg
         let showPorts =
->>>>>>> Stashed changes
             model.Symbols
             |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
@@ -589,45 +427,6 @@ type Mux =
 
 type RenderGateProps= 
     {
-<<<<<<< Updated upstream
-        Gate:Symbol
-        Dispatch: Dispatch<Msg>
-        key: string
-    }  
-
-let renderGate = 
-    FunctionComponent.Of(
-        fun (props : RenderGateProps) ->
-            let handleMouseMove =
-                Hooks.useRef(fun (ev : Types.Event) ->
-                    let ev = ev :?> Types.MouseEvent
-                    // x,y coordinates here do not compensate for transform in Sheet
-                    // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
-                    Dragging(props.Gate.Id, posOf ev.pageX ev.pageY)
-                    |> props.Dispatch
-                )
-            let color =
-                if props.Gate.IsDragging && not props.Gate.IsSelected then
-                    "lightblue"
-                else if props.Gate.IsSelected then
-                    "red"
-                else
-                    "grey"
-
-            let outputText inOrOutText portStat num = 
-                let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Gate.IsSliding
-                let textSection =
-                    [
-                        text [ 
-                            X (props.Gate.Pos.X + inOrOutText)
-                            Y (props.Gate.Pos.Y + props.Gate.H);
-                            Style [
-                                TextAnchor "right" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "20px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
-=======
         Symb : Symbol // name works for the demo!
         Dispatch : Dispatch<Msg>
         key: string // special field used by react to detect whether lists have changed, set to symbol Id
@@ -766,7 +565,6 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
                         textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
                    
->>>>>>> Stashed changes
 
                             ]
                         ] [str <| string num]

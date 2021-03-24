@@ -21,12 +21,6 @@ type Model = {
     MultiSelectBox: bool * XYPos * XYPos  //boxOrWire,startPos, endPos multi-select box
     Restore: BusWire.Model
     LastOp: Helpers.MouseOp;
-<<<<<<< Updated upstream
-    }
-
-type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl 
-=======
     LastKey: KeyboardMsg
     Zoom : float
     ZoomSpace: bool * bool
@@ -34,7 +28,6 @@ type KeyboardMsg =
     }
 
 
->>>>>>> Stashed changes
 
 type Msg =
     | Wire of BusWire.Msg
@@ -61,20 +54,9 @@ let boundingBoxWithinSearchW startPos finalPos (wModel:BusWire.Model)=  //checks
     |> List.filter (fun b -> minCoord.[b].X >= startPos.X && minCoord.[b].Y >= startPos.Y)
     |> List.map (fun c -> model.Wire.wBB.[c].Id)
 
-<<<<<<< Updated upstream
-// let inSelBox (model:BusWire.Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId) list=     //sc : start corner, ec: end corner
-//     let corners = if sc.X < ec.X     //dragging left to right
-//                       then if sc.Y < ec.Y
-//                            then {TopCorner=sc;BottomCorner=ec}          //dragging up to down
-//                            else {TopCorner={X=sc.X;Y=ec.Y};BottomCorner={X=ec.X;Y=sc.Y}}    //dragging down to up
-//                       else if sc.Y > ec.Y    //dragging right to left
-//                           then {TopCorner=ec;BottomCorner=sc}  //dragging down to up
-//                           else {TopCorner={X=ec.X;Y=sc.Y};BottomCorner={X=sc.X;Y=ec.Y}}   //dragging up to down
-=======
 
 
 let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X startPos.Y startPos.X endPos.Y endPos.X endPos.Y endPos.X startPos.Y
->>>>>>> Stashed changes
 
 //     let overlap (pos1,pos2,id) = if corners.TopCorner.X<pos1.X && corners.BottomCorner.X>pos1.X 
 //                                     ||corners.TopCorner.X<pos2.X && corners.BottomCorner.X>pos2.X
@@ -114,9 +96,6 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : CommonTypes.Connectio
 //display
 
 let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
-<<<<<<< Updated upstream
-    let sizeInPixels = sprintf "%.2fpx" ((1000. * zoom))
-=======
     let (fX, fY, zoomChanged) = let (boole, pos1, pos2) =  model.MultiSelectBox 
                                 if model.ZoomSpace = (true,true)
                                 then let (top, bottom) = if pos1.Y > pos2.Y then (pos2, pos1) else (pos1, pos2)
@@ -128,17 +107,12 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     let sizeInPixels = sprintf "%.2fpx" ((1000. * zoomChanged))
 
 
->>>>>>> Stashed changes
     /// Is the mouse button currently down?
     let mDown (ev:Types.MouseEvent) = 
         if ev.buttons <> 0. then true else false
     /// Dispatch a BusWire MouseMsg message
     /// the screen mouse coordinates are compensated for the zoom transform
     let mouseOp op (ev:Types.MouseEvent) = 
-<<<<<<< Updated upstream
-        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / zoom ; Y = ev.clientY / zoom}})
-    let (boxOrWire, startPos, endPos) = model.MultiSelectBox
-=======
         dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / zoomChanged ; Y = ev.clientY / zoomChanged}})
     let keyDown (ev:Types.KeyboardEvent) =
         dispatch <|KeyPress (Alt)
@@ -150,31 +124,23 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                    |_ -> "blue"
 
     
->>>>>>> Stashed changes
     div [ Style 
             [ 
                 Height "100vh" 
                 MaxWidth "100vw"
                 CSSProp.OverflowX OverflowOptions.Auto 
                 CSSProp.OverflowY OverflowOptions.Auto
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
             ] 
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
-          OnMouseMove (fun ev ->    printfn "pot"
-                                    mouseOp (if mDown ev then Drag else Move) ev)
-          OnKeyPress (fun ev -> printfn "key"
-                                (keyDown ev))
+          OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+        //   OnKeyPress (fun ev -> printfn "key"
+        //                         (keyDown ev))
           //OnMouse (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
         ]
         [ svg
             [ Style 
                 [
-<<<<<<< Updated upstream
-=======
                   
                     match model.IsWiring with 
                     |(None, Some Port) -> Cursor "grabbing"
@@ -185,30 +151,12 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                                                      |CtrlS -> Cursor "alias"
                                                      |_ -> Cursor "default"
 
->>>>>>> Stashed changes
                     Border "3px solid green"
                     Height sizeInPixels
                     Width sizeInPixels           
                 ]
             ]
             [ g // group list of elements with list of attributes
-<<<<<<< Updated upstream
-                [ Style [Transform (sprintf "scale(%f)" zoom)]] // top-level transform style attribute for zoom
-                [
-                match boxOrWire with 
-                | true ->  rect // to apear for selecting
-                              [ 
-                                  X startPos.X
-                                  Y startPos.Y
-                                  SVGAttr.Width (abs (endPos.X - startPos.X))
-                                  SVGAttr.Height (abs (endPos.Y - startPos.Y))
-                                  SVGAttr.FillOpacity "0.1"
-                                  SVGAttr.Fill "blue"
-                                  SVGAttr.Stroke "blue"
-                                  SVGAttr.StrokeWidth 1
-                              ][]   
-                           svgReact
-=======
                 [ Style [
                         Transform (sprintf "translate(%fpx,%fpx) scale(%f)" fX fY zoomChanged)
                         //Transform (sprintf "scale(%f)" zoomChanged)
@@ -225,7 +173,6 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                                     SVGAttr.Fill boxColour
                                 ][]
                           svgReact
->>>>>>> Stashed changes
                      // the application code
                 |_ -> svgReact
 
@@ -236,9 +183,6 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
 let view (model:Model) (dispatch : Msg -> unit) =
     let wDispatch wMsg = dispatch (Wire wMsg)
     let wireSvg = BusWire.view model.Wire wDispatch
-<<<<<<< Updated upstream
-    displaySvgWithZoom zoom wireSvg dispatch model
-=======
     displaySvgWithZoom model.Zoom wireSvg dispatch model
 
 let inSelBox (model:Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list * (BusWire.Wire*int) list) =
@@ -300,7 +244,6 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) 
     | [(true, wire,indexSeg)] ->printfn "wire %A seg %A"  wire indexSeg
                                 [(wire,indexSeg)]
     | _ -> []
->>>>>>> Stashed changes
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     match msg with
@@ -309,23 +252,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                  | Some (pos1,pos2,iD) -> [iD]
                                  | None -> []
 
-<<<<<<< Updated upstream
-        let boundingBoxSearchW = wireToSelectOpt model Pos
-      
-        //mouseposition - used when dragging to make the multi-select box
-        let mousePos = {X=mX;Y=mY}
-        
-        let boundingBoxSearchP symbolId = 
-            let currentSymbol = List.Find (fun sym -> [sym.Id] = symbolId) model.Wire.Symbol.Symbols //I CANT READ THIS
-            let dist (p1:Helpers.XYPos) (p2:XYPos) = sqrt((p1.X-p2.X)**2. + (p1.Y-p2.Y)**2.)
-            let portCalculator portlist iOut = match List.tryFind (fun (prt:CommonTypes.Port) -> (dist prt.PortPos mousePos)<40.) portlist with
-                                               | Some x -> ([x], iOut)
-                                               | None -> ([], "null")
-            if (mX <= symbolX + currentSymbol.W+20.)  && (mX >= symbolX + currentSymbol.W-10.) = true then //checks whether its an input or output 
-                    portCalculator currentSymbol.OutputPorts "output"
-            else (mX <= symbolX+10.)  && (mX >= symbolX-20.) = true then
-                    portCalculator currentSymbol.InputPorts "input"
-=======
         let boundingBoxSearchW = wireToSelectOpt model.Wire mousePos
 
         let boundingBoxSearchP (symbol: Symbol.Symbol): CommonTypes.Port list=
@@ -370,7 +296,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                |_ -> match model.LastKey with 
                                      |CtrlPlus -> {model with IsSelecting = ([],[]); LastKey = CtrlPlus; LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.none
                                      |_ -> {model with IsSelecting = ([],[]); LastKey = Alt; LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect ([],[]))
->>>>>>> Stashed changes
 
         match mouseState with
         | Down -> if model.IsDropping = true then {model with IsDropping=false}, Cmd.none
@@ -392,13 +317,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-<<<<<<< Updated upstream
-                          |(true,p1,p2) -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Drag}, Cmd.ofMsg (ToggleSelect (inSelBox model p1 p2 , boundingBoxWithinSearchW model p1 p2) )//check if in bounding boxes
-                          | _ -> {model with LastOp=Up}, Cmd.ofMsg (updateBBoxes model.IsSelecting)
-                          // drag group/single 
-                | Down -> {model with IsSelected = ([],[])}, Cmd.ofMsg (ToggleSelect model.IsSelecting)
-                | _ -> {model with LastOp=Up}, Cmd.none
-=======
                           |(true,p1,p2) -> match model.ZoomSpace with
                                            |false,false -> match model.LastKey with 
                                                            |CtrlPlus -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos; LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst (inSelBox model p1 p2))))
@@ -410,27 +328,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                           |CtrlS -> {model with LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.HighlightSymbol (fst model.IsSelecting)))
                           |_ -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
->>>>>>> Stashed changes
 
         | Drag -> match model.MultiSelectBox with 
                   |(true, p1, p2) -> {model with IsSelecting = ([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos)}, Cmd.none
                   | _ -> {model with LastOp = Drag}, Cmd.ofMsg (Drag model.IsSelecting)//send to symbol to move symbols lol
 
         | Move -> match model.IsWiring with 
-<<<<<<< Updated upstream
-                  |("null", _) -> match boundingBoxSearchS with
-                                  | [iD] -> {model with LastOp = Move}, Cmd.ofMsg (hovering [iD])
-                                  | [] -> {model with LastOp = Move}, Cmd.none
-                  |(IOLabel,("null",portId)) -> {model with LastOp=Move}, Cmd.ofMsg (ShowValidPorts (IOlabel, portId, Pos ))
-                  |(IOLabel, (portId, "null")) -> {model with LastOp=Move}, Cmd.ofMsg (ShowValidPorts (IOLabel, portId, Pos))
-=======
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
                                   | _ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [])) //hovering
                   |(None,Some port) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                   |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                   | _ ->  failwithf "Not implemented - Move Sheet Update function ~ 253" 
->>>>>>> Stashed changes
 
     |Wire wMsg -> 
         let wModel, wCmd = BusWire.update wMsg model.Wire //send message
@@ -444,31 +353,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol({X=10.; Y=10.}, 1, 1))) model.Wire 
         {model with Wire = wModel; IsDropping = 1; Restore = model.Wire}, Cmd.map Wire wCmd
     
-<<<<<<< Updated upstream
-    |KeyPress DEL -> 
-        let sModel, sCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.DeleteSymbol symList)) model.Wire
-        let newWSelectList = 
-            if symList <> [] //if symbols have been selected then check whether wires connected also have to be deleted
-            then
-                let srcPorts = List.map (fun (x:BusWire.Wire) -> x.SrcPort) model.Wire.WX //take all the inputports ids from wires
-                let tgtPorts = List.map (fun (x:BusWire.Wire) -> x.TargetPort) model.Wire.WX //take all the outputports ids from wires
-                let symbolsList = 
-                    List.map (fun x -> List.item x model.Wire.Symbol.Symbols) symList //collect all the selected symbols
-                let selectedSymbolInputs = //check if portids in the wires and selected symbols match for input ports -> if so then take the index of the wire 
-                    symbolsList
-                    |> List.map (fun (x:Symbol.Symbol) -> List.collect (fun (y:CommonTypes.Port) -> [y.Id]) x.InputPorts)
-                    |> List.collect (fun lst -> List.collect (fun y -> List.tryFindIndex (fun s -> s = y) srcPorts |> function |Some a -> [a] |None -> []) lst) 
-                let selectedSymbolOutputs= //check if portids in the wires and selected symbols match for output ports -> if so then take the index of the wire 
-                    symbolsList
-                    |> List.map (fun (x:Symbol.Symbol) -> List.collect (fun (y:CommonTypes.Port) -> [y.Id]) x.OutputPorts) 
-                    |> List.collect (fun lst -> List.collect (fun y -> List.tryFindIndex (fun s -> s = y) tgtPorts |> function |Some a -> [a] |None -> []) lst) 
-                let inPlusOut = List.fold (fun acc w -> selectAlready 0 acc w) selectedSymbolInputs selectedSymbolOutputs //check whether the wires have already been selected 
-                List.fold (fun acc w -> selectAlready 0 acc w) inPlusOut wireList
-            else 
-                wireList
-        let wModel, wCmd = BusWire.update (BusWire.DeleteWire newWSelectList) sModel
-        {model with Wire = wModel; IsSelecting = ((0,0),[],[]); Restore = model.Wire}, Cmd.map Wire wCmd //update model and reset selecting 
-=======
     |KeyPress DEL ->
         {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire)
 
@@ -492,7 +376,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     |KeyPress CtrlPlus -> if model.LastKey = CtrlS then {model with LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst model.IsSelecting)))
                           else if model.LastKey = CtrlPlus then {model with LastKey = Alt}, Cmd.none
                           else {model with LastKey = CtrlPlus}, Cmd.none
->>>>>>> Stashed changes
     
     | KeyPress AltZ -> {model with Wire = model.Restore; IsSelecting = ((0,0),[],[]); IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});IsDraggingList = (0, {X=0.;Y=0.}); IsDropping= (0); IsWiring = (0,"null", ("null","null")); Restore = model.Wire}, Cmd.none //undo and reset everything
 
@@ -516,9 +399,6 @@ let init() =
         MultiSelectBox = (false, {X=0.;Y=0.}, {X=0.;Y=0.})
         Restore = model 
         LastOp = Move
-<<<<<<< Updated upstream
-    }, Cmd.map Wire cmds
-=======
         LastKey = Alt
         Zoom = 1.0
         LastDragPos={X=0.;Y=0.}
@@ -592,4 +472,3 @@ let init() =
         // {model with Wire = wModel; IsSelecting = ([],[]); Restore = model.Wire}, Cmd.map Wire wCmd //update model and reset selecting 
         // model, Cmd.none
         //need to 
->>>>>>> Stashed changes

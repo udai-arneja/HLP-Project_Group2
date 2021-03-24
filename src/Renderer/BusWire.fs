@@ -255,38 +255,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     match msg with
     | Symbol sMsg -> 
-<<<<<<< Updated upstream
-        let newBB = 
-            List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToXYPos 0 w.TargetPort) (convertIdToXYPos 1 w.SrcPort) )) model.WX
-        let sm,sCmd = Symbol.update sMsg model.Symbol 
-        {model with Symbol=sm; wBB = newBB}, Cmd.map Symbol sCmd 
-    | AddWire (inp,outp) -> {model with WX = createNewWire inp outp 1 model:: model.WX; wBB = createNewBB (convertIdToXYPos 1 inp) (convertIdToXYPos 0 outp) :: model.wBB}, Cmd.none 
-    | MouseMsg mMsg -> model, Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
-    | DeleteWire (sIdList) ->
-        let wiresToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) sIdList |> function |Some a -> false |None -> true) [0..lst]
-        let dWires = 
-             wiresToKeepIndex ((model.WX.Length)- 1)
-             |> List.map (fun i -> model.WX.[i]) // (fun index value ->  List.tryFind (fun x -> x = index) sIdList |> function |Some a -> [] |None -> [value]) 
-        let dBbox =
-            wiresToKeepIndex ((model.wBB.Length)- 1)
-            |> List.map (fun i -> model.wBB.[i])
-        {model with WX = dWires; wBB = dBbox}, Cmd.none
-    | HighlightSingleWire (intv) -> // for now, my highlightSingleWire acts as a selectwire. 
-        
-        let selectedWireList =
-            let defaultList = List.map (fun (x:Wire) -> {x with Highlighted = false}) model.WX
-            let checker x =
-                let outcome = 
-                    List.tryFind (fun w -> w = x) intv
-                match outcome with 
-                    |Some a -> {defaultList.[x] with Highlighted = true}
-                    |None -> {defaultList.[x] with Highlighted = false}
-        
-            [0..(defaultList.Length-1)]
-            |> List.map checker
-        {model with WX = selectedWireList}, Cmd.none
-
-=======
         printfn "smsg %A" sMsg
         //cmoe back to this - moving the symbol and its effect on wires
         // NOT 
@@ -391,7 +359,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                                                                                         else BB) updatedWires model.wBB
                                                         {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none
             |[], [symToSel] -> {model with AutoRouting = true} , Cmd.ofMsg (Symbol (Symbol.SnapSymbolToGrid [symToSel]))
->>>>>>> Stashed changes
     
 
 //---------------Other interface functions--------------------//
