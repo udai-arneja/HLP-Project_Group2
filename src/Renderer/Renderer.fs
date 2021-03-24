@@ -44,17 +44,26 @@
             invisibleMenu.visible <- true // false if you want keys but no "Edit" menu
             invisibleMenu.submenu <-
                 [| makeKeyItem "Default" "CmdOrCtrl+S" (fun () -> dispatch KeyboardMsg.CtrlS)
-                   makeKeyItem "Blue" "Alt+C" (fun () -> dispatch KeyboardMsg.AltC)
+                   makeKeyItem "Default" "CmdOrCtrl+N" (fun () -> dispatch KeyboardMsg.CtrlN)
+                   makeKeyItem "Blue" "Alt" (fun () -> dispatch KeyboardMsg.Alt)
                    makeKeyItem "Green" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
                    makeKeyItem "Default"  "delete" (fun () -> dispatch KeyboardMsg.DEL)
                    makeKeyItem "Red" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
+<<<<<<< Updated upstream
+=======
+                   makeKeyItem "ZoomI" "Alt+Up" (fun () -> dispatch KeyboardMsg.AltUp)
+                   makeKeyItem "ZoomI" "Alt+O" (fun () -> dispatch KeyboardMsg.PrintSelected)
+                   makeKeyItem "ZoomO" "Alt+Down" (fun () -> dispatch KeyboardMsg.AltDown)
+                   makeKeyItem "Delete" "delete" (fun () -> dispatch KeyboardMsg.DEL)
+                   makeKeyItem "Duplicate" "Ctrl+Shift+="  (fun () -> dispatch KeyboardMsg.CtrlPlus)
+>>>>>>> Stashed changes
                    menuSeparator
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)
                    makeRoleItem MenuItemRole.ForceReload
                    makeRoleItem MenuItemRole.Reload
-                   makeRoleItem MenuItemRole.ToggleDevTools
-                   makeRoleItem MenuItemRole.ZoomIn
-                   makeRoleItem MenuItemRole.ZoomOut|]
+                   makeRoleItem MenuItemRole.ToggleDevTools|]
+                   //makeRoleItem MenuItemRole.ZoomIn
+                   //makeRoleItem MenuItemRole.ZoomOut|]
                 |> U2.Case1
     
     let attachMenusAndKeyShortcuts dispatch =

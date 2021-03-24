@@ -30,8 +30,15 @@ type Symbol =
         H : float
         W : float
         IsSelected: bool
+<<<<<<< Updated upstream
         PortStatus: string
         IsSliding: bool* string*int*XYPos
+=======
+        IsHighlighted: bool 
+        PortStatus: PortVisibility
+        IsSliding: PortVisibility * string * int * XYPos 
+        // BoundingBox : 
+>>>>>>> Stashed changes
     }
 
 type Model = {
@@ -60,10 +67,21 @@ type Msg =
     | AddSymbol of pos: XYPos *inputs: int * outputs: int * comp: CommonTypes.ComponentType// used by demo code to add a circle
     | DeleteSymbol of int list
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
+<<<<<<< Updated upstream
     | SelectSymbol of int list
     | ShowPorts of int list
     | ShowValidPorts of string*string*XYPos
 
+=======
+    | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
+    | Hovering of portSymbol:CommonTypes.ComponentId list
+    | ShowValidPorts of inOut:PortVisibility  * portId:string * mousePos:XYPos
+    //| UpdateBBoxes of CommonTypes.ComponentId list
+    | SnapSymbolToGrid of CommonTypes.ComponentId list
+    | HighlightSymbol of CommonTypes.ComponentId list
+    | DuplicateSymbol of CommonTypes.ComponentId list
+    // | SelectSymbol of Symbol list
+>>>>>>> Stashed changes
 
 //---------------------------------helper types and functions----------------//
 
@@ -121,6 +139,7 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
                 H = 65. + float (max inputno outputno)*40.
                 W = 100.   
                 IsSelected = false
+<<<<<<< Updated upstream
                 PortStatus = "invisible"
                 IsSliding = (false, "input" , 0, {X=0.; Y=0.})
               }
@@ -146,6 +165,45 @@ let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTyp
 
 let createNewBoundingBox (start:XYPos) (inputno: int) (outputno: int)=
     [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
+=======
+                IsHighlighted = false
+                PortStatus = Invisible
+                IsSliding = (ShowInputsOnly, "null", 0, {X=0.; Y=0.})
+              }
+
+    let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length inputs)) inputs
+    let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length outputs)) outputs
+    {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
+
+let createCustomSymbol (comp:CommonTypes.CustomComponentType) = 
+    let mainSymbol = {
+                LastDragPos = {X=10.;Y=10.}
+                IsDragging = false
+                Id = CommonTypes.ComponentId (Helpers.uuid())
+                Type = Custom comp
+                InputPorts = []
+                OutputPorts = []
+                Pos = {X=10.;Y=10.}
+                H = max (80.) (float (max (List.length comp.InputLabels) (List.length comp.OutputLabels))*40.)
+                W = 60.
+                IsSelected = false
+                IsHighlighted = false
+                PortStatus = Invisible
+                IsSliding = (ShowInputsOnly, "null", 0, {X=0.; Y=0.})
+              }  
+    let _, inputBusWidths = List.unzip comp.InputLabels
+    let _, outputBusWidths = List.unzip comp.OutputLabels
+    let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length comp.InputLabels )) inputBusWidths //comp.InputLabels?
+    let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length comp.OutputLabels)) outputBusWidths
+    {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}            
+
+
+let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
+    ({X=0.;Y=0.},{X=sym.W+20.;Y=sym.H+20.})
+
+    // +float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
+    // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
+>>>>>>> Stashed changes
 
 let portmove portId inputYes model =
     let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with 
@@ -173,6 +231,7 @@ let init() =
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
+<<<<<<< Updated upstream
     | AddSymbol(pos, inputno, outputno, comp) -> 
        {model with Symbols = List.rev (createNewSymbol pos inputno outputno comp:: model.Symbols); sBB = List.rev (createNewBoundingBox pos inputno outputno :: model.sBB)} , Cmd.none
     | StartDragging (sId, pagePos) ->
@@ -287,6 +346,209 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                     |None -> {defaultList.[x] with IsSelected = false; IsDragging = false}
             [0..(defaultList.Length-1)]
             |> List.map checker    
+=======
+    | AddSymbol(inputno, outputno, compType) ->
+        //need to have anther sheet input parameter for when custom - this could be an option
+        // let customInformation: CustomComponentType= 
+        //     {Name="Kurtangle";InputLabels=[("Udai",1);("Simi",1)];OutputLabels=[("Karl",1)]}
+        match compType with
+        | CommonTypes.Custom customInformation -> let newSymbol = createCustomSymbol customInformation
+                                                  let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
+                                                  let newSymbolList = List.rev (newSymbol::model.Symbols)
+                                                  let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
+                                                  {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+        | _ -> let newSymbol = createNewSymbol inputno outputno compType
+               let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
+               let newSymbolList = List.rev (newSymbol::model.Symbols)
+               let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
+               {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
+
+    | DuplicateSymbol(sId) -> 
+        let newPorts symlist input =
+            if input = true 
+            then List.map (fun port -> {port with HostId = string (symlist.Id); Id = Helpers.uuid(); PortPos = posAdd port.PortPos {X=10.;Y=10.}}) symlist.InputPorts 
+            else List.map (fun port -> {port with HostId = string (symlist.Id); Id = Helpers.uuid(); PortPos = posAdd port.PortPos {X=10.;Y=10.}}) symlist.OutputPorts 
+        let newSymbols = List.collect (fun sym -> if List.exists (fun searchIds -> searchIds = sym.Id) sId
+                                                       then [{sym with Id = CommonTypes.ComponentId (Helpers.uuid()); IsSelected = true; IsHighlighted = false; Pos = posAdd sym.Pos {X=10.;Y=10.}}]
+                                                       else []) model.Symbols 
+
+        let newBBoxes = List.map (fun newSym -> (posAdd newSym.Pos {X= -10.; Y= -10.}, posAdd newSym.Pos {X = (newSym.W + 10.); Y=  (newSym.H + 10.)} )) newSymbols
+        let originalSymbols = List.map (fun sym -> {sym with IsSelected = false; IsHighlighted = false}) model.Symbols
+        let newPortSymbols = List.map (fun sym -> {sym with InputPorts = newPorts sym true}) newSymbols
+                             |> List.map (fun sym -> {sym with OutputPorts = newPorts sym false})
+
+        {model with Symbols = originalSymbols @ newPortSymbols; SymBBoxes = model.SymBBoxes @ newBBoxes}, Cmd.none 
+        
+    | SnapSymbolToGrid (sId) ->
+
+        let isSingleSelected = printfn "%A" model.Symbols
+                               List.exists (fun sym -> sId=[sym.Id] && sym.IsSelected = false) model.Symbols
+
+        let snapDifference coord= if coord % 30. < 15.
+                                  then coord % 30.
+                                  else -(30. - (coord % 30.))
+
+        let roundCoord coord : float= coord - snapDifference coord
+
+        let roundSymbolPos (symPos:XYPos) = {X=(roundCoord symPos.X);Y=(roundCoord symPos.Y)}
+
+        let updatePortPos (currentPortPos:XYPos) (oldSymbolPos:XYPos) = {X=currentPortPos.X - (snapDifference oldSymbolPos.X);Y=currentPortPos.Y - (snapDifference oldSymbolPos.Y)}
+
+        
+
+        let snappedSymbols=
+            match isSingleSelected with
+            |true ->List.map (fun sym -> if [sym.Id] = sId
+                                         then { sym with 
+                                                    InputPorts = List.map (fun port -> {port with PortPos=updatePortPos port.PortPos sym.Pos}) sym.InputPorts
+                                                    OutputPorts = List.map (fun port -> {port with PortPos=updatePortPos port.PortPos sym.Pos}) sym.OutputPorts
+                                                    Pos = roundSymbolPos sym.Pos
+                                                    LastDragPos = sym.Pos
+                                                }
+                                         else {sym with IsSelected=false} ) model.Symbols
+            |false -> List.map (fun sym -> if [sym.Id] <> sId
+                                                then if sym.IsSelected = true
+                                                     then { sym with
+                                                                InputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.InputPorts
+                                                                OutputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.OutputPorts
+                                                                Pos = roundSymbolPos sym.Pos
+                                                                IsDragging = true
+                                                           }
+                                                     else sym
+                                                else //check whether symbol is selected
+                                                    { sym with
+                                                        InputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.InputPorts
+                                                        OutputPorts = List.map (fun port -> {port with PortPos =updatePortPos port.PortPos sym.Pos}) sym.OutputPorts
+                                                        Pos = roundSymbolPos sym.Pos
+                                                        IsDragging = true
+                                                        // LastDragPos = pagePos
+                                                    }
+                        ) model.Symbols
+
+        let newSymbols, newBox =
+            if model.SingleOrMultiple = true
+            then  List.map2 (fun sym box -> if sId <> [sym.Id]
+                                            then (sym, box)
+                                            else ({sym with IsDragging=false} , ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) snappedSymbols model.SymBBoxes
+                  |> List.unzip
+            else
+                List.map2 (fun sym box -> if sym.IsSelected = false
+                                          then (sym, box)
+                                          else ({sym with IsDragging = false}, ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) snappedSymbols model.SymBBoxes
+                |> List.unzip
+
+        {model with Symbols=snappedSymbols; SingleOrMultiple=isSingleSelected; SymBBoxes=newBox}, Cmd.none //bbouning boxes
+
+
+    | Dragging (sId, pagePos, prevPagePos) ->
+         
+
+        let isSingleSelected =
+            List.exists (fun sym -> sId=[sym.Id] && sym.IsSelected = false) model.Symbols
+        //if symbol being dragged is not selected - then you are dragging one component
+
+        let diff = posDiff pagePos prevPagePos
+
+        let newPortPos (port:XYPos) = 
+            posAdd port diff 
+
+        let dSymbols=
+            // let diff = posDiff pagePos prevPagePos//sym.LastDragPos
+            match isSingleSelected with
+            |true ->printfn "hola %A" model.Symbols
+                    List.map (fun sym -> if [sym.Id] = sId
+                                         then { sym with 
+                                                    Pos = posAdd sym.Pos diff
+                                                    IsDragging = true
+                                                    LastDragPos = sym.Pos
+                                                    InputPorts = List.map (fun port -> {port with PortPos= newPortPos port.PortPos}) sym.InputPorts
+                                                    OutputPorts = List.map (fun port -> {port with PortPos= newPortPos port.PortPos}) sym.OutputPorts
+                                                }
+                                         else {sym with IsSelected=false} ) model.Symbols
+            |false -> List.map (fun sym -> if [sym.Id] <> sId
+                                                then if sym.IsSelected = true
+                                                     then { sym with
+                                                                Pos = posAdd sym.Pos diff
+                                                                IsDragging = true
+                                                                LastDragPos = pagePos
+                                                                InputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.InputPorts
+                                                                OutputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.OutputPorts
+                                                           }
+                                                     else sym
+                                                else //check whether symbol is selected
+                                                    { sym with
+                                                        Pos = posAdd sym.Pos diff
+                                                        IsDragging = true
+                                                        LastDragPos = pagePos
+                                                        InputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.InputPorts
+                                                        OutputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.OutputPorts
+                                                    }
+                        ) model.Symbols
+        let newSymbols, newBox =
+            if isSingleSelected = true
+            then  List.map2 (fun sym box -> if sId <> [sym.Id]
+                                            then (sym, box)
+                                            else ({sym with IsDragging=false} , ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                  |> List.unzip
+            else
+                List.map2 (fun sym box -> if sym.IsSelected = false
+                                          then (sym, box)
+                                          else ({sym with IsDragging = false}, ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                |> List.unzip
+        printfn "Ports %A diff %A" dSymbols diff 
+        {model with Symbols=dSymbols; SingleOrMultiple=isSingleSelected; SymBBoxes = newBox}, Cmd.none
+
+
+    | DeleteSymbol ->
+        let (remainingSymbols, remainingBBox) =
+             List.fold2 (fun remainingValues sym box -> if sym.IsSelected = false
+                                                        then remainingValues @ [(sym, box)]
+                                                        else remainingValues ) [] model.Symbols model.SymBBoxes
+             |> List.unzip
+        {model with Symbols=remainingSymbols; SymBBoxes = remainingBBox}, Cmd.none
+
+        // let selectedList =
+        //     let checkSymbol (wiresList, bBoxesList) (wireTest) (boundingBox:XYPos*XYPos)=
+        //         if wireTest.IsSelected = true
+        //         then (wireTest::wiresList, bBoxesList@[boundingBox])
+        //         else (wiresList, bBoxesList)
+        //     List.fold2 checkSymbol ([],[]) model.Symbols model.SymBBoxes
+        // let remainingSymbols = fst selectedList
+        // let remainingBbox = snd selectedList
+        // {model with Symbols=remainingSymbols ; SymBBoxes=remainingBbox}, Cmd.none
+
+        //need to do the delete properly
+        // let symbolsToKeepIndex (lst:int) = List.filter (fun x -> List.tryFind (fun y -> y = x) sIdList |> function |Some a -> false |None -> true) [0..lst]
+        // let dSymbols =
+        //      symbolsToKeepIndex ((model.Symbols.Length)- 1)
+        //      |> List.map (fun i -> model.Symbols.[i]) // (fun index value ->  List.tryFind (fun x -> x = index) sIdList |> function |Some a -> [] |None -> [value])
+        // let dBbox =
+        //     symbolsToKeepIndex ((model.SymBBoxes.Length)- 1)
+        //     |> List.map (fun i -> model.SymBBoxes.[i])
+        // {model with Symbols = dSymbols; SymBBoxes = dBbox}, Cmd.none
+
+    |HighlightSymbol (sId) ->
+        printfn "highlight"
+        let highlightedSymbolList = 
+            List.map (fun sym -> if List.exists (fun idsInList -> idsInList=sym.Id) sId
+                                 then {sym with IsHighlighted = true}
+                                 else {sym with IsHighlighted = false}) model.Symbols
+        {model with Symbols = highlightedSymbolList}, Cmd.none
+
+
+    | ToggleSymbol (sId) ->
+        let selectedSymbolList =
+            match sId with 
+            |multipleSelect :: [lst] -> List.map (fun sym -> if List.exists (fun idsInList -> idsInList=sym.Id) sId
+                                                             then {sym with IsSelected=true; IsHighlighted = false}
+                                                             else {sym with IsSelected=false; IsHighlighted = false}) model.Symbols
+            |_ -> List.map (fun sym -> if List.exists (fun idsInList -> idsInList=sym.Id) sId
+                                       then {sym with IsSelected=not sym.IsSelected; IsHighlighted = false}
+                                       else {sym with IsSelected=false; IsHighlighted = false}) model.Symbols
+            
+            
+        printfn "syms %A" selectedSymbolList
+>>>>>>> Stashed changes
         {model with Symbols = selectedSymbolList}, Cmd.none
     |ShowPorts (sId) -> 
         let showPortSymbols = 
@@ -298,8 +560,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             match portmove portId iO model.Symbols with 
             | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
+<<<<<<< Updated upstream
     | MouseMsg {Pos = {X = posX; Y=posY}; Op = Down} -> 
         let showPorts = 
+=======
+
+    | MouseMsg sMsg ->
+        printfn "symbol %A" sMsg
+        let showPorts =
+>>>>>>> Stashed changes
             model.Symbols
             |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
@@ -320,6 +589,7 @@ type Mux =
 
 type RenderGateProps= 
     {
+<<<<<<< Updated upstream
         Gate:Symbol
         Dispatch: Dispatch<Msg>
         key: string
@@ -357,6 +627,146 @@ let renderGate =
                                 FontSize "20px"
                                 FontWeight "Bold"
                                 Fill "Black" // demo font color
+=======
+        Symb : Symbol // name works for the demo!
+        Dispatch : Dispatch<Msg>
+        key: string // special field used by react to detect whether lists have changed, set to symbol Id
+        Comp : CommonTypes.ComponentType
+    }
+
+/// View for one symbol with caching for efficient execution when input does not change
+
+
+
+let private RenderSymbol (comp: CommonTypes.ComponentType)=
+
+    match comp with
+    // | Input bits | Output bits ->
+    //     FunctionComponent.Of(
+    //         fun (props : RenderSymbolProps) ->
+    //             let color =
+    //                 if props.Symb.IsDragging then
+    //                     "green"
+    //                 else
+    //                     "grey"
+    //             g   []
+    //                 [
+    //                     rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth/3.) (gateHeight/4.) color
+
+    //                 ]
+    //     )
+    | Not | And | Or | Xor | Nand | Nor | Xnor->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+                // let handleMouseMove =
+                //     Hooks.useRef(fun (ev : Types.Event) ->
+                //         let ev = ev :?> Types.MouseEvent
+                //         // x,y coordinates here do not compensate for transform in Sheet
+                //         // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
+                //         Dragging([props.Symb.Id], (posOf ev.pageX ev.pageY))
+                //         |> props.Dispatch
+                //     )
+                let (portVis, symId, portNum, mousePosition) = props.Symb.IsSliding
+                let displayPort = 
+                    let outputPorts = List.map (fun (ports:CommonTypes.Port) -> circus ports.PortPos.X  ports.PortPos.Y 5. ) props.Symb.OutputPorts
+                    let inputPorts = List.map (fun (ports:CommonTypes.Port) -> circus ports.PortPos.X  ports.PortPos.Y 5. ) props.Symb.InputPorts
+                    let slideCirc IO portNum (mousePos:XYPos)=
+                        let portList =
+                            if IO = "input" then props.Symb.InputPorts.[portNum].PortPos else props.Symb.OutputPorts.[portNum].PortPos
+                        [
+                            circus mousePos.X  mousePos.Y 5.
+                            line [
+                                X1 portList.X
+                                Y1 portList.Y
+                                X2 mousePos.X
+                                Y2 mousePos.Y
+                                SVGAttr.StrokeDasharray "4"
+                                // Qualify these props to avoid name collision with CSSProp
+                                SVGAttr.Stroke "black"
+                                SVGAttr.StrokeWidth 5 ] []
+                        ]
+                
+                    match props.Symb.PortStatus with
+                    | Visible ->    outputPorts @ inputPorts
+                
+                    | Invisible ->  []
+                
+                    | ShowInputsOnly -> if string props.Symb.Id = symId 
+                                        then slideCirc "output" portNum mousePosition 
+                                        else inputPorts
+                
+                    | ShowOutputsOnly -> if string props.Symb.Id = symId 
+                                         then slideCirc "input" portNum mousePosition 
+                                         else outputPorts
+
+                let color =
+                    if props.Symb.IsSelected then
+                        "green"
+                    else if props.Symb.IsHighlighted then 
+                        "yellow"
+                    else
+                        "grey"
+
+                let mainOutline = 
+                      
+                        let textSection =   match props.Comp with
+                                            | Not -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "1"]
+                                                     |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) props.Symb.Pos.X (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+
+                                            | And -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Or -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1"]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                    |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                    |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                    |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Xor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Nand -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"]
+                                                      |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Nor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1"]
+                                                     |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Xnor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1"]
+                                                      |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | _ -> [homotextual 0 0 "" "" "" ""]
+
+                        textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
+                   
+>>>>>>> Stashed changes
 
                             ]
                         ] [str <| string num]
