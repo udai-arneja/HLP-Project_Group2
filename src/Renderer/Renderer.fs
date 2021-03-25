@@ -47,7 +47,7 @@
                    makeKeyItem "Default" "CmdOrCtrl+N" (fun () -> dispatch KeyboardMsg.CtrlN)
                    makeKeyItem "Blue" "Alt" (fun () -> dispatch KeyboardMsg.Alt)
                    makeKeyItem "Green" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
-                   makeKeyItem "Default"  "delete" (fun () -> dispatch KeyboardMsg.DEL)
+                   makeKeyItem "Default"  "Alt+E" (fun () -> dispatch KeyboardMsg.DEL)
                    makeKeyItem "Red" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
                    makeKeyItem "ZoomI" "Alt+Up" (fun () -> dispatch KeyboardMsg.AltUp)
                    makeKeyItem "ZoomI" "Alt+O" (fun () -> dispatch KeyboardMsg.PrintSelected)

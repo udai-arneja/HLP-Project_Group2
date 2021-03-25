@@ -5,17 +5,21 @@ open Browser
 open Elmish
 open Elmish.React
 open Helpers
+open CommonTypes
+
+
 //------------------------------------------------------------------------//
 //-------------------------------Symbol Types-----------------------------//
 //------------------------------------------------------------------------//
 
-/// Model to generate one symbol (skeleton). Id is a unique Id 
+/// Model to generate one symbol (skeleton). Id is a unique Id
 /// for the symbol shared with Issie Component type.
 /// The real type will obviously be much larger.
-/// Complex information that never changes (other than Id) should 
+/// Complex information that never changes (other than Id) should
 /// probably not be here, but looked up via some function
 /// from a more compact form, so that comparison of two Symbols to
 /// determine are they the same is fast.
+
 
 type Symbol =
     {
@@ -23,7 +27,6 @@ type Symbol =
         IsDragging : bool
         Id : CommonTypes.ComponentId
         Type : CommonTypes.ComponentType
-        //Type2: CommonTypes.CustomComponentType
         InputPorts : CommonTypes.Port list
         OutputPorts : CommonTypes.Port list
         Pos: XYPos
@@ -38,7 +41,8 @@ type Symbol =
 
 type Model = {
     Symbols: Symbol list
-    sBB: (float*float) list List
+    SymBBoxes: (XYPos*XYPos)  List
+    SingleOrMultiple: bool          //true - single
     }
 
 
@@ -51,16 +55,13 @@ type Model = {
 type Msg =
     /// Mouse info with coords adjusted form top-level zoom
     | MouseMsg of MouseT
-    /// coords not adjusted for top-level zoom
-    | StartDragging of sId : CommonTypes.ComponentId * pagePos: XYPos
-    /// coords not adjusted for top-level zoom
     //| Dragging of sId : CommonTypes.ComponentId * pagePos: XYPos
-    | Dragging of sId : CommonTypes.ComponentId  * pagePos: XYPos
-    | DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
-    | EndDragging of sId : CommonTypes.ComponentId
-    | EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
-    | AddSymbol of pos: XYPos *inputs: int * outputs: int * comp: CommonTypes.ComponentType// used by demo code to add a circle
-    | DeleteSymbol of int list
+    | Dragging of sId : CommonTypes.ComponentId list * pagePos: XYPos * prevPagePos: XYPos
+    //| DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
+    //| EndDragging of sId : CommonTypes.ComponentId
+    //| EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
+    | AddSymbol of inputs: int list * outputs: int list * comp: CommonTypes.ComponentType
+    | DeleteSymbol
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
     | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
     | Hovering of portSymbol:CommonTypes.ComponentId list
@@ -78,54 +79,120 @@ type Msg =
 let posDiff (a:XYPos) (b:XYPos) =
     {X=a.X-b.X; Y=a.Y-b.Y}
 
-let posAdd a b =
+let posAdd (a:XYPos) (b:XYPos) =
     {X=a.X+b.X; Y=a.Y+b.Y}
 
 let posOf x y = {X=x;Y=y}
 
-let tupleToXYPos (a,b) : Helpers.XYPos = 
-    let XY = {
-        X = a
-        Y = b
-    }  
-    {XY with X = a ; Y = b}
+let gateWidth = 60.
 
+let gateHeight = 80.
+
+let circleRadius = 5.
+
+let inOutLines = 10.
+
+let rectum xPos yPos width height colour props  = // cheeky bit of kareem abstraction
+        rect
+            [
+                X xPos
+                Y yPos
+                SVGAttr.Width width
+                SVGAttr.Height height
+                SVGAttr.Fill colour
+                SVGAttr.FillOpacity 0.4
+                SVGAttr.Stroke "Black"
+                SVGAttr.StrokeWidth 2
+            ]
+            [ ]
+
+
+let circus xPos yPos rad = // cheeky bit of kareem abstraction
+    circle
+        [
+            SVGAttr.Cx xPos
+            SVGAttr.Cy yPos
+            SVGAttr.R rad
+            SVGAttr.Fill "Transparent"
+            SVGAttr.Stroke "Black"
+            SVGAttr.StrokeWidth 2
+        ] [ ]
+
+let homotextual xPos yPos textAnchor domBaseline fontSize displayText = // cheeky bit of kareem abstraction
+    text
+        [ X xPos
+          Y yPos
+          Style
+                [
+                    TextAnchor textAnchor
+                    DominantBaseline domBaseline
+                    FontSize fontSize
+                    FontWeight "Bold"
+                    Fill "Black"
+                ]
+        ]
+        [ str <| sprintf displayText ]
+
+let creditLines x1Pos y1Pos x2Pos y2Pos width = // cheeky bit of kareem abstraction
+    line
+        [   X1 x1Pos
+            Y1 y1Pos
+            X2 x2Pos
+            Y2 y2Pos
+            Style
+                [
+                    CSSProp.Stroke "Black"
+                    CSSProp.StrokeWidth width
+
+                ]
+        ]
+        []
 
 //-----------------------------Skeleton Model Type for symbols----------------//
 
 
-let createportlist (mainS)(t)(compId)(x:int) =
-    let portPos no pType =
-        if pType = "Input" then
-            {X = mainS.Pos.X; Y = mainS.Pos.Y + 65. + (float no)*40.}
-        else
-            {X = mainS.Pos.X+mainS.W  - 10.; Y = (mainS.Pos.Y + 65. + (float no)*40.)}
-    [{
-        CommonTypes.Port.Id = Helpers.uuid() 
-        CommonTypes.Port.PortNumber = Some x 
-        CommonTypes.Port. PortType = t 
-        CommonTypes. Port. HostId = compId
-        CommonTypes.Port.PortPos = portPos x (string t)
-    }]
+let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(width:int)(numPorts): CommonTypes.Port =
+    let portPos =
+        match comp.Type with
+        // |RAM -> if portType = CommonTypes.Input
+        //sthen {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float(portNumber + 1))*(comp.H/6.))}
+        //            else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/2.))}
+        // |NbitAdder -> if portType = CommonTypes.Input
+        //               then {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+        //               else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/3.))}
+        |_ -> match (portType, numPorts) with
+              | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.H/2.))}
+              | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.H)/2.) + comp.H/4.)}
+              | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
+              | (_, 1) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ( comp.H/2.) )}
+              | (_, 2) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ((float (portNumber))*2. + 1.)*(comp.H/4.))}  // this one
+              |_ -> failwithf "Error on portlist"
+    {
+        CommonTypes.Port.Id = Helpers.uuid()
+        CommonTypes.Port.PortNumber = Some portNumber
+        CommonTypes.Port.PortType = portType
+        CommonTypes.Port.HostId = string(comp.Id)
+        CommonTypes.Port.PortPos = portPos
+        CommonTypes.Port.BusWidth = width
+        // CommonTypes.Port.PortInUse = false
+    }
 
 //-----------------------Skeleton Message type for symbols---------------------//
 
 /// Symbol creation: a unique Id is given to the symbol, found from uuid.
 /// The parameters of this function must be enough to specify the symbol completely
 /// in its initial form. This is called by the AddSymbol message and need not be exposed.
-let createNewSymbol (start:XYPos) (inputno: int) (outputno: int) (comp:CommonTypes.ComponentType)= //could match comp for symbols of different heights and widths
-    //match comp with 
-    //| Not | And | Or | Xor | Nand | Nor | Xnor ->    
+let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) = //could match comp for symbols of different heights and widths
     let mainSymbol = {
-                LastDragPos = {X=0.;Y=0.}
+                LastDragPos = {X=10.;Y=10.}
                 IsDragging = false
                 Id = CommonTypes.ComponentId (Helpers.uuid())
                 Type = comp
                 InputPorts = []
                 OutputPorts = []
-                Pos = start
-                H = 65. + float (max inputno outputno)*40.
-                W = 100.   
+                Pos = {X=10.;Y=10.}
+                H = 80.
+                W = 60.
                 IsSelected = false
                 IsHighlighted = false
                 PortStatus = Invisible
@@ -166,27 +233,22 @@ let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
     // [start.X-10., start.Y-10.; 110., start.Y-10.; 110., 75.+float (max inputno outputno)*40.; 75.+float (max inputno outputno)*40., 75.+float (max inputno outputno)*40.]
 
 let portmove portId inputYes model =
-    let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with 
-                                                                      |1 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.InputPorts |> function |Some a -> [a] |None -> []) acc
-                                                                      |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
-    let portReturn = match inputYes with //haaate this 
-                    | "input" -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol 
-                    | "output" -> List.fold (findPort 0) [] model |> List.head
-    let symbolReturn = List.find (fun x -> x.Id = CommonTypes.ComponentId portReturn.HostId) model    
-    let portNumber = match portReturn.PortNumber with 
+    let findPort i (acc: CommonTypes.Port list) (x:Symbol)  =  match i with
+                                                               |1 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.InputPorts |> function |Some a -> [a] |None -> []) acc
+                                                               |0 -> List.append (List.tryFind (fun (y:CommonTypes.Port) -> string y.Id = portId ) x.OutputPorts |> function |Some a -> [a] |None -> []) acc
+                                                               | _ -> failwithf "not implemented - findPort Function, Symbol line 152"
+    let portReturn = match inputYes with
+                     | ShowOutputsOnly -> List.fold (findPort 1) [] model |> List.head // potentially global for symbol
+                     | ShowInputsOnly -> List.fold (findPort 0) [] model |> List.head
+                     | _ -> failwithf "not implemented - portReturn Function, Symbol line 155"
+    let symbolReturn = List.find (fun x -> x.Id = CommonTypes.ComponentId portReturn.HostId) model
+    let portNumber = match portReturn.PortNumber with
                      |Some a -> a
+                     | _ -> failwithf "not implemented - portNumber Function, Symbol line 159"
     (symbolReturn, portReturn, portNumber)
-    
-
-/// Dummy function for test. The real init would probably have no symbols.
-//let init () =
-//    List.allPairs [1;5] [3]
-//    |> List.map (fun (x,y) -> {X = float (x*64+30); Y=float (y*64+30)})
-//    |> List.map createNewSymbol
-//    , Cmd.none
 
 let init() =
-    {Symbols=[]; sBB =[]}, Cmd.none
+    {Symbols=[]; SymBBoxes =[]; SingleOrMultiple=false}, Cmd.none
 
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
@@ -393,39 +455,32 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
             
         printfn "syms %A" selectedSymbolList
         {model with Symbols = selectedSymbolList}, Cmd.none
-    |ShowPorts (sId) -> 
-        let showPortSymbols = 
+
+    |Hovering (sId) ->
+        let showPortSymbols =
             model.Symbols
-            |> List.mapi (fun ind x -> if [ind] = sId then { x with PortStatus = "visible"}  else { x with PortStatus = "invisible"})
+            |> List.map (fun sym -> if [sym.Id] = sId then { sym with PortStatus = Visible}  else { sym with PortStatus = Invisible})
         {model with Symbols = showPortSymbols}, Cmd.none
-    |ShowValidPorts (iO, portId, posi) ->
+
+    |ShowValidPorts (portVis, portId, mousePos) ->
         let validPortSymbols =
-            match portmove portId iO model.Symbols with 
-            | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id then { x with IsSliding = (true, iO, portNum, posi); PortStatus = iO}  else { x with PortStatus = iO; IsSliding = (false, iO, portNum, posi)}) model.Symbols
+            printfn "validPortSymbols %A" portVis
+            match (portmove portId portVis model.Symbols) with
+            | (symb, port, portNum) -> List.map (fun x -> if x.Id = symb.Id 
+                                                          then { x with IsSliding=(portVis, string symb.Id, portNum, mousePos); PortStatus=portVis}  
+                                                          else { x with PortStatus=portVis; IsSliding = (portVis, string symb.Id, portNum, mousePos)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
 
     | MouseMsg sMsg ->
         printfn "symbol %A" sMsg
         let showPorts =
             model.Symbols
-            |> List.map (fun x -> { x with PortStatus = "invisible"; IsSliding = (false, "input" , 0, {X=0.; Y=0.})})
+            |> List.map (fun x -> { x with PortStatus=Invisible; IsSliding=(ShowInputsOnly , "null", 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
-    | MouseMsg _ -> model, Cmd.none // allow unused mouse messags
+    | _ -> failwith "Not Implemented, Symbol Update Function, Symbol line 299" // allow unused mouse messags
 
-type Gates = //one for each unique shape
-    | Not 
-    | And 
-    | Or 
-    | Xor 
-    | Nand 
-    | Nor 
-    | Xnor
 
-type Mux = 
-    | Mux2 
-    | Demux2    
-
-type RenderGateProps= 
+type private RenderSymbolProps =
     {
         Symb : Symbol // name works for the demo!
         Dispatch : Dispatch<Msg>
@@ -566,617 +621,542 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
                    
 
-                            ]
-                        ] [str <| string num]
-                    ]
-                let slideRect =
-                    let portList =
-                        if IO = "input" then props.Gate.InputPorts.[(int num)].PortPos else props.Gate.OutputPorts.[(int num)].PortPos
-                    [
-                        rect [
-                              X (xSlide)
-                              Y (ySlide)
-                              SVGAttr.Width 10.
-                              SVGAttr.Height 10.
-                              SVGAttr.Fill "black"
-                              SVGAttr.Stroke "black"
-                              SVGAttr.StrokeWidth 1
-                          ][]
-                        line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
-                            X2 xSlide
-                            Y2 ySlide
-                            SVGAttr.StrokeDasharray "4"
-                            // Qualify these props to avoid name collision with CSSProp
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 5 ] []
-                    ]
 
-                let inPorts = 
-                    [
-                      circle [
-                            Cx (fst props.Gate.InputPorts.[int num].PortPos)
-                            Cy (snd props.Gate.InputPorts.[int num].PortPos)
-                            SVGAttr.R 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
-                let outPorts=
-                    [
-                        circle [
-                            Cx (fst props.Gate.OutputPorts.[int num].PortPos)
-                            Cy (snd props.Gate.OutputPorts.[int num].PortPos)
-                            SVGAttr.R 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
 
-                let portSection =
-                    match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-                    |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
-                    |("visible", 70., _, _, _ ) -> outPorts
-                    | ("input", 70.,false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs  
-                    |("output", 20., false,_,_ ) -> inPorts
-                    |(_, 70., true, slidePortNum, "output") -> slideRect // for valid ports but the port that slides for a sliding output 
-                    |(_, 20., true, slidePortNum, "input") -> slideRect // for valid ports but the port that slides 
-                    |(_, 20., true, slidePortNum, "output") -> inPorts
-                    |(_, 70., true, slidePortNum, "input") -> outPorts
-                    |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides 
-                    |("output", 20., true,_,_ ) -> inPorts
-                    |_ -> []
+let private RenderSymbol (comp: CommonTypes.ComponentType)=
+
+    match comp with
+    // | Input bits | Output bits ->
+    //     FunctionComponent.Of(
+    //         fun (props : RenderSymbolProps) ->
+    //             let color =
+    //                 if props.Symb.IsDragging then
+    //                     "green"
+    //                 else
+    //                     "grey"
+    //             g   []
+    //                 [
+    //                     rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth/3.) (gateHeight/4.) color
+
+    //                 ]
+    //     )
+    | Not | And | Or | Xor | Nand | Nor | Xnor->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+                // let handleMouseMove =
+                //     Hooks.useRef(fun (ev : Types.Event) ->
+                //         let ev = ev :?> Types.MouseEvent
+                //         // x,y coordinates here do not compensate for transform in Sheet
+                //         // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
+                //         Dragging([props.Symb.Id], (posOf ev.pageX ev.pageY))
+                //         |> props.Dispatch
+                //     )
+                let (portVis, symId, portNum, mousePosition) = props.Symb.IsSliding
+                let displayPort = 
+                    let outputPorts = List.map (fun (ports:CommonTypes.Port) -> circus ports.PortPos.X  ports.PortPos.Y 5. ) props.Symb.OutputPorts
+                    let inputPorts = List.map (fun (ports:CommonTypes.Port) -> circus ports.PortPos.X  ports.PortPos.Y 5. ) props.Symb.InputPorts
+                    let slideCirc IO portNum (mousePos:XYPos)=
+                        let portList =
+                            if IO = "input" then props.Symb.InputPorts.[portNum].PortPos else props.Symb.OutputPorts.[portNum].PortPos
+                        [
+                            circus portList.X  portList.Y 5.
+                            line [
+                                X1 portList.X
+                                Y1 portList.Y
+                                X2 mousePos.X
+                                Y2 mousePos.Y
+                                SVGAttr.StrokeDasharray "4"
+                                // Qualify these props to avoid name collision with CSSProp
+                                SVGAttr.Stroke "black"
+                                SVGAttr.StrokeWidth 5 ] []
+                        ]
+                
+                    match props.Symb.PortStatus with
+                    | Visible ->    outputPorts @ inputPorts
+                
+                    | Invisible ->  []
+                
+                    | ShowInputsOnly -> if string props.Symb.Id = symId 
+                                        then slideCirc "output" portNum mousePosition 
+                                        else inputPorts
+                
+                    | ShowOutputsOnly -> if string props.Symb.Id = symId 
+                                         then slideCirc "input" portNum mousePosition 
+                                         else outputPorts
+
+                let color =
+                    if props.Symb.IsSelected then
+                        "green"
+                    else
+                        "grey"
+
+                let mainOutline = 
+                      
+                        let textSection =   match props.Comp with
+                                            | Not -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "1"]
+                                                     |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) props.Symb.Pos.X (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+
+                                            | And -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Or -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1"]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                    |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                    |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                    |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Xor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Nand -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"]
+                                                      |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Nor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1"]
+                                                     |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | Xnor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1"]
+                                                      |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            | _ -> [homotextual 0 0 "" "" "" ""]
+
+                        textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
                    
-                match portStat with 
-                |"invisible" -> [textSection]
-                |_ -> [textSection; portSection]
 
-            let initialoutline = 
-                [
-                    rect
-                        [ 
-                            OnMouseUp (fun ev -> 
-                                document.removeEventListener("mousemove", handleMouseMove.current)
-                                EndDragging props.Gate.Id
-                                |> props.Dispatch
-                            )
-                            OnMouseDown (fun ev -> 
-                                // See note above re coords wrong if zoom <> 1.0
-                                StartDragging (props.Gate.Id, posOf ev.pageX ev.pageY)
-                                |> props.Dispatch
-                                document.addEventListener("mousemove", handleMouseMove.current)
-                            )
-                            X props.Gate.Pos.X
-                            Y props.Gate.Pos.Y
-                            SVGAttr.Width props.Gate.W
-                            SVGAttr.Height props.Gate.H
-                            SVGAttr.Fill color
-                            SVGAttr.Stroke color
-                            SVGAttr.StrokeWidth 1
-                        ][]
+                let finalPortsSymbol = mainOutline @ displayPort 
 
-                    text [ // a demo text svg element
-                            X (props.Gate.Pos.X + 30.); 
-                            Y (props.Gate.Pos.Y + 10.); 
-                            Style [
-                                TextAnchor "middle" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "30px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
+                g   [
+                        // OnMouseUp (fun ev ->
+                        //     document.removeEventListener("mousemove", handleMouseMove.current)
+                        //     // EndDragging props.Square.Id
+                        //     // |> props.Dispatch
+                        // )
+                        // OnMouseDown (fun ev ->
+                        //     // See note above re coords wrong if zoom <> 1.0
+                        //     // StartDragging (props.Square.Id, posOf ev.pageX ev.pageY)
+                        //     // |> props.Dispatch
+                        //     document.addEventListener("mousemove", handleMouseMove.current)
+                        // )
+                    ] (finalPortsSymbol)
+
+
+        )
+    | Mux2 | Demux2 ->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
+                    ]
+                    [
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+
+                        match props.Comp with
+                        | Mux2 ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"
+
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1"
+                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
+
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"
+                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2//Mux output
+
+
+
+                        | Demux2 ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX"
+
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0"
+                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
+
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1"
+                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2//Mux output
+
+                        | _ ->
+                            homotextual 0 0 "" "" "" ""
+
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
+
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
+
+
+                    ]
+
+        )
+    | NbitsAdder bits ->
+            FunctionComponent.Of(
+                fun (props : RenderSymbolProps) ->
+
+                    let color =
+                        if props.Symb.IsDragging then
+                            "green"
+                        else
+                            "grey"
+                    g   [
+                        ]
+                        [
+                            rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+
+                            text
+                                [   X (props.Symb.Pos.X + gateWidth)
+                                    Y (props.Symb.Pos.Y + gateHeight/8.)
+                                    Style
+                                        [
+                                                TextAnchor "middle"
+                                                DominantBaseline "middle"
+                                                FontSize "14px"
+                                                FontWeight "Bold"
+                                                Fill "Black"
+                                            ]
+                                ]
+                                [ str <| sprintf "Adder(%A:0)" bits ]
+
+                            //inputs
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Cin"
+                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
+
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "A"
+                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
+
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "B"
+                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
+
+                            //outputa
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/3.) "end" "Middle" "10px" "Sum"
+                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/3.) 2//Mux output
+
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(3./2.)) "end" "Middle" "10px" "Cout"
+                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(3./2.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(3./2.)) 2//Mux output
+
+
                             ]
-                         ] [str <| sprintf "Not"]   
+
+        )
+    | MergeWires ->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
+                    ]
+                    [   // first pure vertical line
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2
+                        // Second horizontal line top of shape
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y) 2
+                        // Third horizontal line bottom of shape
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y + gateHeight/3.) 2
+                        // 4th line in the middle; output line
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y + gateHeight/6.) 2
+
+
+                        ]
+        )
+    | SplitWire bits ->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
+                    ]
+
+                    [   //let formatted = String.Format ("(1:{0})", bits) wtf
+
+                    //    homotextual (props.Symb.Pos.X) (props.Symb.Pos.Y - gateHeight/8.) "middle" "middle" "14px" formatted
+                        text
+                            [ X (props.Symb.Pos.X )
+                              Y (props.Symb.Pos.Y - gateHeight/8.)
+                              Style
+                                    [
+                                         TextAnchor "middle"
+                                         DominantBaseline "middle"
+                                         FontSize "14px"
+                                         FontWeight "Bold"
+                                         Fill "Black"
+                                     ]
+                            ]
+                            [str <| sprintf "(1:%A)" bits]
+
+
+                        // first pure vertical line
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2
+                        // Second horizontal line top of shape
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y) 2
+                        // Third horizontal line bottom of shape
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X + gateWidth/3.) (props.Symb.Pos.Y + gateHeight/3.) 2
+                        // 4th line in the middle; output line
+                        creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X - gateWidth/3.) (props.Symb.Pos.Y + gateHeight/6.) 2
+
+
+
+                        ]
+
+
+
+        )
+    | DFF | DFFE ->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
+                    ]
+                    [
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+
+
+                        match props.Comp with
+                        | DFF ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFF"
+
+
+                        | DFFE ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFFE"
+
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN"
+                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
+
+                        | _ ->
+                            homotextual 0 0 "" "" "" ""
+
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "D"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
+
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Q"
+                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
+
+
+                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                        creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1 // CLK
+                        creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1 // CLK
+
+
                 ]
-            let reactElementList = 
-                List.map (outputText 70. props.Gate.PortStatus) [(0.)..(float (props.Gate.OutputPorts.Length-1))]
-                |> List.append (List.map (outputText 20. props.Gate.PortStatus) [(0.)..(float (props.Gate.InputPorts.Length-1))])
-                |> List.collect (fun x -> x)
-                |> List.collect (fun x->x)
-                |>List.append initialoutline
-            g   [ Style [ 
+
+        )
+    | Register bits | RegisterE bits->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
                     ]
-                ] (reactElementList)
-    , "Gate"
-    , equalsButFunctions
-    )    
-
-type RenderMuxProps = 
-    {
-        Mux: Symbol
-        Dispatch: Dispatch<Msg>
-        key: string
-    }
-
-let renderMux = 
-    FunctionComponent.Of(
-        fun (props : RenderMuxProps) ->
-            let handleMouseMove =
-                Hooks.useRef(fun (ev : Types.Event) ->
-                    let ev = ev :?> Types.MouseEvent
-                    // x,y coordinates here do not compensate for transform in Sheet
-                    // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
-                    Dragging(props.Mux.Id, posOf ev.pageX ev.pageY)
-                    |> props.Dispatch
-                )
-            let color =
-                if props.Mux.IsDragging && not props.Mux.IsSelected then
-                    "lightblue"
-                else if props.Mux.IsSelected then
-                    "red"
-                else
-                    "grey"
-
-            let outputText inOrOutText portStat num = 
-                let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Mux.IsSliding
-                let textSection =
                     [
-                        text [ 
-                            X (props.Mux.Pos.X + inOrOutText)
-                            Y (props.Mux.Pos.Y + 65. + num*40.);
-                            Style [
-                                TextAnchor "right" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "20px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
 
-                            ]
-                        ] [str <| string num]
 
-                        text [ 
-                            X (props.Mux.Pos.X + 20.)
-                            Y (props.Mux.Pos.Y + 65. + num*40.);
-                            Style [
-                                TextAnchor "right" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "20px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
+                        match props.Comp with
+                        | Register bits ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "Register"
 
-                            ]
-                        ] [str <| string num]
-                    ]
-                let slideRect =
-                    let portList =
-                        if IO = "input" then props.Mux.InputPorts.[(int num)].PortPos else props.Mux.OutputPorts.[(int num)].PortPos
-                    [
-                        rect [
-                              X (xSlide)
-                              Y (ySlide)
-                              SVGAttr.Width 10.
-                              SVGAttr.Height 10.
-                              SVGAttr.Fill "black"
-                              SVGAttr.Stroke "black"
-                              SVGAttr.StrokeWidth 1
-                          ][]
-                        line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
-                            X2 xSlide
-                            Y2 ySlide
-                            SVGAttr.StrokeDasharray "4"
-                            // Qualify these props to avoid name collision with CSSProp
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 5 ] []
-                    ]
 
-                let inPorts = 
-                    [
-                      rect [
-                            X (fst props.Mux.InputPorts.[int num].PortPos)
-                            Y (snd props.Mux.InputPorts.[int num].PortPos)
-                            SVGAttr.Width 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
-                let outPorts=
-                    [
-                        rect [
-                            X (fst props.Mux.OutputPorts.[int num].PortPos)
-                            Y (snd props.Mux.OutputPorts.[int num].PortPos)
-                            SVGAttr.Width 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
 
-                let portSection =
-                    match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-                    |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
-                    |("visible", 70., _, _, _ ) -> outPorts
-                    | ("input", 70.,false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs  
-                    |("output", 20., false,_,_ ) -> inPorts
-                    |(_, 70., true, slidePortNum, "output") -> slideRect // for valid ports but the port that slides for a sliding output 
-                    |(_, 20., true, slidePortNum, "input") -> slideRect // for valid ports but the port that slides 
-                    |(_, 20., true, slidePortNum, "output") -> inPorts
-                    |(_, 70., true, slidePortNum, "input") -> outPorts
-                    |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides 
-                    |("output", 20., true,_,_ ) -> inPorts
-                    |_ -> []
-                   
-                match portStat with 
-                |"invisible" -> [textSection]
-                |_ -> [textSection; portSection]
+                        | RegisterE bits ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RegisterE"
 
-            let initialoutline = 
-                [
-                    rect
-                        [ 
-                            OnMouseUp (fun ev -> 
-                                document.removeEventListener("mousemove", handleMouseMove.current)
-                                EndDragging props.Mux.Id
-                                |> props.Dispatch
-                            )
-                            OnMouseDown (fun ev -> 
-                                // See note above re coords wrong if zoom <> 1.0
-                                StartDragging (props.Mux.Id, posOf ev.pageX ev.pageY)
-                                |> props.Dispatch
-                                document.addEventListener("mousemove", handleMouseMove.current)
-                            )
-                            X props.Mux.Pos.X
-                            Y props.Mux.Pos.Y
-                            SVGAttr.Width props.Mux.W
-                            SVGAttr.Height props.Mux.H
-                            SVGAttr.Fill color
-                            SVGAttr.Stroke color
-                            SVGAttr.StrokeWidth 1
-                        ][]
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN"
+                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
-                    text [ // a demo text svg element
-                            X (props.Mux.Pos.X + 30.); 
-                            Y (props.Mux.Pos.Y + 10.); 
-                            Style [
-                                TextAnchor "middle" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "30px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
-                            ]
-                         ] [str <| sprintf "Not"]   
+                        | _ ->
+                            homotextual 0 0 "" "" "" ""
+
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Data-in"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
+
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Data-out"
+                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
+
+
+                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                        creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1 // CLK
+                        creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1 // CLK
+
+
+
                 ]
-            let reactElementList = 
-                List.map (outputText 70. props.Mux.PortStatus) [(0.)..(float (props.Mux.OutputPorts.Length-1))]
-                |> List.append (List.map (outputText 20. props.Mux.PortStatus) [(0.)..(float (props.Mux.InputPorts.Length-1))])
-                |> List.collect (fun x -> x)
-                |> List.collect (fun x->x)
-                |>List.append initialoutline
-            g   [ Style [ 
+
+        )
+    | ROM memorySize | AsyncROM memorySize ->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
                     ]
-                ] (reactElementList)
-    , "Mux"
-    , equalsButFunctions
-    )    
-    
-type RenderCustomProps = 
-    {
-        Custom: Symbol
-        Dispatch: Dispatch<Msg>
-        key:string
-    }
-
-let renderCustom = 
-    FunctionComponent.Of(
-        fun (props : RenderCustomProps) ->
-            let handleMouseMove =
-                Hooks.useRef(fun (ev : Types.Event) ->
-                    let ev = ev :?> Types.MouseEvent
-                    // x,y coordinates here do not compensate for transform in Sheet
-                    // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
-                    Dragging(props.Custom.Id, posOf ev.pageX ev.pageY)
-                    |> props.Dispatch
-                )
-            let color =
-                if props.Custom.IsDragging && not props.Custom.IsSelected then
-                    "lightblue"
-                else if props.Custom.IsSelected then
-                    "red"
-                else
-                    "grey"
-
-            let outputText inOrOutText portStat num = 
-                let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Custom.IsSliding
-                let textSection =
                     [
-                        text [ 
-                            X (props.Custom.Pos.X + inOrOutText)
-                            Y (props.Custom.Pos.Y + 65. + num*40.);
-                            Style [
-                                TextAnchor "right" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "20px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
 
-                            ]
-                        ] [if inOrOutText = 20. then str <| (string (match (props.Custom.Type) with
-                                                                     | x -> x.Type.InputLabels
-                                                                     | _ -> CommonTypes.ComponentType.Nor ))
-                           else if inOrOutText = 70. then str <| (string (props.Custom.Type))]
-                    ]
-                let slideRect =
-                    let portList =
-                        if IO = "input" then props.Custom.InputPorts.[(int num)].PortPos else props.Custom.OutputPorts.[(int num)].PortPos
-                    [
-                        rect [
-                              X (xSlide)
-                              Y (ySlide)
-                              SVGAttr.Width 10.
-                              SVGAttr.Height 10.
-                              SVGAttr.Fill "black"
-                              SVGAttr.Stroke "black"
-                              SVGAttr.StrokeWidth 1
-                          ][]
-                        line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
-                            X2 xSlide
-                            Y2 ySlide
-                            SVGAttr.StrokeDasharray "4"
-                            // Qualify these props to avoid name collision with CSSProp
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 5 ] []
-                    ]
+                        match props.Comp with
+                        | ROM memorySize ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "ROM"
 
-                let inPorts = 
-                    [
-                      rect [
-                            X (fst props.Custom.InputPorts.[int num].PortPos)
-                            Y (snd props.Custom.InputPorts.[int num].PortPos)
-                            SVGAttr.Width 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
-                let outPorts=
-                    [
-                        rect [
-                            X (fst props.Custom.OutputPorts.[int num].PortPos)
-                            Y (snd props.Custom.OutputPorts.[int num].PortPos)
-                            SVGAttr.Width 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
+                            homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                            line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(5./4.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
+                            line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(10./9.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
 
-                let portSection =
-                    match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-                    |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
-                    |("visible", 70., _, _, _ ) -> outPorts
-                    | ("input", 70.,false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs  
-                    |("output", 20., false,_,_ ) -> inPorts
-                    |(_, 70., true, slidePortNum, "output") -> slideRect // for valid ports but the port that slides for a sliding output 
-                    |(_, 20., true, slidePortNum, "input") -> slideRect // for valid ports but the port that slides 
-                    |(_, 20., true, slidePortNum, "output") -> inPorts
-                    |(_, 70., true, slidePortNum, "input") -> outPorts
-                    |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides 
-                    |("output", 20., true,_,_ ) -> inPorts
-                    |_ -> []
-                   
-                match portStat with 
-                |"invisible" -> [textSection]
-                |_ -> [textSection; portSection]
 
-            let initialoutline = 
-                [
-                    rect
-                        [ 
-                            OnMouseUp (fun ev -> 
-                                document.removeEventListener("mousemove", handleMouseMove.current)
-                                EndDragging props.Custom.Id
-                                |> props.Dispatch
-                            )
-                            OnMouseDown (fun ev -> 
-                                // See note above re coords wrong if zoom <> 1.0
-                                StartDragging (props.Custom.Id, posOf ev.pageX ev.pageY)
-                                |> props.Dispatch
-                                document.addEventListener("mousemove", handleMouseMove.current)
-                            )
-                            X props.Custom.Pos.X
-                            Y props.Custom.Pos.Y
-                            SVGAttr.Width props.Custom.W
-                            SVGAttr.Height props.Custom.H
-                            SVGAttr.Fill color
-                            SVGAttr.Stroke color
-                            SVGAttr.StrokeWidth 1
-                        ][]
 
-                    text [ // a demo text svg element
-                            X (props.Custom.Pos.X + 30.); 
-                            Y (props.Custom.Pos.Y + 10.); 
-                            Style [
-                                TextAnchor "middle" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "30px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
-                            ]
-                         ] [str <| sprintf "Custom"]   
+
+                        | AsyncROM memorySize ->
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "AsyncROM"
+
+
+                        | _ ->
+                            homotextual 0 0 "" "" "" ""
+
+
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Addr"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
+
+
+
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out"
+                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
+
+
+
                 ]
-            let reactElementList = 
-                List.map (outputText 70. props.Custom.PortStatus) [(0.)..(float (props.Custom.OutputPorts.Length-1))]
-                |> List.append (List.map (outputText 20. props.Custom.PortStatus) [(0.)..(float (props.Custom.InputPorts.Length-1))])
-                |> List.collect (fun x -> x)
-                |> List.collect (fun x->x)
-                |>List.append initialoutline
-            g   [ Style [ 
+
+        )
+    | RAM memorySize ->
+        FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+
+                let color =
+                    if props.Symb.IsDragging then
+                        "green"
+                    else
+                        "grey"
+                g   [
                     ]
-                ] (reactElementList)
-    , "Custom"
-    , equalsButFunctions
-    )  
-    
-
-type RenderSquareProps = 
-    {
-        Square: Symbol
-        Dispatch: Dispatch<Msg>
-        key:string
-    }
-
-let renderSquare = 
-    FunctionComponent.Of(
-        fun (props : RenderSquareProps) ->
-            let handleMouseMove =
-                Hooks.useRef(fun (ev : Types.Event) ->
-                    let ev = ev :?> Types.MouseEvent
-                    // x,y coordinates here do not compensate for transform in Sheet
-                    // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
-                    Dragging(props.Square.Id, posOf ev.pageX ev.pageY)
-                    |> props.Dispatch
-                )
-            let color =
-                if props.Square.IsDragging && not props.Square.IsSelected then
-                    "lightblue"
-                else if props.Square.IsSelected then
-                    "red"
-                else
-                    "grey"
-
-            let outputText inOrOutText portStat num = 
-                let (slide, IO, slidePortNum, {X = xSlide; Y = ySlide}) = props.Square.IsSliding
-                let textSection =
                     [
-                        text [ 
-                            X (props.Square.Pos.X + inOrOutText)
-                            Y (props.Square.Pos.Y + 65. + num*40.);
-                            Style [
-                                TextAnchor "right" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "20px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
 
-                            ]
-                        ] [str <| string num]
-                    ]
-                let slideRect =
-                    let portList =
-                        if IO = "input" then props.Square.InputPorts.[(int num)].PortPos else props.Square.OutputPorts.[(int num)].PortPos
-                    [
-                        rect [
-                              X (xSlide)
-                              Y (ySlide)
-                              SVGAttr.Width 10.
-                              SVGAttr.Height 10.
-                              SVGAttr.Fill "black"
-                              SVGAttr.Stroke "black"
-                              SVGAttr.StrokeWidth 1
-                          ][]
-                        line [
-                            X1 (fst portList)
-                            Y1 (snd portList)
-                            X2 xSlide
-                            Y2 ySlide
-                            SVGAttr.StrokeDasharray "4"
-                            // Qualify these props to avoid name collision with CSSProp
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 5 ] []
-                    ]
+                        homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RAM"
 
-                let inPorts = 
-                    [
-                      rect [
-                            X (fst props.Square.InputPorts.[int num].PortPos)
-                            Y (snd props.Square.InputPorts.[int num].PortPos)
-                            SVGAttr.Width 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
-                let outPorts=
-                    [
-                        rect [
-                            X (fst props.Square.OutputPorts.[int num].PortPos)
-                            Y (snd props.Square.OutputPorts.[int num].PortPos)
-                            SVGAttr.Width 10.
-                            SVGAttr.Height 10.
-                            SVGAttr.Fill "black"
-                            SVGAttr.Stroke "black"
-                            SVGAttr.StrokeWidth 1
-                        ][]
-                    ]
 
-                let portSection =
-                    match (portStat, inOrOutText, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
-                    |("visible", 20., _, _, _ ) -> inPorts //for normal showing ports when nearby
-                    |("visible", 70., _, _, _ ) -> outPorts
-                    | ("input", 70.,false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs  
-                    |("output", 20., false,_,_ ) -> inPorts
-                    |(_, 70., true, slidePortNum, "output") -> slideRect // for valid ports but the port that slides for a sliding output 
-                    |(_, 20., true, slidePortNum, "input") -> slideRect // for valid ports but the port that slides 
-                    |(_, 20., true, slidePortNum, "output") -> inPorts
-                    |(_, 70., true, slidePortNum, "input") -> outPorts
-                    |("input", 70., true, _, _) -> outPorts //for valid ports but not the port that slides 
-                    |("output", 20., true,_,_ ) -> inPorts
-                    |_ -> []
-                   
-                match portStat with 
-                |"invisible" -> [textSection]
-                |_ -> [textSection; portSection]
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/6.) "start" "middle" "10px" "Addr"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) 2 // CLK
 
-            let initialoutline = 
-                [
-                    rect
-                        [ 
-                            OnMouseUp (fun ev -> 
-                                document.removeEventListener("mousemove", handleMouseMove.current)
-                                EndDragging props.Square.Id
-                                |> props.Dispatch
-                            )
-                            OnMouseDown (fun ev -> 
-                                // See note above re coords wrong if zoom <> 1.0
-                                StartDragging (props.Square.Id, posOf ev.pageX ev.pageY)
-                                |> props.Dispatch
-                                document.addEventListener("mousemove", handleMouseMove.current)
-                            )
-                            X props.Square.Pos.X
-                            Y props.Square.Pos.Y
-                            SVGAttr.Width props.Square.W
-                            SVGAttr.Height props.Square.H
-                            SVGAttr.Fill color
-                            SVGAttr.Stroke color
-                            SVGAttr.StrokeWidth 1
-                        ][]
 
-                    text [ // a demo text svg element
-                            X (props.Square.Pos.X + 30.); 
-                            Y (props.Square.Pos.Y + 10.); 
-                            Style [
-                                TextAnchor "middle" // left/right/middle: horizontal algnment vs (X,Y)
-                                DominantBaseline "hanging" // auto/middle/hanging: vertical alignment vs (X,Y)
-                                FontSize "30px"
-                                FontWeight "Bold"
-                                Fill "Black" // demo font color
-                            ]
-                         ] [str <| sprintf "Not"]   
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/3.) "start" "middle" "10px" "Data-in"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2 // CLK
+
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Write"
+                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
+
+
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out"
+                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
+
+
+                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                        line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(5./4.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
+                        line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(10./9.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
+
                 ]
-            let reactElementList = 
-                List.map (outputText 70. props.Square.PortStatus) [(0.)..(float (props.Square.OutputPorts.Length-1))]
-                |> List.append (List.map (outputText 20. props.Square.PortStatus) [(0.)..(float (props.Square.InputPorts.Length-1))])
-                |> List.collect (fun x -> x)
-                |> List.collect (fun x->x)
-                |>List.append initialoutline
-            g   [ Style [ 
-                    ]
-                ] (reactElementList)
-    , "Square"
-    , equalsButFunctions
-    )    
+        )
+    | Custom customSymbol ->    //custom symbol contains - name of component; list of input and output ports with name & buswidth
+            //generate ports
+            
+         FunctionComponent.Of(
+            fun (props : RenderSymbolProps) ->
+                let color =
+                    if props.Symb.IsSelected then
+                        "green"
+                    else
+                        "grey"
+                let generatePortsList index portName inoutput =
+                    let inputPortNum = List.length props.Symb.InputPorts
+                    let outputPortNum = List.length props.Symb.OutputPorts
+                    let inputPortName = Printf.StringFormat<string> (fst customSymbol.InputLabels.[index]) 
+                    // let outputPortName = Printf.StringFormat<string> (fst customSymbol.OutputLabels.[index]) 
+                    match inoutput with 
+                    | true -> (homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) "start" "Middle" "10px" inputPortName),
+                              (creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) (props.Symb.Pos.X) (props.Symb.Pos.Y + (float(index + 1)/(float inputPortNum + 1.)*props.Symb.H)) 2) 
+
+                    | false -> (homotextual (props.Symb.Pos.X + gateWidth - inOutLines*1.7) (props.Symb.Pos.Y + (float(index + 1)/(float outputPortNum + 1.)*props.Symb.H)) "start" "Middle" "10px" "op"),
+                               (creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) 2 )
+
+                let generateSVGChild =
+                    let standard  =
+                        [
+                            //shape - done
+                            rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth props.Symb.H color props //can do gateHeight*max inputs/outputs
+
+                            //name of component - potentially change width based on name size - done
+                            let name = Printf.StringFormat<string> customSymbol.Name                                     
+                            homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + props.Symb.H/8.) "middle" "Middle" "14px" name
+                        ]      
+                    List.mapi (fun index (portName,_) -> generatePortsList index portName true) customSymbol.InputLabels
+                    |> List.append (List.mapi (fun index (portName,_) -> generatePortsList index portName false) customSymbol.OutputLabels)
+                    |> List.unzip
+                    |> (fun (reactList1, reactList2) -> reactList1@reactList2)
+                    |> List.append standard
+
+
+                g   [
+                    ](generateSVGChild)
+
+            )
+
+    |_-> failwithf"not yet implemented"
+
+
+
+
+
 
 
 //----------------------------View Function for Symbols----------------------------//
@@ -1192,32 +1172,25 @@ type private RenderCircleProps =
 
 /// View for one symbol with caching for efficient execution when input does not change
 /// View function for symbol layer of SVG
-let view (model : Model) (dispatch : Msg -> unit) = 
-    //model
-    //|> List.map (fun ({Id = CommonTypes.ComponentId id} as circle) ->
-    //    renderCircle 
-    //        {
-    //            Circle = circle
-    //            Dispatch = dispatch
-    //            key = id
-    //        }
-    //)
-    //|> ofList
+
+
+
+let view (model : Model) (dispatch : Msg -> unit) =
     model.Symbols
-    |> List.map (fun ({Id = CommonTypes.ComponentId ii} as custom) -> //match each symbol with its t
-        renderCustom 
+    |> List.map (fun rect ->
+        RenderSymbol rect.Type
             {
-                Custom = custom
-                Dispatch = dispatch
-                key = ii // to make it string by type matching 
+            Symb = rect // name works for the demo!
+            Dispatch = dispatch
+            key= (string) rect.Id // special field used by react to detect whether lists have changed, set to symbol Id
+            Comp = rect.Type
             }
     )
     |> ofList
 
-
 //---------------Other interface functions--------------------//
 
-let symbolPos (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos = 
+let symbolPos (symModel: Model) (sId: CommonTypes.ComponentId) : XYPos =
     List.find (fun sym -> sym.Id = sId) symModel.Symbols
     |> (fun sym -> sym.Pos)
 
@@ -1227,21 +1200,19 @@ let inputPortList (symModel: Model) (sId: CommonTypes.ComponentId) : CommonTypes
 
 let outputPortList (symModel: Model) (sId: CommonTypes.ComponentId) : CommonTypes.Port list =
     List.find (fun sym -> sym.Id = sId) symModel.Symbols
-    |> (fun sym -> sym.OutputPorts)    
+    |> (fun sym -> sym.OutputPorts)
 
 let inputPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (pId: CommonTypes.InputPortId) : XYPos =
     let portList = inputPortList symModel sId
 
     List.find (fun (por:CommonTypes.Port) -> por.Id = string pId) portList
     |> (fun por -> por.PortPos)
-    |> tupleToXYPos
 
 let outputPortPos (symModel: Model) (sId: CommonTypes.ComponentId) (pId: CommonTypes.OutputPortId) : XYPos =
     let portList = outputPortList symModel sId
 
     List.find (fun (por:CommonTypes.Port) -> por.Id = string pId) portList
     |> (fun por -> por.PortPos)
-    |> tupleToXYPos    
 
 /// Update the symbol with matching componentId to comp, or add a new symbol based on comp.
 let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component) =
@@ -1251,19 +1222,102 @@ let updateSymbolModelWithComponent (symModel: Model) (comp:CommonTypes.Component
 /// input wire widths, for the symbol wId. The types used here are possibly wrong, since
 /// this calculation is based on ports, and the skeleton code does not implement ports or
 /// port ids. If This is done the inputs could be expressed in terms of port Ids.
-let calculateOutputWidth 
-        (wId: CommonTypes.ConnectionId) 
-        (outputPortNumber: int) 
+let calculateOutputWidth
+        (wId: CommonTypes.ConnectionId)
+        (outputPortNumber: int)
         (inputPortWidths: int option list) : int option =
     failwithf "Not implemented"
 
 
 //----------------------interface to Issie-----------------------------//
-let extractComponent 
-        (symModel: Model) 
-        (sId:CommonTypes.ComponentId) : CommonTypes.Component= 
+let extractComponent
+        (symModel: Model)
+        (sId:CommonTypes.ComponentId) : CommonTypes.Component =
     failwithf "Not implemented"
 
-let extractComponents (symModel: Model) : CommonTypes.Component list = 
+let extractComponents (symModel: Model) : CommonTypes.Component list =
     failwithf "Not implemented"
+
+
+    
+
+//match props.Comp with
+//     | Nor | Not | Nand | Xnor ->
+//         circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius
+//     | _ -> circus 0 0 0
+
+//match props.Comp with
+//| Not ->
+//    homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"
+//    creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) props.Symb.Pos.X (props.Symb.Pos.Y + gateHeight/2.) 2
+//    // Seq.ofList (renderPorts Visible 1 props.Symb)
+//| _ ->
+//    homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"
+//    creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
+//    // renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+//    homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"
+//    creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
+
+
+//match props.Comp with
+//| And | Or | Xor ->
+//    creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2
+//| _ ->
+//    creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2
+
+//let renderPorts (portVisibility:PortVisibility) num sym =
+
+
+//renderPorts Visible ((List.length props.Symb.OutputPorts)-1) props.Symb
+        // // let individiualPorts =
+//     let (slide, IO, slidePortNum, {X=xSlide; Y = ySlide}) = sym.IsSliding
+//     let slideCirc =
+//         let portList =
+//             if IO = "input" then sym.InputPorts.[(int num)].PortPos
+//             else sym.OutputPorts.[(int num)].PortPos
+//         [
+//                  circus xSlide ySlide 5.
+//                  line [
+//                      X1 portList.X   //fst portList)
+//                      Y1 portList.Y   //(snd portList)
+//                      X2 xSlide
+//                      Y2 ySlide
+//                      SVGAttr.StrokeDasharray "4"
+//                      // Qualify these props to avoid name collision with CSSProp
+//                      SVGAttr.Stroke "black"
+//                      SVGAttr.StrokeWidth 5 ] []
+//         ]
+//
+//     let portSection =
+//         match (portVisibility, slide, num, IO) with  // which port status, in or out side we need to print, whether the rectangle moves, port number, input or output port that slides
+//         |("visible", _, _, _ ) -> inPorts @ outPorts
+//         |(_, true, slidePortNum, _) -> slideCirc // for valid ports but the port that slides for a sliding output
+//         |(_, true, slidePortNum, "output") -> inPorts
+//         |(_, true, slidePortNum, "input") -> outPorts//for normal showing ports when nearby
+//         |("input",false, _,_) -> outPorts //for valid ports but no sliding so if input state then show the available outputs
+//         |("output", false,_,_ ) -> inPorts
+//         |_ -> []
+
+//     match portVisibility with
+//     |"invisible" -> []
+//     |_ -> [portSection]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
