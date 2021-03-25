@@ -28,7 +28,8 @@ module CommonTypes
         PortType : PortType
         HostId : string
         PortPos : Helpers.XYPos
-        //PortPos: float*float 
+        BusWidth : int
+        // PortInUse : bool
     }
 
     /// Name identified the LoadedComponent used.
@@ -101,6 +102,8 @@ module CommonTypes
     // Other //
     //=======//
 
+    type PortVisibility = |Visible |Invisible | ShowInputsOnly | ShowOutputsOnly
+
     type NumberBase = | Hex | Dec | Bin | SDec
 
     /// Colors to highlight components
@@ -109,7 +112,7 @@ module CommonTypes
     /// lots of colors can be added, see https://www.w3schools.com/colors/colors_names.asp
     /// The Text() method converts it to the correct HTML string
     /// Where speed matters the color must be added as a case in the match statement
-    type HighLightColor = Red | Blue | Yellow | Green | Orange | Grey
+    type HighLightColor = Red | Blue | Yellow | Green | Orange | Grey | Black
     with 
         member this.Text() = // the match statement is used for performance
             match this with
@@ -118,6 +121,7 @@ module CommonTypes
             | Yellow -> "Yellow"
             | Green -> "Green"
             | Grey -> "Grey"
+            | Black -> "Black"
             | c -> sprintf "%A" c
             
             
@@ -126,41 +130,34 @@ module CommonTypes
     // Used consistently they provide type protection that greatly reduces coding errors
 
     /// SHA hash unique to a component - common between JS and F#
-
     [<Erase>]
     type ComponentId      = | ComponentId of string
     /// SHA hash unique to a connection - common between JS and F#
-
     [<Erase>]
     type ConnectionId     = | ConnectionId of string
     /// Human-readable name of component as displayed on sheet.
     /// For I/O/labelIO components a width indication eg (7:0) is also displayed, but NOT included here
-
     [<Erase>]
     type ComponentLabel   = | ComponentLabel of string
     /// SHA hash unique to a component port - common between JS and F#.
     /// Connection ports and connected component ports have the same port Id
     /// InputPortId and OutputPortID wrap the hash to distinguish component
     /// inputs and outputs some times (e.g. in simulation)
-
     [<Erase>]
     type InputPortId      = | InputPortId of string
     /// SHA hash unique to a component port - common between JS and F#.
     /// Connection ports and connected component ports have the same port Id
     /// InputPortId and OutputPortID wrap the hash to distinguish component
     /// inputs and outputs some times (e.g. in simulation)
-
     [<Erase>]
     type OutputPortId     = | OutputPortId of string
 
     /// Port numbers are sequential unique with port lists.
     /// Inputs and Outputs are both numberd from 0 up.
-
     [<Erase>]
     type InputPortNumber  = | InputPortNumber of int
     /// Port numbers are sequential unique with port lists.
     /// Inputs and Outputs are both numberd from 0 up.
-
     [<Erase>]
     type OutputPortNumber = | OutputPortNumber of int
 
