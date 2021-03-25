@@ -319,7 +319,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | Drag -> match model.MultiSelectBox with
                           |(true,p1,p2) -> match model.ZoomSpace with
                                            |false,false -> match model.LastKey with 
-                                                           |CtrlPlus -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos; LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst (inSelBox model p1 p2))))
+                                                           |CtrlPlus -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst (inSelBox model p1 p2))))
                                                            |_ -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
                                            |true,false -> {model with ZoomSpace = (true,true); LastOp=Up;LastDragPos=mousePos}, Cmd.none
                           | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
@@ -336,7 +336,9 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
-                                  | _ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [])) //hovering
+                                  | _ -> match model.LastKey with 
+                                         |CtrlPlus -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging mousePos)) //hovering
+                                         |_ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [])) //hovering
                   |(None,Some port) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                   |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                   | _ ->  failwithf "Not implemented - Move Sheet Update function ~ 253" 
@@ -354,11 +356,11 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         {model with Wire = wModel; IsDropping = 1; Restore = model.Wire}, Cmd.map Wire wCmd
     
     |KeyPress DEL ->
-        {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire)
+        {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire) 
 
     | KeyPress AltZ -> (if model.ZoomSpace = (true,true) then {model with ZoomSpace = (false,false); MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.})} else {model with ZoomSpace = (true,false)}), Cmd.none
     
-    //{model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); Restore=model.Wire}, Cmd.none //undo and reset everything
+    //{model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); R vxdbfnmestore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});
     | KeyPress AltUp ->
         printfn "Zoom In"
@@ -373,7 +375,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     |KeyPress CtrlS -> if model.LastKey = CtrlS then {model with LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting) else {model with LastKey = CtrlS}, Cmd.none
 
-    |KeyPress CtrlPlus -> if model.LastKey = CtrlS then {model with LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst model.IsSelecting)))
+    |KeyPress CtrlPlus -> if model.LastKey = CtrlS then {model with LastKey = CtrlPlus}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst model.IsSelecting)))
                           else if model.LastKey = CtrlPlus then {model with LastKey = Alt}, Cmd.none
                           else {model with LastKey = CtrlPlus}, Cmd.none
     
