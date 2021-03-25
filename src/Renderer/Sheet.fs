@@ -82,8 +82,6 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                 MaxWidth "100vw"
                 CSSProp.OverflowX OverflowOptions.Auto 
                 CSSProp.OverflowY OverflowOptions.Auto
-                BackgroundSize backgroundSize
-                BackgroundImage background
             ] 
           OnMouseDown (fun ev -> (mouseOp Down ev))
           OnMouseUp (fun ev -> (mouseOp Up ev))
@@ -285,7 +283,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
                                   | _ -> match model.LastKey with 
-                                         |CtrlPlus -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging mousePos)) //hovering
+                                         //|CtrlPlus -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging mousePos)) //hovering
                                          |_ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [])) //hovering
                   |(None,Some port) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                   |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
