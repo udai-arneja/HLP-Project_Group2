@@ -55,7 +55,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                                      printfn "newZoom %A" newZoom
                                      (-(top.X)*newZoom, -(top.Y)*newZoom, newZoom)
 
-                                else (0.,0., model.Zoom)
+                                else (10.,10., model.Zoom)
     let sizeInPixels = sprintf "%.2fpx" ((1000. * zoomChanged))
 
 
@@ -65,7 +65,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     /// Dispatch a BusWire MouseMsg message
     /// the screen mouse coordinates are compensated for the zoom transform
     let mouseOp op (ev:Types.MouseEvent) = 
-        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = ev.clientX / zoomChanged ; Y = ev.clientY / zoomChanged}})
+        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = (ev.clientX / zoomChanged); Y = (ev.clientY / zoomChanged)}})
     let keyDown (ev:Types.KeyboardEvent) =
         dispatch <|KeyPress (Alt)
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
@@ -112,7 +112,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
             ]
             [ g // group list of elements with list of attributes
                 [ Style [
-                        Transform (sprintf "translate(%fpx,%fpx) scale(%f)" fX fY zoomChanged)
+                        Transform (sprintf "scale(%f)" zoomChanged)
                         //Transform (sprintf "scale(%f)" zoomChanged)
                         
                        ]
@@ -199,6 +199,7 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) 
     | _ -> []
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
+    printfn "zoom %A" model.ZoomSpace
     match msg with
     | Wire (BusWire.MouseMsg {Op = mouseState ; Pos = { X = mX; Y = mY}}) ->
 
@@ -252,7 +253,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                                 {model with IsSelecting = ([],selectWires); LastOp=Down;LastDragPos=mousePos}, Cmd.none         //reset wiring to none
                                |_ -> match model.LastKey with 
                                      |CtrlPlus -> {model with IsSelecting = ([],[]); LastKey = CtrlPlus; LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.none
-                                     |_ -> {model with IsSelecting = ([],[]); LastKey = Alt; LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect ([],[]))
+                                     |_ -> {model with IsSelecting = ([],[]); LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect ([],[]))
 
 
         | Up -> match model.LastOp with
@@ -266,7 +267,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
                 | Down -> match model.LastKey with
                           |CtrlS -> {model with LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.HighlightSymbol (fst model.IsSelecting)))
-                          |_ -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
+                          |AltZ -> {model with LastOp=Up}, Cmd.none
+                          |_ ->  {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
 
                 | Down -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.})}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
@@ -279,7 +281,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 //                            |Down -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos) ) 
                 //                            |Drag -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
                 //                         //    | _ -> model, Cmd.none
-        | Move -> match model.IsWiring with 
+        | Move -> printfn "move %A %A" mX mY
+                  match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
                                   | _ -> match model.LastKey with 
@@ -304,7 +307,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     |KeyPress DEL ->
         {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire) 
 
-    | KeyPress AltZ -> (if model.ZoomSpace = (true,true) then {model with ZoomSpace = (false,false); MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.})} else {model with ZoomSpace = (true,false)}), Cmd.none
+    | KeyPress AltZ -> (if model.ZoomSpace = (true,true) then {model with ZoomSpace = (false,false); MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); LastKey = Alt} else {model with ZoomSpace = (true,false); LastKey = AltZ}), Cmd.none
     
     //{model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); R vxdbfnmestore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});

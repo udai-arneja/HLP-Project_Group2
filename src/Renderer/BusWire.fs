@@ -608,6 +608,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let sm,sCmd = Symbol.update sMsg model.Symbol 
         match sMsg with
         |Symbol.Dragging(_,_,_) -> {model with Symbol=sm; AutoRouting = true }, Cmd.map Symbol sCmd
+        |Symbol.SnapSymbolToGrid (_) -> {model with Symbol=sm; AutoRouting = true }, Cmd.map Symbol sCmd
         |_ -> if model.AutoRouting = true 
               then let newWire = List.map (fun (w:Wire) -> {w with Vertices = (newWireRoute  (convertIdToPort 1 w.TargetPort).PortPos (convertIdToPort 0 w.SrcPort).PortPos model)}) model.Wires
                    {model with Symbol=sm; AutoRouting = false; Wires= newWire }, Cmd.map Symbol sCmd
@@ -619,8 +620,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let addNewWireBB = (createNewBB  (convertIdToPort 0 outputPort).PortPos (convertIdToPort 1 inputPort).PortPos) model :: model.wBB //NOT
         {model with Wires=addNewWire; wBB=addNewWireBB; AutoRouting = false}, Cmd.none
 
-    | MouseMsg mMsg ->  printfn "bus %A" mMsg
-                        model , Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
+    | MouseMsg mMsg ->  model , Cmd.ofMsg (Symbol (Symbol.MouseMsg mMsg))
     
     | DeleteWire ->
         
@@ -704,7 +704,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                                                                                         then wireBoundingBoxes wire.Vertices
                                                                                                         else BB) updatedWires model.wBB
                                                         {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none
-            |[], [symToSel] -> {model with AutoRouting = true} , Cmd.ofMsg (Symbol (Symbol.SnapSymbolToGrid [symToSel]))
+            |[], [symToSel] ->  {model with AutoRouting = true} , Cmd.ofMsg (Symbol (Symbol.SnapSymbolToGrid [symToSel]))
     
     | DeleteWire ->
         
@@ -727,13 +727,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let remainingBbox = snd (checkWiress remainingWiresAndBoxes)//(fst remainingWiresAndBoxes) (snd remainingWiresAndBoxes))
         {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
 
-    | ToggleSelect (symToSel, wireAndSegList ) ->
-        let wiresToSel,segmentsList = List.unzip wireAndSegList
-        let selectWires = 
-            List.map (fun (wire:Wire) -> if List.contains wire wiresToSel
-                                         then {wire with Selected = not wire.Selected} 
-                                         else wire ) model.Wires
-        {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.ToggleSymbol symToSel))
 
     // | Hovering (symToSel, wireAndSegList ) -> 
     //     let wiresToSel,segmentsList = List.unzip wireAndSegList
@@ -742,50 +735,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     //                                      then {wire with Highlighted = true} 
     //                                      else wire ) model.Wires
     //     {model with Wires=selectWires}, Cmd.ofMsg (Symbol (Symbol.Hovering symToSel))
-
-    | Dragging ((symbolUpdated,wireAndSegList), prevPos, mousePos) ->
-        //probably need to unselect the other selected wires?
-        
-        match wireAndSegList, symbolUpdated with
-        | [], [symbolUpdated] -> let newBB = List.map (fun w -> wireBoundingBoxes (newWireRoute (convertIdToPort 1 w.TargetPort).PortPos (convertIdToPort 0 w.SrcPort).PortPos  model)) model.Wires
-                                 {model with AutoRouting=true; wBB = newBB}, Cmd.ofMsg (Symbol (Symbol.Dragging ([symbolUpdated],mousePos,prevPos)))    //autoroute       // with 
-        | [wireUpdated,segIndex],_ -> let updatedWires = List.map (fun wire -> if wire.Id = wireUpdated.Id
-                                                                               then {wire with Vertices=updateVertices segIndex wireUpdated mousePos}
-                                                                               else wire ) model.Wires
-                                      let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
-                                                                                    then wireBoundingBoxes wire.Vertices
-                                                                                    else BB) updatedWires model.wBB
-                                      {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none   //;
-
-    | SnaptoGrid (symToSel, wireAndSegList ) -> 
-            match wireAndSegList, symToSel with
-            |[wireUpdated,segIndex],_ ->if segIndex % 2 <> 0 //vertical
-                                                     then let updatedWires = List.map (fun wire ->  if wire.Id = wireUpdated.Id
-                                                                                                    then let div =  (wire.Vertices.[segIndex].X % 30.)
-                                                                                                         if div > 15.
-                                                                                                            then let newPos = {X = float ((int (wire.Vertices.[segIndex].X / 30.))+1)* 30.; Y = 0.}
-                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
-                                                                                                            else let newPos = {X = float ((int (wire.Vertices.[segIndex].X / 30.)))* 30.; Y = 0.}
-                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
-                                                                                                    else wire ) model.Wires
-                                                          let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
-                                                                                                        then wireBoundingBoxes wire.Vertices
-                                                                                                        else BB) updatedWires model.wBB
-                                                          {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none
-                                                     else 
-                                                        let updatedWires = List.map (fun wire ->  if wire.Id = wireUpdated.Id
-                                                                                                    then let div =  (wire.Vertices.[segIndex].Y % 30.)
-                                                                                                         if div > 15.
-                                                                                                            then let newPos = {X = 0.; Y = float ((int (wire.Vertices.[segIndex].Y / 30.))+1)* 30.}
-                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
-                                                                                                            else let newPos = {X = 0.; Y = float ((int (wire.Vertices.[segIndex].Y / 30.)))* 30.}
-                                                                                                                 {wire with Vertices=updateVertices segIndex wireUpdated newPos}
-                                                                                                    else wire ) model.Wires
-                                                        let updateBBoxes = List.map2 (fun wire BB -> if wire.Id = wireUpdated.Id
-                                                                                                        then wireBoundingBoxes wire.Vertices
-                                                                                                        else BB) updatedWires model.wBB
-                                                        {model with Wires=updatedWires; AutoRouting=false; wBB = updateBBoxes}, Cmd.none
-            |[], [symToSel] -> model, Cmd.ofMsg (Symbol (Symbol.SnapSymbolToGrid [symToSel]))
     
                                                     
         
