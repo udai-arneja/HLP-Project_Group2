@@ -11,6 +11,9 @@ module CommonTypes
     // Specify the position and type of a port in a JSComponent.
     type PortType = Input | Output
 
+    type PortVisibility = |Visible |Invisible | ShowInputsOnly | ShowOutputsOnly
+
+
     /// A component I/O.
     /// Id (like any other Id) is a string generated with 32 random hex charactes,
     /// so it is (practically) globally unique. These Ids are used by the draw2d
@@ -70,10 +73,28 @@ module CommonTypes
         // No initial state for DFF or Register? Default 0.
         | DFF | DFFE | Register of BusWidth: int | RegisterE of BusWidth: int 
         | AsyncROM of Memory | ROM of Memory | RAM of Memory // memory is contents
+        | NbitsXor of BusWidth: int
+        | BusCompare of BusWidth:int * BusWidth2:int
 
     /// JSComponent mapped to F# record.
     /// Id uniquely identifies the component within a sheet and is used by draw2d library.
     /// Label is optional descriptor displayed on schematic.
+    // type Component = {
+    //     Id : string
+    //     Type : ComponentType
+    //     Label : string // All components have a label that may be empty.
+    //     InputPorts : Port list
+    //     OutputPorts : Port list
+    //     LastDragPos : Helpers.XYPos
+    //     IsDragging : bool
+    //     Pos: Helpers.XYPos
+    //     H : float
+    //     W : float
+    //     IsSelected: bool
+    //     PortStatus: PortVisibility
+    //     IsSliding: PortVisibility * string * int * Helpers.XYPos 
+    // }
+
     type Component = {
         Id : string
         Type : ComponentType
@@ -102,7 +123,6 @@ module CommonTypes
     // Other //
     //=======//
 
-    type PortVisibility = |Visible |Invisible | ShowInputsOnly | ShowOutputsOnly
 
     type NumberBase = | Hex | Dec | Bin | SDec
 

@@ -23,7 +23,7 @@ type Model = {
     }
 
 type KeyboardMsg =
-    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected
+    | CtrlS | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | AltO
 
 type Msg =
     | Wire of BusWire.Msg
@@ -36,9 +36,13 @@ type SelectingBox={
 }
 
 //helper functions
+
+
+
 let zoom = 1.0
 
 let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X startPos.Y startPos.X endPos.Y endPos.X endPos.Y endPos.X startPos.Y
+
 
 
 //display
@@ -250,7 +254,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none
 
     | KeyPress CtrlS -> // add symbol and create a restore point
-        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
+        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([2;2], [2], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
         {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
     
     |KeyPress DEL ->
@@ -258,13 +262,15 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress AltZ -> {model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); Restore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});
-    | KeyPress AltUp ->
-        printfn "Zoom In"
-        {model with Zoom=model.Zoom+0.1}, Cmd.none
+    // | KeyPress AltUp ->
+    //     printfn "Zoom In"
+    //     {model with Zoom=model.Zoom+0.1}, Cmd.none
 
     | KeyPress AltDown ->
         printfn "Zoom Out"
         {model with Zoom=model.Zoom-0.1}, Cmd.none
+
+    | KeyPress AltUp -> model, Cmd.ofMsg (Wire <| BusWire.RunBusWidthInference )
     
     // | KeyPress PrintSelected ->
     //     let nothing = 
