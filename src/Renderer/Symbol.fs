@@ -69,7 +69,8 @@ type Msg =
     //| UpdateBBoxes of CommonTypes.ComponentId list
     | SnapSymbolToGrid of CommonTypes.ComponentId list
     | HighlightSymbol of CommonTypes.ComponentId list
-    | DuplicateSymbol of CommonTypes.ComponentId list
+    | DuplicateSymbol
+    | DroppingNewSymbol of XYPos
     // | SelectSymbol of Symbol list
 
 //---------------------------------helper types and functions----------------//
@@ -269,13 +270,18 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
                {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
 
-    | DuplicateSymbol(sId) -> 
+    | DuplicateSymbol -> 
         let newPorts symlist input =
             if input = true 
             then List.map (fun port -> {port with HostId = string (symlist.Id); Id = Helpers.uuid(); PortPos = posAdd port.PortPos {X=10.;Y=10.}}) symlist.InputPorts 
             else List.map (fun port -> {port with HostId = string (symlist.Id); Id = Helpers.uuid(); PortPos = posAdd port.PortPos {X=10.;Y=10.}}) symlist.OutputPorts 
-        let newSymbols = List.collect (fun sym -> if List.exists (fun searchIds -> searchIds = sym.Id) sId
+        let oneOrMany = List.fold (fun acc sym -> if sym.IsSelected = true then acc + 1 else acc+ 0 ) 0 model.Symbols
+        let newSymbols = if oneOrMany > 1 
+                         then List.collect (fun sym -> if sym.IsSelected = true
                                                        then [{sym with Id = CommonTypes.ComponentId (Helpers.uuid()); IsSelected = true; IsHighlighted = false; Pos = posAdd sym.Pos {X=10.;Y=10.}}]
+                                                       else []) model.Symbols 
+                         else List.collect (fun sym -> if sym.IsSelected = true
+                                                       then [{sym with Id = CommonTypes.ComponentId (Helpers.uuid()); IsSelected = false; IsHighlighted = false; Pos = posAdd sym.Pos {X=10.;Y=10.}}]
                                                        else []) model.Symbols 
 
         let newBBoxes = List.map (fun newSym -> (posAdd newSym.Pos {X= -10.; Y= -10.}, posAdd newSym.Pos {X = (newSym.W + 10.); Y=  (newSym.H + 10.)} )) newSymbols
@@ -283,7 +289,24 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
         let newPortSymbols = List.map (fun sym -> {sym with InputPorts = newPorts sym true}) newSymbols
                              |> List.map (fun sym -> {sym with OutputPorts = newPorts sym false})
 
-        {model with Symbols = originalSymbols @ newPortSymbols; SymBBoxes = model.SymBBoxes @ newBBoxes}, Cmd.none 
+        {model with Symbols = originalSymbols @ newPortSymbols; SymBBoxes = model.SymBBoxes @ newBBoxes}, Cmd.none  
+
+    | DroppingNewSymbol (mousePos) ->
+        let newSym = model.Symbols.[(List.length model.Symbols)-1]
+        let (newSymbols, newBox) = List.map2 (fun sym box -> if newSym <> sym
+                                                             then (sym, box)
+                                                             else let diff = posDiff mousePos sym.LastDragPos
+                                                                  let newPortPos (port:XYPos) = 
+                                                                        posAdd port diff 
+                                                                  ({sym with 
+                                                                        Pos = mousePos
+                                                                        LastDragPos = mousePos
+                                                                        InputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.InputPorts
+                                                                        OutputPorts = List.map (fun port -> {port with PortPos = newPortPos port.PortPos}) sym.OutputPorts
+                                                                    } , ({X=sym.Pos.X-10.;Y=sym.Pos.Y-10.},{X=sym.Pos.X+sym.W+10.;Y=sym.Pos.Y+sym.H+10.}))) model.Symbols model.SymBBoxes
+                                   |> List.unzip
+
+        {model with Symbols = newSymbols; SymBBoxes = newBox}, Cmd.none
         
     | SnapSymbolToGrid (sId) ->
 

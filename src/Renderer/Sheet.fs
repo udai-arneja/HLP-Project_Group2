@@ -19,11 +19,12 @@ type Model = {
     IsDropping: bool
     IsDraggingList: int * XYPos
     MultiSelectBox: bool * XYPos * XYPos  //boxOrWire,startPos, endPos multi-select box
+    ZoomSpaceBox: XYPos * XYPos 
     Restore: BusWire.Model
     LastOp: Helpers.MouseOp;
     LastKey: KeyboardMsg
-    Zoom : float
-    ZoomSpace: bool * bool
+    Zoom : float * XYPos
+    ZoomSpace: bool * bool 
     LastDragPos : XYPos
     }
 
@@ -47,16 +48,10 @@ let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X st
 
 //display
 
-let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
-    let (fX, fY, zoomChanged) = let (boole, pos1, pos2) =  model.MultiSelectBox 
-                                if model.ZoomSpace = (true,true)
-                                then let (top, bottom) = if pos1.Y > pos2.Y then (pos2, pos1) else (pos1, pos2)
-                                     let newZoom = 1000./(float (max (bottom.X - top.X) (bottom.Y - top.Y)))
-                                     printfn "newZoom %A" newZoom
-                                     (-(top.X)*newZoom, -(top.Y)*newZoom, newZoom)
+let displaySvgWithZoom (zoom:float*XYPos) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model)=
+    printfn "multi %A" model.Zoom
 
-                                else (10.,10., model.Zoom)
-    let sizeInPixels = sprintf "%.2fpx" ((1000. * zoomChanged))
+    let sizeInPixels = sprintf "%.2fpx" ((1000. * (fst model.Zoom)))
 
 
     /// Is the mouse button currently down?
@@ -65,11 +60,12 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
     /// Dispatch a BusWire MouseMsg message
     /// the screen mouse coordinates are compensated for the zoom transform
     let mouseOp op (ev:Types.MouseEvent) = 
-        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = (ev.clientX / zoomChanged); Y = (ev.clientY / zoomChanged)}})
+        dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = (ev.clientX/(fst model.Zoom) - (snd model.Zoom).X/(fst model.Zoom)); Y = (ev.clientY/(fst model.Zoom) - (snd model.Zoom).Y/(fst model.Zoom))}})
     let keyDown (ev:Types.KeyboardEvent) =
         dispatch <|KeyPress (Alt)
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
-    let backgroundSize = sprintf "%fpx %fpx" (30.*model.Zoom) (30.*model.Zoom)
+    let (boxPos1, boxPos2) = model.ZoomSpaceBox
+    let backgroundSize = sprintf "%fpx %fpx" (30.*(fst model.Zoom)) (30.*(fst model.Zoom))
     let background = "linear-gradient(to right, LightGrey 1px, transparent 1px), linear-gradient(to bottom, LightGrey 1px, transparent 1px)"
     let boxColour = match model.ZoomSpace with 
                    |(true,_) -> "green" 
@@ -112,7 +108,7 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
             ]
             [ g // group list of elements with list of attributes
                 [ Style [
-                        Transform (sprintf "scale(%f)" zoomChanged)
+                        Transform (sprintf "translate(%fpx,%fpx) scale(%f)" (snd model.Zoom).X (snd model.Zoom).Y (fst model.Zoom))
                         //Transform (sprintf "scale(%f)" zoomChanged)
                         
                        ]
@@ -128,7 +124,16 @@ let displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch
                                 ][]
                           svgReact
                      // the application code
-                | _ -> svgReact
+                | _ -> match model.ZoomSpace with 
+                       |(true, false) -> polygon [
+                                                    SVGAttr.Points (dimensions boxPos1 boxPos2)
+                                                    SVGAttr.StrokeWidth "1px"
+                                                    SVGAttr.Stroke "Black"
+                                                    SVGAttr.FillOpacity 0.1
+                                                    SVGAttr.Fill boxColour
+                                                ][]
+                                         svgReact
+                       |_ -> svgReact
                 ]
             ]
         ]
@@ -194,12 +199,11 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) 
         |> List.filter (fun (x,y,indexSeg) -> x=true) 
 
     match mapToBB with 
-    | [(true, wire,indexSeg)] ->printfn "wire %A seg %A"  wire indexSeg
-                                [(wire,indexSeg)]
+    | [(true, wire,indexSeg)] ->[(wire,indexSeg)]
     | _ -> []
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
-    printfn "zoom %A" model.ZoomSpace
+    printfn "high %A" model.LastKey
     match msg with
     | Wire (BusWire.MouseMsg {Op = mouseState ; Pos = { X = mX; Y = mY}}) ->
 
@@ -253,40 +257,50 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                                 {model with IsSelecting = ([],selectWires); LastOp=Down;LastDragPos=mousePos}, Cmd.none         //reset wiring to none
                                |_ -> match model.LastKey with 
                                      |CtrlPlus -> {model with IsSelecting = ([],[]); LastKey = CtrlPlus; LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.none
+                                     |AltZ ->   {model with ZoomSpaceBox = (mousePos, mousePos)}, Cmd.none
                                      |_ -> {model with IsSelecting = ([],[]); LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect ([],[]))
 
 
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-                          |(true,p1,p2) -> match model.ZoomSpace with
-                                           |false,false -> match model.LastKey with 
-                                                           |CtrlPlus -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst (inSelBox model p1 p2))))
-                                                           |_ -> {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
-                                           |true,false -> {model with ZoomSpace = (true,true); LastOp=Up;LastDragPos=mousePos}, Cmd.none
-                          | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
+                          |(true,p1,p2) ->  {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
+                                           
+                          | _ ->  match model.ZoomSpace with
+                                  |true,false ->    let (posa,posb) = model.ZoomSpaceBox
+                                                    let (zoomChanged, coord) =  let (pos1, pos2) = (posa, mousePos) 
+                                                                                if model.ZoomSpace = (true,false)
+                                                                                then let (top, bottom) = if pos1.Y > pos2.Y then (pos2, pos1) else (pos1, pos2)
+                                                                                     let newZoom = 1000./(float (max (bottom.X - top.X) (bottom.Y - top.Y)))
+                                                                                     (newZoom, {X=(-(top.X)*newZoom); Y = (-(top.Y)*newZoom)})
+                                                                                else model.Zoom
+                                                    {model with ZoomSpace = (true,true); Zoom = (zoomChanged, {X=coord.X; Y=coord.Y}); ZoomSpaceBox = (posa,mousePos); LastOp=Up;LastDragPos=mousePos}, Cmd.none
+                                  |_ -> {model with LastOp=Up;LastDragPos=mousePos;IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
 
                 | Down -> match model.LastKey with
                           |CtrlS -> {model with LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.HighlightSymbol (fst model.IsSelecting)))
-                          |AltZ -> {model with LastOp=Up}, Cmd.none
+                          |AltZ -> {model with LastKey = AltZ; IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
+                          |CtrlN ->  {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting)
+                          |CtrlPlus -> {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.SnapSymbolToGrid [(List.last model.Wire.Symbol.Symbols).Id]))
                           |_ ->  {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
-                | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
+                | _   -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
 
-                | Down -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.})}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
-                | _ -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
 
         | Drag -> match model.MultiSelectBox with 
                   |(true, p1, p2) -> {model with IsSelecting=([],[]);LastOp=Drag;MultiSelectBox=(true,p1,mousePos);LastDragPos=mousePos}, Cmd.none
-                  | _ -> {model with LastOp=Drag;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
+                  | _ -> match model.ZoomSpace with 
+                         |(true,false) ->   let (pos1,pos2) = model.ZoomSpaceBox
+                                            {model with IsSelecting=([],[]);LastOp=Drag; ZoomSpaceBox  = (pos1, mousePos); LastDragPos=mousePos}, Cmd.none
+                         |_ -> {model with LastOp=Drag;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
                   //   |(false, p1, prevPos) -> match model.LastOp with 
                 //                            |Down -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos) ) 
                 //                            |Drag -> {model with LastOp=Drag; MultiSelectBox=(false, {X=0.;Y=0.}, mousePos);LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Dragging (model.IsSelecting, model.LastDragPos, mousePos))//BusWire.Symbol (Symbol.Dragging ((fst model.IsSelecting),mousePos, prevPos))) //send to symbol to move symbols lol
                 //                         //    | _ -> model, Cmd.none
-        | Move -> printfn "move %A %A" mX mY
-                  match model.IsWiring with 
+        | Move -> match model.IsWiring with 
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
                                   | _ -> match model.LastKey with 
-                                         //|CtrlPlus -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging mousePos)) //hovering
+                                         |CtrlN ->  {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DroppingNewSymbol (mousePos))) //hovering
+                                         |CtrlPlus -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging ([(List.last model.Wire.Symbol.Symbols).Id], mousePos, model.LastDragPos)))
                                          |_ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [])) //hovering
                   |(None,Some port) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                   |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
@@ -302,31 +316,35 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress CtrlN -> // add symbol and create a restore point
         let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
-        {model with Wire = wModel; IsDropping = true; Restore = model.Wire}, Cmd.map Wire wCmd
+        {model with Wire = wModel; IsDropping = true; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlN; Restore = model.Wire}, Cmd.map Wire wCmd
     
     |KeyPress DEL ->
         {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire) 
 
-    | KeyPress AltZ -> (if model.ZoomSpace = (true,true) then {model with ZoomSpace = (false,false); MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); LastKey = Alt} else {model with ZoomSpace = (true,false); LastKey = AltZ}), Cmd.none
+    | KeyPress AltZ -> match model.LastKey with 
+                       |AltZ -> {model with ZoomSpace = (false,false); Zoom = (1.0, {X=0.;Y=0.}); ZoomSpaceBox = ({X=0.;Y=0.},{X=0.;Y=0.}); LastKey = Alt}, Cmd.none
+                       |_ -> match model.ZoomSpaceBox with 
+                             |({X=0.;Y=0.},{X=0.;Y=0.}) -> {model with ZoomSpace = (true,false); LastKey = AltZ}, Cmd.none
+                             |_ ->  {model with ZoomSpace = (false,false); Zoom = (1.0, {X=0.;Y=0.}); ZoomSpaceBox = ({X=0.;Y=0.},{X=0.;Y=0.}); LastKey = Alt}, Cmd.none 
     
     //{model with Wire = model.Restore; IsSelecting=([],[]);IsDraggingList=(0, {X=0.;Y=0.}); IsDropping=false; IsWiring=(None,None); R vxdbfnmestore=model.Wire}, Cmd.none //undo and reset everything
                 // IsDragSelecting = (0, {X=0.;Y=0.}, {X=0.;Y=0.});
     | KeyPress AltUp ->
         printfn "Zoom In"
-        {model with Zoom=model.Zoom+0.1; LastKey = AltUp}, Cmd.none
+        {model with Zoom=((fst model.Zoom+0.1), {X=0.;Y=0.}); LastKey = AltUp}, Cmd.none
 
     | KeyPress AltDown ->
         printfn "Zoom Out"
-        {model with Zoom=model.Zoom-0.1; LastKey = AltDown}, Cmd.none
+        {model with Zoom=((fst model.Zoom-0.1), {X=0.;Y=0.}); LastKey = AltDown}, Cmd.none
 
     //|KeyPress Alt -> printfn "hey"
     //                 model, Cmd.none
 
     |KeyPress CtrlS -> if model.LastKey = CtrlS then {model with LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting) else {model with LastKey = CtrlS}, Cmd.none
 
-    |KeyPress CtrlPlus -> if model.LastKey = CtrlS then {model with LastKey = CtrlPlus}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol (fst model.IsSelecting)))
-                          else if model.LastKey = CtrlPlus then {model with LastKey = Alt}, Cmd.none
-                          else {model with LastKey = CtrlPlus}, Cmd.none
+    |KeyPress CtrlPlus -> match model.LastKey with 
+                          |CtrlPlus -> {model with LastKey = Alt}, Cmd.none
+                          |_ -> {model with LastKey = CtrlPlus}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DuplicateSymbol))
     
     // | KeyPress PrintSelected ->
     //     let nothing = 
@@ -353,8 +371,9 @@ let init() =
         MultiSelectBox = (false, {X=0.;Y=0.}, {X=0.;Y=0.})
         Restore = model 
         LastOp = Move
+        ZoomSpaceBox = ({X=0.;Y=0.},{X=0.;Y=0.})
         LastKey = Alt
-        Zoom = 1.0
+        Zoom = (1.0, {X=0.;Y=0.})
         LastDragPos={X=0.;Y=0.}
         ZoomSpace = (false, false)
     }, Cmd.map Wire cmds
