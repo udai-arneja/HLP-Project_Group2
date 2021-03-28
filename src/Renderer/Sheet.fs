@@ -10,7 +10,7 @@ open Elmish.React
 open Helpers
 
 type KeyboardMsg =
-    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus | AltU | AltR
+    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | CtrlS | Alt | CtrlPlus | AltU | AltR | AltO
 
 type Undo =
     | MoveMultiSelect of ((Symbol.Symbol * int) * (XYPos * XYPos)) list * ((BusWire.Wire * int) * (XYPos*XYPos) list) list 
@@ -375,6 +375,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress AltDown ->
         printfn "Zoom Out"
         {model with Zoom=((fst model.Zoom-0.1), {X=0.;Y=0.}); LastKey = AltDown}, Cmd.none
+
+    | KeyPress AltO -> model, Cmd.ofMsg (Wire <| BusWire.RunBusWidthInference )
 
     | KeyPress AltU -> 
         let multiFunctionWire acc (Lst: (BusWire.Wire * int) * (XYPos*XYPos) list ) =

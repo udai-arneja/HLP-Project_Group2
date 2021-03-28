@@ -1,4 +1,4 @@
-module BusWire
+﻿module BusWire
 
 open Fable.React
 open Fable.React.Props
@@ -67,6 +67,7 @@ type Msg =
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | SnaptoGrid of (CommonTypes.ComponentId list * (Wire * int) list)
     | UpdateWires of Wire list * (XYPos*XYPos) list list * Symbol.Symbol list * (XYPos*XYPos) list
+    | RunBusWidthInference
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     // | EndDragging of wId : CommonTypes.ComponentId
     // | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
@@ -88,6 +89,64 @@ type WireRenderProps = {
     LastDragPos : XYPos List 
     // PortInUse : bool
 }
+
+
+let convertToComp (symbol:Symbol.Symbol): CommonTypes.Component=
+    {
+        Id=string(symbol.Id)
+        Type=symbol.Type
+        Label="Test" //: string // All components have a label that may be empty.
+        InputPorts=symbol.InputPorts
+        OutputPorts=symbol.OutputPorts
+        X = int(symbol.Pos.X)
+        Y = int(symbol.Pos.Y)
+        H = int(symbol.H)
+        W = int(symbol.W)
+    }
+
+let findsymbol wire model=
+    (List.find (fun (sym:Symbol.Symbol) -> string(sym.Id)=wire.SrcSymbol) model.Symbol.Symbols)
+
+let convertToConnect (wire:Wire) model: CommonTypes.Connection=
+    {
+        Id=string(wire.Id)
+        Source= List.find (fun port -> port.Id=wire.TargetPort) (findsymbol wire model).InputPorts
+        Target=(List.find (fun port -> port.Id=wire.SrcPort) (List.find (fun (sym:Symbol.Symbol) -> string(sym.Id)=wire.TargetSymbol) model.Symbol.Symbols).OutputPorts)
+        Vertices=List.map (fun xypos -> (xypos.X,xypos.Y)) wire.Vertices
+    }
+
+let private runBusWidthInference model =
+    let listofSymbols : CommonTypes.Component list=
+        List.fold (fun state (sym:Symbol.Symbol) -> state@[convertToComp sym]) [] model.Symbol.Symbols
+    
+    let listofWires : CommonTypes.Connection list=
+        List.fold (fun state wire -> state@[convertToConnect wire model]) [] model.Wires
+
+    (listofSymbols,listofWires)
+    |> BusWidthInferer.inferConnectionsWidth
+    |> function
+    | Error e ->
+            // model
+            // TODO: this makes the content of the model.Higlighted inconsistent.
+            // Need to dispatch SetHighlighted (can do by using mkProgram).
+            // e.ConnectionsAffected
+            // |> List.iter (fun connection -> model.Diagram.HighlightConnection c "red")
+            let updatedWires=
+                List.map (fun (wire:Wire) -> if List.exists (fun connid -> connid=wire.Id) e.ConnectionsAffected
+                                                     then {wire with Highlighted = true}
+                                                     else {wire with Highlighted = false} ) model.Wires
+            {model with Wires=updatedWires}
+            // // Display notification withupdatedWires error message.
+            // { model with 
+            //     Notifications =
+            //         { model.Notifications with 
+            //             FromDiagram = Some <| errorNotification e.Msg CloseDiagramNotification} }
+    | Ok connsWidth ->
+            // repaintConnections model connsWidth
+            // repaintBusComponents model connsWidth state
+            // Close the notification if all is good.
+            model
+
 
 let posDiff (a:XYPos) (b:XYPos) =
     {X=a.X-b.X; Y=a.Y-b.Y}
@@ -498,37 +557,37 @@ let createNewWire (sourcePort:string) (targetPort:string) (model:Model) : Wire =
         |0 -> List.collect (fun (x:Symbol.Symbol) -> (List.tryFind (fun (y:CommonTypes.Port) -> y.Id = id) x.OutputPorts) |> function |Some a -> [a] |None -> []) model.Symbol.Symbols
               |>List.head
 
-    if (convertIdToPort 0 targetPort).BusWidth <> (convertIdToPort 1 sourcePort).BusWidth
-    then 
-        let wireId = CommonTypes.ConnectionId (Helpers.uuid())
-        {
-            SrcSymbol = (convertIdToPort 1 sourcePort).HostId
-            TargetSymbol = (convertIdToPort 0 targetPort).HostId
-            Id = wireId 
-            SrcPort = (convertIdToPort 0 targetPort).Id
-            TargetPort = (convertIdToPort 1 sourcePort).Id
-            Vertices = newWireRoute (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model//CHECK
-            Selected = false
-            BusWidth = 1                                                            //need to set this to something
-            Highlighted = true                                                            
-            IsDragging = false
-            LastDragPos =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model
-        }
-    else 
-        let wireId = CommonTypes.ConnectionId (Helpers.uuid())
-        {
-            SrcSymbol = (convertIdToPort 1 sourcePort).HostId
-            TargetSymbol = (convertIdToPort 0 targetPort).HostId
-            Id = wireId 
-            SrcPort = (convertIdToPort 0 targetPort).Id
-            TargetPort = (convertIdToPort 1 sourcePort).Id
-            Vertices =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model             //newWireRoute  (convertIdToPort 0 targetPortId) (convertIdToPort 1 sourcePortId)
-            Selected = false
-            BusWidth = (convertIdToPort 0 targetPort).BusWidth
-            IsDragging = false
-            LastDragPos =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model
-            Highlighted = false
-        }
+    // if (convertIdToPort 0 targetPort).BusWidth <> (convertIdToPort 1 sourcePort).BusWidth
+    // then 
+    //     let wireId = CommonTypes.ConnectionId (Helpers.uuid())
+    //     {
+    //         SrcSymbol = (convertIdToPort 1 sourcePort).HostId
+    //         TargetSymbol = (convertIdToPort 0 targetPort).HostId
+    //         Id = wireId 
+    //         SrcPort = (convertIdToPort 0 targetPort).Id
+    //         TargetPort = (convertIdToPort 1 sourcePort).Id
+    //         Vertices = newWireRoute (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model//CHECK
+    //         Selected = false
+    //         BusWidth = 1                                                            //need to set this to something
+    //         Highlighted = true                                                            
+    //         IsDragging = false
+    //         LastDragPos =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model
+    //     }
+    // else 
+    let wireId = CommonTypes.ConnectionId (Helpers.uuid())
+    {
+        SrcSymbol = (convertIdToPort 1 sourcePort).HostId
+        TargetSymbol = (convertIdToPort 0 targetPort).HostId
+        Id = wireId 
+        SrcPort = (convertIdToPort 0 targetPort).Id
+        TargetPort = (convertIdToPort 1 sourcePort).Id
+        Vertices =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model             //newWireRoute  (convertIdToPort 0 targetPortId) (convertIdToPort 1 sourcePortId)
+        Selected = false
+        BusWidth = (convertIdToPort 0 targetPort).BusWidth
+        IsDragging = false
+        LastDragPos =  newWireRoute   (convertIdToPort 1 sourcePort).PortPos (convertIdToPort 0 targetPort).PortPos model
+        Highlighted = false
+    }
 
 let isEven (segId: int) (wir: Wire): Option<bool> = 
     let noOfSeg = (List.length wir.Vertices)-1
@@ -729,6 +788,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let remainingBbox = snd (checkWiress remainingWiresAndBoxes)//(fst remainingWiresAndBoxes) (snd remainingWiresAndBoxes))
         {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
     
+    |RunBusWidthInference -> runBusWidthInference model, Cmd.none
+
     | UpdateWires (newWire, newBB, newSymbols, newsBB) -> 
         if newWire <> [] then 
             {model with Wires = newWire; wBB = newBB}, Cmd.ofMsg (Symbol (Symbol.UpdateSymbols (newSymbols, newsBB)))
