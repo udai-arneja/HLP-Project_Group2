@@ -13,6 +13,7 @@
 - Copy and Paste , multiple symbols and wires 
 - Rotate - the ports will rotate by tomorrow , but visibly they don't at the moment 
 - Buswidth inference 
+- Custom Component
 - Delete Symbol
 - Delete Wire
 
