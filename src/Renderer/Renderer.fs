@@ -54,6 +54,7 @@
                    makeKeyItem "ZoomO" "Alt+Down" (fun () -> dispatch KeyboardMsg.AltDown)
                    makeKeyItem "Delete" "delete" (fun () -> dispatch KeyboardMsg.DEL)
                    makeKeyItem "Duplicate" "Ctrl+Shift+="  (fun () -> dispatch KeyboardMsg.CtrlPlus)
+                   makeKeyItem "Duplicate" "Ctrl+T"  (fun () -> dispatch KeyboardMsg.CtrlT)
                    menuSeparator
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)
                    makeRoleItem MenuItemRole.ForceReload

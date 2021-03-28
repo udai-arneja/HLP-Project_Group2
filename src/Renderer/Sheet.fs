@@ -10,7 +10,7 @@ open Elmish.React
 open Helpers
 
 type KeyboardMsg =
-    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus
+    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus | CtrlT
 
 type Model = {
     Wire: BusWire.Model
@@ -318,6 +318,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Mux2))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
         {model with Wire = wModel; IsDropping = true; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlN; Restore = model.Wire}, Cmd.map Wire wCmd
     
+    | KeyPress CtrlT -> model,  Cmd.ofMsg (Wire <| BusWire.Msg.Symbol (Symbol.RotateSymbols)) 
+
     |KeyPress DEL ->
         {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire) 
 
