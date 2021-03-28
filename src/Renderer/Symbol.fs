@@ -546,7 +546,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
     //                 ]
     //     )
-    | Not | And | Or | Xor | Nand | Nor | Xnor ->
+    | Not | And | Or | Xor | Nand | Nor | Xnor | NBitsAdder bits | DFF | DFFE |  Register bits | RegisterE bits | ROM memorySize | AsyncROM memorySize | RAM memorySize ->
         FunctionComponent.Of(
             fun (props : RenderSymbolProps) ->
                 // let handleMouseMove =
@@ -652,7 +652,160 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                                                       |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
                                                       |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                       |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            //| Mux ->  [homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"]
+                                            | Mux2 ->  [homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append []
+                                                      |> List.append []
+                                            | Demux2 -> [homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1"]
+                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+
+                                            |NBitsAdder bits -> let text bits = [
+                                                                                  text
+                                                                                    [ X (props.Symb.Pos.X )
+                                                                                      Y (props.Symb.Pos.Y - gateHeight/8.)
+                                                                                      Style
+                                                                                            [
+                                                                                                 TextAnchor "middle"
+                                                                                                 DominantBaseline "middle"
+                                                                                                 FontSize "14px"
+                                                                                                 FontWeight "Bold"
+                                                                                                 Fill "Black"
+                                                                                             ]
+                                                                                    ]
+                                                                                    [str <| sprintf "(1:%A)" bits]
+                                                                                ]
+                                                                [textbits bits]
+                                                                |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Cin"]
+                                                                |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                                |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "A"]
+                                                                |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
+                                                                |> List.append []
+                                                                |> List.append []
+                                                                |> List.append []
+                                                                |> List.append []
+                                                                |> List.append []
+                                                                |> List.append []
+                                                                |> List.append []
+                                                                |> List.append []
+                                            
+                                            |DFF -> []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+
+                                            |DFFE -> []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+                                                      |> List.append []
+
+                                            |Register bits -> []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+
+                                            |RegisterE bits -> []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+
+                                            |ROM memorySize -> []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                                              |> List.append []
+                                            
+                                            | AsyncROM memorySize -> []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+                                                                      |> List.append []
+
+
+                                            |RAM memorySize -> []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                                  |> List.append []
+                                                        
+
                                             //          |> 
                                             | _ -> [homotextual 0 0 "" "" "" ""]
                         textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
@@ -676,54 +829,54 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
 
         )
-    | Mux2 | Demux2 ->
-        FunctionComponent.Of(
-            fun (props : RenderSymbolProps) ->
+    //| Mux2 | Demux2 ->
+    //    FunctionComponent.Of(
+    //        fun (props : RenderSymbolProps) ->
 
-                let color =
-                    if props.Symb.IsDragging then
-                        "green"
-                    else
-                        "grey"
-                g   [
-                    ]
-                    [
-                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+    //            let color =
+    //                if props.Symb.IsDragging then
+    //                    "green"
+    //                else
+    //                    "grey"
+    //            g   [
+    //                ]
+    //                [
+    //                    rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
 
-                        match props.Comp with
-                        | Mux2 ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"
+    //                    match props.Comp with
+    //                    | Mux2 ->
+    //                        homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"
 
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1"
-                            creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
+    //                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1"
+    //                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"
-                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2//Mux output
-
-
-
-                        | Demux2 ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX"
-
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0"
-                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
-
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1"
-                            creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2//Mux output
-
-                        | _ ->
-                            homotextual 0 0 "" "" "" ""
-
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0"
-                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
-
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"
-                        creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
+    //                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"
+    //                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2//Mux output
 
 
-                    ]
 
-        )
+    //                    | Demux2 ->
+    //                        homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX"
+
+    //                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0"
+    //                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
+
+    //                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1"
+    //                        creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2//Mux output
+
+    //                    | _ ->
+    //                        homotextual 0 0 "" "" "" ""
+
+    //                    homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0"
+    //                    creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
+
+    //                    homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"
+    //                    creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
+
+
+    //                ]
+
+    //    )
     | NbitsAdder bits ->
             FunctionComponent.Of(
                 fun (props : RenderSymbolProps) ->
