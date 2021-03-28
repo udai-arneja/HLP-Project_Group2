@@ -36,7 +36,7 @@ type Symbol =
         IsHighlighted: bool 
         PortStatus: PortVisibility
         IsSliding: PortVisibility * string * int * XYPos 
-        // BoundingBox : 
+        Rotate: bool
     }
 
 type Model = {
@@ -104,6 +104,8 @@ let rectum xPos yPos width height colour props  = // cheeky bit of kareem abstra
                 SVGAttr.FillOpacity 0.4
                 SVGAttr.Stroke "Black"
                 SVGAttr.StrokeWidth 2
+               
+                    
             ]
             [ ]
 
@@ -119,10 +121,14 @@ let circus xPos yPos rad = // cheeky bit of kareem abstraction
             SVGAttr.StrokeWidth 2
         ] [ ]
 
-let homotextual xPos yPos textAnchor domBaseline fontSize displayText = // cheeky bit of kareem abstraction
+let homotextual xPos yPos textAnchor domBaseline fontSize displayText (rotate: bool) = // cheeky bit of kareem abstraction
     text
         [ X xPos
           Y yPos
+          let rotate = true
+          match rotate with  
+          | true -> SVGAttr.Transform (sprintf "rotate(%A %A %A)" 270 xPos yPos)
+          | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
           Style
                 [
                     TextAnchor textAnchor
@@ -130,6 +136,7 @@ let homotextual xPos yPos textAnchor domBaseline fontSize displayText = // cheek
                     FontSize fontSize
                     FontWeight "Bold"
                     Fill "Black"
+                    
                 ]
         ]
         [ str <| sprintf displayText ]
@@ -198,6 +205,7 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
                 IsHighlighted = false
                 PortStatus = Invisible
                 IsSliding = (ShowInputsOnly, "null", 0, {X=0.; Y=0.})
+                Rotate = false
               }
 
     let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length inputs)) inputs
@@ -219,6 +227,7 @@ let createCustomSymbol (comp:CommonTypes.CustomComponentType) =
                 IsHighlighted = false
                 PortStatus = Invisible
                 IsSliding = (ShowInputsOnly, "null", 0, {X=0.; Y=0.})
+                Rotate = false
               }  
     let _, inputBusWidths = List.unzip comp.InputLabels
     let _, outputBusWidths = List.unzip comp.OutputLabels
@@ -586,59 +595,60 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
                 let mainOutline = 
                         let textSection =   match props.Comp with
-                                            | Not -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "1"]
+                                            | Not -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "1" (props.Symb.Rotate)]
                                                      |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)]
                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) props.Symb.Pos.X (props.Symb.Pos.Y + gateHeight/2.) 2]
                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
 
-                                            | And -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
-                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                            | And -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&" (props.Symb.Rotate)]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate) ]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)] 
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2 ]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1" (props.Symb.Rotate)]
                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            | Or -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1"]
-                                                    |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                            | Or -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1" (props.Symb.Rotate)]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)]
                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
-                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                    |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1" (props.Symb.Rotate)]
                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                     |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            | Xor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1"]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
-                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                            | Xor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1" (props.Symb.Rotate)]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)]
+                                                     |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2 ]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1" (props.Symb.Rotate)]
                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            | Nand -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&"]
+                                            | Nand -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "&" (props.Symb.Rotate)]
                                                       |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
-                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)]
                                                       |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
-                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1" (props.Symb.Rotate)]
                                                       |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                       |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            | Nor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1"]
+                                            | Nor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "≥1" (props.Symb.Rotate)]
                                                      |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)]
                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
-                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                     |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1" (props.Symb.Rotate)]
                                                      |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                      |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            | Xnor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1"]
+                                            | Xnor -> [homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + gateHeight/8.) "middle" "Middle" "14px" "=1" (props.Symb.Rotate)]
                                                       |> List.append [circus (props.Symb.Pos.X + gateWidth + circleRadius) (props.Symb.Pos.Y + gateHeight/2.) circleRadius]
-                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"]
-                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + gateWidth - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/4.) "start" "Middle" "10px" "X0" (props.Symb.Rotate)]
                                                       |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
-                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
+                                                      |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1" (props.Symb.Rotate)]
                                                       |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                       |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
-                                            | _ -> [homotextual 0 0 "" "" "" ""]
+                                            //| Mux2 -> []
+                                            | _ -> [homotextual 0 0 "" "" "" "" (props.Symb.Rotate)]
                         textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
             
 
@@ -656,7 +666,10 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         //     // |> props.Dispatch
                         //     document.addEventListener("mousemove", handleMouseMove.current)
                         // )
-                    ] (finalPortsSymbol)
+                        match props.Symb.Rotate with
+                        | false -> SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + gateWidth/2.) (props.Symb.Pos.Y + gateHeight/2.) )
+                        | true -> SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + gateWidth/2.) (props.Symb.Pos.Y + gateHeight/2.) )
+                    ] finalPortsSymbol
 
 
         )
@@ -669,39 +682,41 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ]
                     [
-                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props 
 
                         match props.Comp with
                         | Mux2 ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX" (props.Symb.Rotate)
 
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1"
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "X1" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0"
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2//Mux output
 
 
 
                         | Demux2 ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DEMUX" (props.Symb.Rotate)
 
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0"
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "Middle" "10px" "Y0" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
 
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1"
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "end" "Middle" "10px" "Y1" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2//Mux output
 
                         | _ ->
-                            homotextual 0 0 "" "" "" ""
+                            homotextual 0 0 "" "" "" "" (props.Symb.Rotate)
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "X0" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "EN" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
 
 
@@ -717,10 +732,13 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                             "green"
                         else
                             "grey"
-                    g   [
+                    g   [ match props.Symb.Rotate with
+                          | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                          | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
+                        
                         ]
                         [
-                            rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+                            rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props 
 
                             text
                                 [   X (props.Symb.Pos.X + gateWidth)
@@ -737,20 +755,20 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                                 [ str <| sprintf "Adder(%A:0)" bits ]
 
                             //inputs
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Cin"
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Cin" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
 
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "A"
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "middle" "10px" "A" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2
 
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "B"
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "Middle" "10px" "B" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
                             //outputa
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/3.) "end" "Middle" "10px" "Sum"
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/3.) "end" "Middle" "10px" "Sum" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/3.) 2//Mux output
 
-                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(3./2.)) "end" "Middle" "10px" "Cout"
+                            homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/(3./2.)) "end" "Middle" "10px" "Cout" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/(3./2.)) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/(3./2.)) 2//Mux output
 
 
@@ -765,7 +783,9 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ]
                     [   // first pure vertical line
                         creditLines (props.Symb.Pos.X) (props.Symb.Pos.Y) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2
@@ -834,34 +854,36 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ]
                     [
-                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props 
 
 
                         match props.Comp with
                         | DFF ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFF"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFF" (props.Symb.Rotate)
 
 
                         | DFFE ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFFE"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "DFFE" (props.Symb.Rotate)
 
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN"
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
                         | _ ->
-                            homotextual 0 0 "" "" "" ""
+                            homotextual 0 0 "" "" "" "" (props.Symb.Rotate)
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "D"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "D" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
 
-                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Q"
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Q" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
 
 
-                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1 // CLK
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1 // CLK
 
@@ -878,35 +900,37 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ]
                     [
-                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props 
 
 
                         match props.Comp with
                         | Register bits ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "Register"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "Register" (props.Symb.Rotate)
 
 
 
                         | RegisterE bits ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RegisterE"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RegisterE" (props.Symb.Rotate)
 
-                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN"
+                            homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN" (props.Symb.Rotate)
                             creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2
 
                         | _ ->
-                            homotextual 0 0 "" "" "" ""
+                            homotextual 0 0 "" "" "" "" (props.Symb.Rotate)
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Data-in"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Data-in" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2
 
-                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Data-out"
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Data-out" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2//Mux output
 
 
-                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1 // CLK
                         creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1 // CLK
 
@@ -924,16 +948,18 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ]
                     [
-                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props 
 
                         match props.Comp with
                         | ROM memorySize ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "ROM"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "ROM" (props.Symb.Rotate)
 
-                            homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                            homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk" (props.Symb.Rotate)
                             line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(5./4.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
                             line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(10./9.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
 
@@ -941,19 +967,19 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
 
                         | AsyncROM memorySize ->
-                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "AsyncROM"
+                            homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "AsyncROM" (props.Symb.Rotate)
 
 
                         | _ ->
-                            homotextual 0 0 "" "" "" ""
+                            homotextual 0 0 "" "" "" "" (props.Symb.Rotate)
 
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Addr"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Addr" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
 
 
-                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out"
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
 
@@ -970,30 +996,32 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                         "green"
                     else
                         "grey"
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ]
                     [
-                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props
+                        rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props 
 
-                        homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RAM"
+                        homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RAM" (props.Symb.Rotate)
 
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/6.) "start" "middle" "10px" "Addr"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/6.) "start" "middle" "10px" "Addr" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/6.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/6.) 2 // CLK
 
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/3.) "start" "middle" "10px" "Data-in"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/3.) "start" "middle" "10px" "Data-in" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/3.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/3.) 2 // CLK
 
-                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Write"
+                        homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "Write" (props.Symb.Rotate)
                         creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
 
-                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out"
+                        homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "end" "middle" "10px" "Data-out" props.Symb.Rotate
                         creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/2.) 2 // CLK
 
 
-                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk"
+                        homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk" props.Symb.Rotate
                         line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(5./4.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
                         line [ X1 (props.Symb.Pos.X + inOutLines); Y1 (props.Symb.Pos.Y + gateHeight/(20./17.)); X2 (props.Symb.Pos.X); Y2 (props.Symb.Pos.Y + gateHeight/(10./9.)); Style[CSSProp.Stroke "Black" ; CSSProp.StrokeWidth 1]] []  //clk ting
 
@@ -1015,21 +1043,22 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                     let inputPortName = Printf.StringFormat<string> (fst customSymbol.InputLabels.[index]) 
                     // let outputPortName = Printf.StringFormat<string> (fst customSymbol.OutputLabels.[index]) 
                     match inoutput with 
-                    | true -> (homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) "start" "Middle" "10px" inputPortName),
+                    | true -> (homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) "start" "Middle" "10px" inputPortName props.Symb.Rotate ),
                               (creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + ((float index + 1.)/((float inputPortNum) + 1.)*props.Symb.H)) (props.Symb.Pos.X) (props.Symb.Pos.Y + (float(index + 1)/(float inputPortNum + 1.)*props.Symb.H)) 2) 
 
-                    | false -> (homotextual (props.Symb.Pos.X + gateWidth - inOutLines*1.7) (props.Symb.Pos.Y + (float(index + 1)/(float outputPortNum + 1.)*props.Symb.H)) "start" "Middle" "10px" "op"),
+                    | false -> (homotextual (props.Symb.Pos.X + gateWidth - inOutLines*1.7) (props.Symb.Pos.Y + (float(index + 1)/(float outputPortNum + 1.)*props.Symb.H)) "start" "Middle" "10px" "op"  props.Symb.Rotate),
                                (creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + (float (index + 1)/(float outputPortNum + 1.)*props.Symb.H)) 2 )
 
                 let generateSVGChild =
                     let standard  =
                         [
                             //shape - done
-                            rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth props.Symb.H color props //can do gateHeight*max inputs/outputs
+                            rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth props.Symb.H color props  //can do gateHeight*max inputs/outputs
 
                             //name of component - potentially change width based on name size - done
                             let name = Printf.StringFormat<string> customSymbol.Name                                     
-                            homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + props.Symb.H/8.) "middle" "Middle" "14px" name
+                            homotextual (props.Symb.Pos.X + gateWidth/2.)  (props.Symb.Pos.Y + props.Symb.H/8.) "middle" "Middle" "14px" name (props.Symb.Rotate)
+
                         ]      
                     List.mapi (fun index (portName,_) -> generatePortsList index portName true) customSymbol.InputLabels
                     |> List.append (List.mapi (fun index (portName,_) -> generatePortsList index portName false) customSymbol.OutputLabels)
@@ -1038,7 +1067,9 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                     |> List.append standard
 
 
-                g   [
+                g   [ match props.Symb.Rotate with
+                      | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                      | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
                     ](generateSVGChild)
 
             )
