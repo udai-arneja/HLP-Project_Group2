@@ -56,6 +56,7 @@
                    makeKeyItem "Duplicate" "Ctrl+Shift+="  (fun () -> dispatch KeyboardMsg.CtrlPlus)
                    makeKeyItem "Undo" "Alt+U" (fun () -> dispatch KeyboardMsg.AltU)
                    makeKeyItem "Redo" "Alt+R" (fun () -> dispatch KeyboardMsg.AltR)
+                   makeKeyItem "Rotate" "Ctrl+T"  (fun () -> dispatch KeyboardMsg.CtrlT)
                    menuSeparator 
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)
                    makeRoleItem MenuItemRole.ForceReload

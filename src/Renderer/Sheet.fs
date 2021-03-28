@@ -7,10 +7,11 @@ open Browser
 open Elmish
 open Elmish.React
 
+
 open Helpers
 
 type KeyboardMsg =
-    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus | AltU | AltR
+    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus | AltU | AltR |CtrlNPlus |CtrlT
 
 type Undo =
     | MoveMultiSelect of ((Symbol.Symbol * int) * (XYPos * XYPos)) list * ((BusWire.Wire * int) * (XYPos*XYPos) list) list 
@@ -31,8 +32,8 @@ type Model = {
     ZoomSpace: bool * bool 
     LastDragPos : XYPos
     Undo : Undo list
+    FavLang: string
     }
-
     
 
 type Msg =
@@ -47,6 +48,172 @@ type SelectingBox={
 
 //helper functions
 //let zoom = 1.0
+let stringToComponent comp =
+    match comp with
+    |"Not" -> CommonTypes.Not
+    |"And" -> CommonTypes.And
+    |"Or" -> CommonTypes.Or
+    |"Xor" -> CommonTypes.Xor
+    |"Nand" -> CommonTypes.Nand
+    |"Nor" -> CommonTypes.Nor
+    |"Xnor" -> CommonTypes.Xnor
+    |"Mux2" -> CommonTypes.Mux2
+    |"Demux2" -> CommonTypes.Demux2
+    //|"NbitsAdder" -> CommonTypes.NbitsAdder bits
+    |"MergeWires" -> CommonTypes.MergeWires
+    //|"SplitWire" -> CommonTypes.SplitWire
+    |"DFF" -> CommonTypes.DFF
+    |"DFFE" -> CommonTypes.DFFE
+    //|"Register" -> CommonTypes.Register bits
+    //|"RegisterE" -> CommonTypes.RegisterE bits
+    //|"ROM" -> CommonTypes.ROM Memory
+    //|"AsyncROM" -> CommonTypes.AsyncROM Memory
+    //|"RAM" -> CommonTypes.RAM Memory
+    //|"Custom" -> CommonTypes.Custom 
+
+let renderItem component dispatch =
+    Dropdown.Item.a 
+        [ 
+            Dropdown.Item.Props
+                [
+                    OnClick (fun _ ->
+                        dispatch (Wire (BusWire.NewComponent component))
+                    )
+                ]
+        ]
+        [ 
+            str (component)
+        ]
+
+let renderDropdown model dispatch = 
+    // Here I am using Dropdown.IsHoverable so the dropdown is displayed 
+    // when the mouse hover the dropdown
+    // If you want to display it when the user click in it you will need
+    // to listen click event, create your logic, and use Dropdown.IsActive property
+    Dropdown.dropdown [ Dropdown.IsHoverable ]
+        [
+            div [ ]
+                [ 
+                    Button.button [ ]
+                        [ str "Choose your Symbol" ]
+                ]
+            Dropdown.menu [ ]
+                [
+                    Dropdown.content [ ]
+                        [ 
+                            renderItem "Not" dispatch
+                            renderItem "And" dispatch
+                            renderItem "Or" dispatch
+                            renderItem "Xor" dispatch 
+                            renderItem "Nand" dispatch 
+                            renderItem "Nor" dispatch 
+                            renderItem "Xnor" dispatch 
+                            renderItem "Mux2" dispatch 
+                            renderItem "Demux2" dispatch
+                        ]
+                ]
+
+        ]
+
+let renderDropdownInput model dispatch comp =
+    //let inputno = match comp with 
+    //              |"Not" -> 2
+    //              |"And" -> 2
+    //              |"Or" -> 2
+    //              |"Xor" -> 2
+    //              |"Nand" -> 2
+    //              |"Nor" -> 2
+    //              |"Xnor" -> 2
+    //              |"Mux2" -> 3
+    //              |"Demux2" -> 2
+    //              |"NbitsAdder" -> 3
+    //              |"MergeWires" -> 2
+    //              |"SplitWire" -> 1
+    //              |"DFF" -> 1
+    //              |"DFFE" -> 2
+    //              |"Register" -> 1
+    //              |"RegisterE" -> 2
+    //              |"ROM" -> 1
+    //              |"AsyncROM" -> 1
+    //              |"RAM" -> 3
+
+                  
+        Dropdown.dropdown [ Dropdown.IsHoverable ]
+        [
+            div [ ]
+                [ 
+                    Button.button [ ]
+                        [ str "Choose your Input BusWidth" ]
+                ]
+            Dropdown.menu [ ]
+                [
+                    Dropdown.content [ ]
+                        [ 
+                            renderItem "Not" dispatch
+                            renderItem "And" dispatch
+                            renderItem "Or" dispatch
+                            renderItem "Xor" dispatch 
+                            renderItem "Nand" dispatch 
+                            renderItem "Nor" dispatch 
+                            renderItem "Xnor" dispatch 
+                            renderItem "Mux2" dispatch 
+                            renderItem "Demux2" dispatch
+                        ]
+                ]
+        ]
+
+let renderDropdownOutput model dispatch comp =
+    //let outputno = match comp with 
+    //              |"Not" -> 1
+    //              |"And" -> 1
+    //              |"Or" -> 1
+    //              |"Xor" -> 1
+    //              |"Nand" -> 1
+    //              |"Nor" -> 1
+    //              |"Xnor" -> 1
+    //              |"Mux2" -> 1
+    //              |"Demux2" -> 2
+    //              |"NbitsAdder" -> 2
+    //              |"MergeWires" -> 1
+    //              |"SplitWire" -> 2
+    //              |"DFF" -> 1
+    //              |"DFFE" -> 1
+    //              |"Register" -> 1
+    //              |"RegisterE" -> 1
+    //              |"ROM" -> 1
+    //              |"AsyncROM" -> 1
+    //              |"RAM" -> 1
+                  
+        Dropdown.dropdown [ Dropdown.IsHoverable ]
+        [
+            div [ ]
+                [ 
+                    Button.button [ ]
+                        [ str "Choose your Input BusWidth" ]
+                ]
+            Dropdown.menu [ ]
+                [
+                    Dropdown.content [ ]
+                        [ 
+                            renderItem "Not" dispatch
+                            renderItem "And" dispatch
+                            renderItem "Or" dispatch
+                            renderItem "Xor" dispatch 
+                            renderItem "Nand" dispatch 
+                            renderItem "Nor" dispatch 
+                            renderItem "Xnor" dispatch 
+                            renderItem "Mux2" dispatch 
+                            renderItem "Demux2" dispatch
+                        ]
+                ]
+        ]
+
+//let renderPreview model =
+//    match model.FavLang with
+//    |comp ->
+//        p [ ]
+//            [ str ("You selected: " + comp) ]
+
 
 let dimensions startPos endPos = sprintf "%f,%f %f,%f %f,%f %f,%f" startPos.X startPos.Y startPos.X endPos.Y endPos.X endPos.Y endPos.X startPos.Y
 
@@ -68,6 +235,7 @@ let displaySvgWithZoom (zoom:float*XYPos) (svgReact: ReactElement) (dispatch: Di
         dispatch <| Wire (BusWire.MouseMsg {Op = op ; Pos = { X = (ev.clientX/(fst model.Zoom) - (snd model.Zoom).X/(fst model.Zoom)); Y = (ev.clientY/(fst model.Zoom) - (snd model.Zoom).Y/(fst model.Zoom))}})
     let keyDown (ev:Types.KeyboardEvent) =
         dispatch <|KeyPress (Alt)
+
     let (boxOrWire, startPos, endPos) = model.MultiSelectBox
     let (boxPos1, boxPos2) = model.ZoomSpaceBox
     let backgroundSize = sprintf "%fpx %fpx" (30.*(fst model.Zoom)) (30.*(fst model.Zoom))
@@ -77,48 +245,7 @@ let displaySvgWithZoom (zoom:float*XYPos) (svgReact: ReactElement) (dispatch: Di
                    |_ -> "blue"
 
     
-    div [ Style 
-            [ 
-                Height "100vh" 
-                MaxWidth "100vw"
-                CSSProp.OverflowX OverflowOptions.Auto 
-                CSSProp.OverflowY OverflowOptions.Auto
-            ] 
-          OnMouseDown (fun ev -> (mouseOp Down ev))
-          OnMouseUp (fun ev -> (mouseOp Up ev))
-          OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
-        //   OnKeyPress (fun ev -> printfn "key"
-        //                         (keyDown ev))
-          //OnMouse (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
-        ]
-        [ svg
-            [ Style 
-                [
-                  
-                    match model.IsWiring with 
-                    |(None, Some Port) -> Cursor "grabbing"
-                    |(Some Port, None) -> Cursor "grabbing"
-                    |(None, None) -> match model.ZoomSpace with 
-                                     |true,_ -> Cursor "zoom-in"
-                                     |false,false -> match model.LastKey with 
-                                                     |CtrlS -> Cursor "alias"
-                                                     |_ -> Cursor "default"
-
-                    Border "3px solid green"
-                    Height sizeInPixels
-                    Width sizeInPixels  
-                    BackgroundSize backgroundSize
-                    BackgroundImage background        
-                ]
-            ]
-            [ g // group list of elements with list of attributes
-                [ Style [
-                        Transform (sprintf "translate(%fpx,%fpx) scale(%f)" (snd model.Zoom).X (snd model.Zoom).Y (fst model.Zoom))
-                        //Transform (sprintf "scale(%f)" zoomChanged)
-                        
-                       ]
-                ] // top-level transform style attribute for zoom
-                [
+    let box = [ 
                 match boxOrWire with 
                 | true -> polygon [
                                     SVGAttr.Points (dimensions startPos endPos)
@@ -139,9 +266,69 @@ let displaySvgWithZoom (zoom:float*XYPos) (svgReact: ReactElement) (dispatch: Di
                                                 ][]
                                          svgReact
                        |_ -> svgReact
-                ]
             ]
-        ]
+
+    if model.LastKey = CtrlN then
+        div [ Style 
+                [ 
+                    Height "100vh" 
+                    MaxWidth "100vw"
+                    CSSProp.OverflowX OverflowOptions.Auto 
+                    CSSProp.OverflowY OverflowOptions.Auto
+                ] 
+              OnMouseDown (fun ev -> (mouseOp Down ev))
+              OnMouseUp (fun ev -> (mouseOp Up ev))
+              OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+              ]
+              [
+                  renderDropdown model dispatch
+              ]                        
+
+    else 
+        div [ Style 
+                [ 
+                    Height "100vh" 
+                    MaxWidth "100vw"
+                    CSSProp.OverflowX OverflowOptions.Auto 
+                    CSSProp.OverflowY OverflowOptions.Auto
+                ] 
+              OnMouseDown (fun ev -> (mouseOp Down ev))
+              OnMouseUp (fun ev -> (mouseOp Up ev))
+              OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+            ]
+
+            [  svg
+                [ Style 
+                    [
+                  
+                        match model.IsWiring with 
+                        |(None, Some Port) -> Cursor "grabbing"
+                        |(Some Port, None) -> Cursor "grabbing"
+                        |(None, None) -> match model.ZoomSpace with 
+                                         |true,_ -> Cursor "zoom-in"
+                                         |false,false -> match model.LastKey with 
+                                                         |CtrlS -> Cursor "alias"
+                                                         |_ -> Cursor "default"
+
+                        Border "3px solid green"
+                        Height sizeInPixels
+                        Width sizeInPixels  
+                        BackgroundSize backgroundSize
+                        BackgroundImage background        
+                    ]
+                ]
+                [ g // group list of elements with list of attributes
+                    [ Style [
+                            Transform (sprintf "translate(%fpx,%fpx) scale(%f)" (snd model.Zoom).X (snd model.Zoom).Y (fst model.Zoom))
+                            //Transform (sprintf "scale(%f)" zoomChanged)
+                        
+                           ]
+                    ] box  // top-level transform style attribute for zoom
+                
+              ]
+
+            ]
+      
 
 let view (model:Model) (dispatch : Msg -> unit) =
     let wDispatch wMsg = dispatch (Wire wMsg)
@@ -214,7 +401,6 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         //helper functions
         let mousePos = {X=mX;Y=mY}
-        printfn "high %A" mousePos
         let boundingBoxSearchS = match List.tryFindIndex (fun (co1,co2) -> co1.X<mX && co2.X>mX && co1.Y<mY && co2.Y>mY) model.Wire.Symbol.SymBBoxes with
                                  | Some index -> [model.Wire.Symbol.Symbols.[index]]
                                  | None -> []
@@ -315,7 +501,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                 | Down -> match model.LastKey with
                           |CtrlS -> {model with LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.HighlightSymbol (fst model.IsSelecting)))
                           |AltZ -> {model with LastKey = AltZ; IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
-                          |CtrlN ->  {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting)
+                          |CtrlNPlus ->  {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting)
                           |CtrlPlus -> {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.SnapSymbolToGrid [(List.last model.Wire.Symbol.Symbols).Id]))
                           |_ -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _   -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
@@ -335,12 +521,16 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                   |(None,None) -> match boundingBoxSearchS with
                                   | [symbol] -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [symbol.Id]))
                                   | _ -> match model.LastKey with 
-                                         |CtrlN ->  {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DroppingNewSymbol (mousePos))) //hovering
+                                         |CtrlNPlus ->  {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.DroppingNewSymbol (mousePos))) //hovering
                                          |CtrlPlus -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Dragging ([(List.last model.Wire.Symbol.Symbols).Id], mousePos, model.LastDragPos)))
                                          |_ -> {model with LastOp = Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.Hovering [])) //hovering
                   |(None,Some port) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowInputsOnly, port.Id, mousePos)) )
                   |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                   | _ ->  failwithf "Not implemented - Move Sheet Update function ~ 253" 
+    
+    | Wire (BusWire.NewComponent comp) ->   printfn "hello"
+                                            let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], stringToComponent comp))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
+                                            {model with Wire = wModel; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlNPlus}, Cmd.map Wire wCmd
 
     |Wire wMsg -> 
         let wModel, wCmd = BusWire.update wMsg model.Wire //send message
@@ -349,10 +539,10 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | KeyPress AltShiftZ -> 
         printStats() // print and reset the performance statistics in dev tools window
         model, Cmd.none
+    
+    //| KeyPress CtrlT -> model,  Cmd.ofMsg (Wire <| BusWire.Msg.Symbol (Symbol.RotateSymbols)) 
 
-    | KeyPress CtrlN -> // add symbol and create a restore point
-        let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
-        {model with Wire = wModel; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlN}, Cmd.map Wire wCmd
+    | KeyPress CtrlN -> {model with LastKey = CtrlN}, Cmd.none
     
     |KeyPress DEL ->
         let newTemp = match model.UndoTemp with 
@@ -444,6 +634,8 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         model, Cmd.none
 
 
+
+
 let init() = 
     let model,cmds = (BusWire.init)() //initial model state
     {
@@ -460,6 +652,7 @@ let init() =
         ZoomSpace = (false, false)
         Undo = []
         UndoTemp = Nothing
+        FavLang = "nothing"
     }, Cmd.map Wire cmds
 
 

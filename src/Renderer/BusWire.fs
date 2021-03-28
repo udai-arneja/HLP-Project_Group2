@@ -67,6 +67,7 @@ type Msg =
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | SnaptoGrid of (CommonTypes.ComponentId list * (Wire * int) list)
     | UpdateWires of Wire list * (XYPos*XYPos) list list * Symbol.Symbol list * (XYPos*XYPos) list
+    | NewComponent of string
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     // | EndDragging of wId : CommonTypes.ComponentId
     // | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
