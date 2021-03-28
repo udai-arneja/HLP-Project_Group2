@@ -102,5 +102,22 @@ let canvasUnscaledDimensions : XYPos =
 
 
 
+//BusWidth Inference Code From Issie
+let tryFindError (lst : Result<'a,'b> list) : Result<'a list, 'b> =
+    let isError el = match el with | Error _ -> true | Ok _ -> false
+    let extractOk el = match el with | Ok ok -> ok | Error _ -> failwith "what? Impossible case in tryFindError"
+    match List.tryFind isError lst with
+    | Some (Error err) -> Error err
+    | None -> List.map extractOk lst |> Ok
+    | _ -> failwith "what? Impossible case in tryFindError"
+
+let assertThat cond msg =
+    if not cond
+    then failwithf "what? assert failed: %s" msg
+
+
+
+
+    
     
 

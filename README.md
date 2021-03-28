@@ -1,3 +1,25 @@
+# List of Features to demonstrate in our Demo
+
+- Add Symbol
+- Add Wire
+- Autorouting 
+- Manual routing 
+- Moving Symbols / Wire 
+- Snap to Grid with Wires and Symbols 
+- Multi select -> click by a box or individual symbols 
+- Dropdown Menu
+- Undo 
+- Zoom into a segment / Zoom
+- Copy and Paste , multiple symbols and wires 
+- Rotate - the ports will rotate by tomorrow , but visibly they don't at the moment 
+- Buswidth inference 
+- Custom Component
+- Delete Symbol
+- Delete Wire
+
+
+
+
 ## New and Pretty Much Final Interfaces 
 ### To discuss/ for everyone to think about:
 - Snap To Grid
