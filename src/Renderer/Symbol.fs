@@ -71,6 +71,7 @@ type Msg =
     | HighlightSymbol of CommonTypes.ComponentId list
     | DuplicateSymbol
     | DroppingNewSymbol of XYPos
+    | UpdateSymbols of Symbol list * (XYPos *XYPos) list
     // | SelectSymbol of Symbol list
 
 //---------------------------------helper types and functions----------------//
@@ -494,12 +495,25 @@ let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
                                                           else { x with PortStatus=portVis; IsSliding = (portVis, string symb.Id, portNum, mousePos)}) model.Symbols
         {model with Symbols =  validPortSymbols}, Cmd.none
 
+    | UpdateSymbols (sym, bb) ->
+        printfn "hey"
+        if sym <> [] then 
+            {model with Symbols = sym; SymBBoxes = bb}, Cmd.none
+        else 
+            model, Cmd.none
+
     | MouseMsg sMsg ->
         printfn "symbol %A" sMsg
         let showPorts =
             model.Symbols
             |> List.map (fun x -> { x with PortStatus=Invisible; IsSliding=(ShowInputsOnly , "null", 0, {X=0.; Y=0.})})
         {model with Symbols = showPorts}, Cmd.none
+
+    //| Rotate -> 
+    //    List.map (fun x -> x with 
+        
+
+
     | _ -> failwith "Not Implemented, Symbol Update Function, Symbol line 299" // allow unused mouse messags
 
 
@@ -532,7 +546,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
     //                 ]
     //     )
-    | Not | And | Or | Xor | Nand | Nor | Xnor->
+    | Not | And | Or | Xor | Nand | Nor | Xnor ->
         FunctionComponent.Of(
             fun (props : RenderSymbolProps) ->
                 // let handleMouseMove =
@@ -638,6 +652,8 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
                                                       |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5 ) (props.Symb.Pos.Y + gateHeight/(4./3.)) "start" "Middle" "10px" "X1"]
                                                       |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/(4./3.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(4./3.)) 2]
                                                       |> List.append [creditLines (props.Symb.Pos.X + gateWidth + inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X + gateWidth + 2.*inOutLines) (props.Symb.Pos.Y + gateHeight/2.) 2]
+                                            //| Mux ->  [homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "MUX"]
+                                            //          |> 
                                             | _ -> [homotextual 0 0 "" "" "" ""]
                         textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y gateWidth gateHeight color props]
             

@@ -66,6 +66,7 @@ type Msg =
     // | Hovering of (CommonTypes.ComponentId list * (Wire * int) list)
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | SnaptoGrid of (CommonTypes.ComponentId list * (Wire * int) list)
+    | UpdateWires of Wire list * (XYPos*XYPos) list list * Symbol.Symbol list * (XYPos*XYPos) list
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     // | EndDragging of wId : CommonTypes.ComponentId
     // | EndDraggingList of wId : CommonTypes.ComponentId list *pagePos:XYPos
@@ -609,6 +610,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         match sMsg with
         |Symbol.Dragging(_,_,_) -> {model with Symbol=sm; AutoRouting = true }, Cmd.map Symbol sCmd
         |Symbol.SnapSymbolToGrid (_) -> {model with Symbol=sm; AutoRouting = true }, Cmd.map Symbol sCmd
+        |Symbol.UpdateSymbols (_,_) -> {model with Symbol = sm; AutoRouting = true}, Cmd.map Symbol sCmd
         |_ -> if model.AutoRouting = true 
               then let newWire = List.map (fun (w:Wire) -> {w with Vertices = (newWireRoute  (convertIdToPort 1 w.TargetPort).PortPos (convertIdToPort 0 w.SrcPort).PortPos model)}) model.Wires
                    {model with Symbol=sm; AutoRouting = false; Wires= newWire }, Cmd.map Symbol sCmd
@@ -726,7 +728,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         let remainingWires = fst (checkWiress remainingWiresAndBoxes) //(fst ) (snd remainingWiresAndBoxes))
         let remainingBbox = snd (checkWiress remainingWiresAndBoxes)//(fst remainingWiresAndBoxes) (snd remainingWiresAndBoxes))
         {model with Wires=remainingWires; wBB=remainingBbox}, Cmd.ofMsg (Symbol (Symbol.DeleteSymbol))
-
+    
+    | UpdateWires (newWire, newBB, newSymbols, newsBB) -> 
+        if newWire <> [] then 
+            {model with Wires = newWire; wBB = newBB}, Cmd.ofMsg (Symbol (Symbol.UpdateSymbols (newSymbols, newsBB)))
+        else 
+            {model with AutoRouting = true}, Cmd.ofMsg (Symbol (Symbol.UpdateSymbols (newSymbols, newsBB)))
 
     // | Hovering (symToSel, wireAndSegList ) -> 
     //     let wiresToSel,segmentsList = List.unzip wireAndSegList

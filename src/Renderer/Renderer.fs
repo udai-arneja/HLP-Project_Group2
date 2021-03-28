@@ -48,13 +48,15 @@
                    makeKeyItem "Blue" "Alt" (fun () -> dispatch KeyboardMsg.Alt)
                    makeKeyItem "Green" "Alt+V" (fun () -> dispatch KeyboardMsg.AltV)
                    makeKeyItem "Default"  "Alt+E" (fun () -> dispatch KeyboardMsg.DEL)
-                   makeKeyItem "Red" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
+                   makeKeyItem "ZoomSquare" "Alt+Z" (fun () -> dispatch KeyboardMsg.AltZ)
                    makeKeyItem "ZoomI" "Alt+Up" (fun () -> dispatch KeyboardMsg.AltUp)
                    makeKeyItem "ZoomI" "Alt+O" (fun () -> dispatch KeyboardMsg.PrintSelected)
                    makeKeyItem "ZoomO" "Alt+Down" (fun () -> dispatch KeyboardMsg.AltDown)
                    makeKeyItem "Delete" "delete" (fun () -> dispatch KeyboardMsg.DEL)
                    makeKeyItem "Duplicate" "Ctrl+Shift+="  (fun () -> dispatch KeyboardMsg.CtrlPlus)
-                   menuSeparator
+                   makeKeyItem "Undo" "Alt+U" (fun () -> dispatch KeyboardMsg.AltU)
+                   makeKeyItem "Redo" "Alt+R" (fun () -> dispatch KeyboardMsg.AltR)
+                   menuSeparator 
                    makeKeyItem "Print Statistics" "Alt+Shift+Z" (fun () -> dispatch KeyboardMsg.AltShiftZ)
                    makeRoleItem MenuItemRole.ForceReload
                    makeRoleItem MenuItemRole.Reload

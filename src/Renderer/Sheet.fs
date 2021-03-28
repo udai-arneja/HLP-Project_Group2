@@ -10,25 +10,30 @@ open Elmish.React
 open Helpers
 
 type KeyboardMsg =
-    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus
+    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | PrintSelected | CtrlS | Alt | CtrlPlus | AltU | AltR
+
+type Undo =
+    | MoveMultiSelect of ((Symbol.Symbol * int) * (XYPos * XYPos)) list * ((BusWire.Wire * int) * (XYPos*XYPos) list) list 
+    | DeleteMultiSelect of ((Symbol.Symbol * int) * (XYPos * XYPos)) list * ((BusWire.Wire * int) * (XYPos*XYPos) list) list 
+    | Nothing 
 
 type Model = {
     Wire: BusWire.Model
     IsWiring: (Option<CommonTypes.Port> * Option<CommonTypes.Port>)   //Input/Output * (portId * portId)       //do we need null for the first one - so does it need to be an option
     IsSelecting: CommonTypes.ComponentId list * (BusWire.Wire * int) list        //Symbols * Wires
-    IsDropping: bool
-    IsDraggingList: int * XYPos
     MultiSelectBox: bool * XYPos * XYPos  //boxOrWire,startPos, endPos multi-select box
     ZoomSpaceBox: XYPos * XYPos 
-    Restore: BusWire.Model
+    Restore: Undo
+    UndoTemp: Undo 
     LastOp: Helpers.MouseOp;
     LastKey: KeyboardMsg
     Zoom : float * XYPos
     ZoomSpace: bool * bool 
     LastDragPos : XYPos
+    Undo : Undo list
     }
 
-
+    
 
 type Msg =
     | Wire of BusWire.Msg
@@ -203,13 +208,13 @@ let wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) 
     | _ -> []
 
 let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
-    printfn "high %A" model.LastKey
+    
     match msg with
     | Wire (BusWire.MouseMsg {Op = mouseState ; Pos = { X = mX; Y = mY}}) ->
 
         //helper functions
         let mousePos = {X=mX;Y=mY}
-
+        printfn "high %A" mousePos
         let boundingBoxSearchS = match List.tryFindIndex (fun (co1,co2) -> co1.X<mX && co2.X>mX && co1.Y<mY && co2.Y>mY) model.Wire.Symbol.SymBBoxes with
                                  | Some index -> [model.Wire.Symbol.Symbols.[index]]
                                  | None -> []
@@ -246,15 +251,32 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                                               | (Some inputPort, None) -> match port.PortType with
                                                                           | CommonTypes.Output -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos}, Cmd.ofMsg (addWire (string inputPort.Id,string port.Id))
                                                                           | CommonTypes.Input -> {model with IsWiring=(None,None);LastOp=Down;LastDragPos=mousePos},Cmd.none
-                                               | _ -> failwithf "Not implemented - Down Sheet Update function ~ 219"          
+                                              | _ -> failwithf "Not implemented - Down Sheet Update function ~ 219"          
                                  | _ -> let (syms,wires) = model.IsSelecting
                                         let selectSyms = if List.contains sym.Id syms then List.filter (fun symbId -> symbId <> sym.Id) syms else List.append syms [sym.Id] 
-                                        {model with IsSelecting = (selectSyms,[]); LastOp=Down;LastDragPos=mousePos}, Cmd.none
+                                        let undoTemp = if selectSyms = []
+                                                       then Nothing 
+                                                       else 
+                                                            let undoIndexInfo = List.map (fun sym -> ((List.findIndex (fun (oGSym:Symbol.Symbol) -> oGSym.Id = sym) model.Wire.Symbol.Symbols))) selectSyms 
+                                                            let syms = List.map (fun index -> (List.item index model.Wire.Symbol.Symbols, index)) undoIndexInfo 
+                                                            let BB = List.map (fun index -> model.Wire.Symbol.SymBBoxes.[index]) undoIndexInfo 
+                                                            let finalSyms = List.zip syms BB
+                                                            MoveMultiSelect (finalSyms, [])
+                                        {model with IsSelecting = (selectSyms,[]); LastOp=Down;LastDragPos=mousePos; UndoTemp = undoTemp}, Cmd.none
                                  
                        | _ -> match boundingBoxSearchW with 
                                |[wireAndSeg] -> let (syms,wires) = model.IsSelecting
                                                 let selectWires = if List.contains wireAndSeg wires then wires else List.append wires [wireAndSeg] 
-                                                {model with IsSelecting = ([],selectWires); LastOp=Down;LastDragPos=mousePos}, Cmd.none         //reset wiring to none
+                                                let undoTemp = if selectWires = []
+                                                               then Nothing 
+                                                               else 
+                                                                    let justWires = List.map (fun (wire,seg) -> wire) selectWires 
+                                                                    let undoIndexInfo = List.map (fun wire -> ((List.findIndex (fun (oGWire:BusWire.Wire) -> oGWire = wire) model.Wire.Wires))) justWires
+                                                                    let wires = List.map (fun index -> (List.item index model.Wire.Wires, index)) undoIndexInfo 
+                                                                    let BB = List.map (fun index -> model.Wire.wBB.[index]) undoIndexInfo 
+                                                                    let finalWires = List.zip wires BB
+                                                                    MoveMultiSelect ([], finalWires)
+                                                {model with IsSelecting = ([],selectWires); LastOp=Down;LastDragPos=mousePos; UndoTemp = undoTemp}, Cmd.none         //reset wiring to none
                                |_ -> match model.LastKey with 
                                      |CtrlPlus -> {model with IsSelecting = ([],[]); LastKey = CtrlPlus; LastOp=Down;MultiSelectBox=(true,mousePos,mousePos);LastDragPos=mousePos; IsWiring = (None,None)}, Cmd.none
                                      |AltZ ->   {model with ZoomSpaceBox = (mousePos, mousePos)}, Cmd.none
@@ -263,25 +285,39 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
         | Up -> match model.LastOp with
                 | Drag -> match model.MultiSelectBox with
-                          |(true,p1,p2) ->  {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
-                                           
+                          |(true,p1,p2) ->  let (symbolIds, wireIdSeg) = inSelBox model p1 p2
+                                            let indicesToFind Lst = snd (List.unzip Lst)
+                                            let wireIds = fst (List.unzip wireIdSeg)
+                                            let symUndo = List.mapi (fun realIndex (OGSym:Symbol.Symbol) -> (List.tryFindIndex (fun symId -> OGSym.Id = symId ) symbolIds ) |> function |Some index -> [(OGSym,realIndex)] |None -> [] ) model.Wire.Symbol.Symbols
+                                                          |> List.collect id 
+                                            let wireUndo = List.mapi (fun index (OGWire:BusWire.Wire) -> (List.tryFind (fun wire -> OGWire = wire) wireIds) |> function |Some found -> [(OGWire,index)] |None -> [] ) model.Wire.Wires   
+                                                           |> List.collect id
+                                            let symBBUndo = List.mapi (fun index (bb:XYPos * XYPos) -> (List.tryFind  (fun ind -> ind = index) (indicesToFind symUndo)) |> function |Some ind -> [bb] |None -> []) model.Wire.Symbol.SymBBoxes
+                                                            |> List.collect id 
+                                            let wireBBUndo = List.mapi (fun index (bb:(XYPos * XYPos) list) -> (List.tryFind  (fun ind -> ind = index) (indicesToFind wireUndo))|> function |Some ind -> [bb] |None -> []) model.Wire.wBB
+                                                             |> List.collect id
+                                            let finalSymUndo = List.map2 (fun sym bb -> (sym,bb)) symUndo symBBUndo
+                                            let finalWireUndo = List.zip wireUndo wireBBUndo 
+                                            {model with MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.});LastOp=Up;LastDragPos=mousePos; UndoTemp = MoveMultiSelect(finalSymUndo, finalWireUndo)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect (inSelBox model p1 p2))// (symbInSelBox model p1 p2 , wireInSelBox model.Wire p1 p2) )//check if in bounding boxes
                           | _ ->  match model.ZoomSpace with
                                   |true,false ->    let (posa,posb) = model.ZoomSpaceBox
                                                     let (zoomChanged, coord) =  let (pos1, pos2) = (posa, mousePos) 
                                                                                 if model.ZoomSpace = (true,false)
                                                                                 then let (top, bottom) = if pos1.Y > pos2.Y then (pos2, pos1) else (pos1, pos2)
-                                                                                     let newZoom = 1000./(float (max (bottom.X - top.X) (bottom.Y - top.Y)))
+                                                                                     let newZoomStart = int (10000./(float (max (bottom.X - top.X) (bottom.Y - top.Y))))
+                                                                                     let newZoom = (float newZoomStart)/10.
                                                                                      (newZoom, {X=(-(top.X)*newZoom); Y = (-(top.Y)*newZoom)})
                                                                                 else model.Zoom
                                                     {model with ZoomSpace = (true,true); Zoom = (zoomChanged, {X=coord.X; Y=coord.Y}); ZoomSpaceBox = (posa,mousePos); LastOp=Up;LastDragPos=mousePos}, Cmd.none
-                                  |_ -> {model with LastOp=Up;LastDragPos=mousePos;IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
+                                  |_ -> let newUndo = model.UndoTemp :: model.Undo
+                                        {model with LastOp=Up;LastDragPos=mousePos;IsSelecting=([],[]); Undo = newUndo; UndoTemp = Nothing} , Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting) //Cmd.ofMsg (Wire <| BusWire.UpdateBoundingBoxes model.IsSelecting) //   Cmd.ofMsg (updateBBoxes model.IsSelecting) //interface required
 
                 | Down -> match model.LastKey with
                           |CtrlS -> {model with LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.HighlightSymbol (fst model.IsSelecting)))
                           |AltZ -> {model with LastKey = AltZ; IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                           |CtrlN ->  {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.SnaptoGrid model.IsSelecting)
                           |CtrlPlus -> {model with LastOp=Up;LastDragPos=mousePos; LastKey = Alt; IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.SnapSymbolToGrid [(List.last model.Wire.Symbol.Symbols).Id]))
-                          |_ ->  {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
+                          |_ -> {model with IsSelecting = ([],[]);LastOp=Up;LastDragPos=mousePos;MultiSelectBox=(false,{X=0.;Y=0.},{X=0.;Y=0.}); ZoomSpace = (false,false)}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting)
                 | _   -> {model with LastOp=Up;LastDragPos=mousePos}, Cmd.none
 
 
@@ -316,10 +352,13 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
 
     | KeyPress CtrlN -> // add symbol and create a restore point
         let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], CommonTypes.Nor))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
-        {model with Wire = wModel; IsDropping = true; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlN; Restore = model.Wire}, Cmd.map Wire wCmd
+        {model with Wire = wModel; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlN}, Cmd.map Wire wCmd
     
     |KeyPress DEL ->
-        {model with IsSelecting=([],[])}, Cmd.ofMsg (Wire <| BusWire.DeleteWire) 
+        let newTemp = match model.UndoTemp with 
+                      |MoveMultiSelect(a,b) -> DeleteMultiSelect(a,b)
+        let newUndo = newTemp :: model.Undo
+        {model with IsSelecting=([],[]); Undo = newUndo; UndoTemp = Nothing}, Cmd.ofMsg (Wire <| BusWire.DeleteWire) 
 
     | KeyPress AltZ -> match model.LastKey with 
                        |AltZ -> {model with ZoomSpace = (false,false); Zoom = (1.0, {X=0.;Y=0.}); ZoomSpaceBox = ({X=0.;Y=0.},{X=0.;Y=0.}); LastKey = Alt}, Cmd.none
@@ -337,8 +376,53 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
         printfn "Zoom Out"
         {model with Zoom=((fst model.Zoom-0.1), {X=0.;Y=0.}); LastKey = AltDown}, Cmd.none
 
+    | KeyPress AltU -> 
+        let multiFunctionWire acc (Lst: (BusWire.Wire * int) * (XYPos*XYPos) list ) =
+            let ((wire, index), BB) = Lst
+            let newWires = List.map (fun (changeWire:BusWire.Wire) -> if changeWire.Id = wire.Id then wire else changeWire) (fst acc)
+            let newBB = List.mapi (fun indexBB changeBB -> if indexBB = index then BB else changeBB) (snd acc)
+            (newWires,newBB)
+
+        let multiFunctionSym acc (Lst: (Symbol.Symbol * int) * (XYPos*XYPos))= 
+            let ((sym, index), BB) = Lst 
+            let newSymbols = List.map (fun (changeSym: Symbol.Symbol) -> if changeSym.Id = sym.Id then sym else changeSym) (fst acc)
+            let newBB = List.mapi (fun indexBB changeBB -> if indexBB = index then BB else changeBB) (snd acc)
+            (newSymbols, newBB)
+
+        let multiFunctionSymD acc (Lst: (Symbol.Symbol * int) * (XYPos*XYPos)) = 
+            let ((sym, index), BB) = Lst 
+            let symSplit = if index > 0 then List.splitAt (index-1) (fst acc) else List.splitAt (index) (fst acc)
+            let bbSplit = if index > 0 then List.splitAt (index-1) (snd acc) else List.splitAt (index) (snd acc)
+            let newSymbols = List.append [sym] (snd symSplit) 
+                             |> List.append (fst symSplit)
+            let newBB = List.append [BB] (snd bbSplit) 
+                             |> List.append (fst bbSplit)
+            (newSymbols, newBB)
+
+        let multiFunctionWireD acc (Lst: (BusWire.Wire * int) * (XYPos*XYPos) list ) =
+            let ((wire, index), BB) = Lst
+            let wireSplit = if index > 0 then List.splitAt (index-1) (fst acc) else List.splitAt (index) (fst acc)
+            let bbSplit = if index > 0 then List.splitAt (index-1) (snd acc) else List.splitAt (index) (snd acc)
+            let newWires = List.append [wire] (snd wireSplit) 
+                           |> List.append (fst wireSplit) 
+            let newBB = List.append [BB] (snd bbSplit) 
+                           |> List.append (fst bbSplit)
+            (newWires,newBB)
+
+        match List.head (model.Undo) with                                             
+        | MoveMultiSelect (symIndexBB, wireIndexBB) -> let (newSymbols, newSBB) = List.fold (fun acc symIndexBB -> multiFunctionSym acc symIndexBB) (model.Wire.Symbol.Symbols, model.Wire.Symbol.SymBBoxes) symIndexBB
+                                                       let (newWires, newWBB) = List.fold (fun acc wireIndexBB -> multiFunctionWire acc wireIndexBB) (model.Wire.Wires, model.Wire.wBB) wireIndexBB
+                                                       {model with Undo = List.tail model.Undo;  Restore = List.head model.Undo}, Cmd.ofMsg (Wire <| BusWire.UpdateWires (newWires, newWBB, newSymbols, newSBB))
+        | DeleteMultiSelect (symIndexBB, wireIndexBB) -> let sortIndexSymbols = List.sortBy (fun ((sym,index),BB) -> index) symIndexBB
+                                                         let sortIndexWires = List.sortBy (fun ((wire,index),BB) -> index) wireIndexBB
+                                                         let (newSymbols, newSBB) = List.fold (fun acc symIndexBB -> multiFunctionSymD acc symIndexBB) (model.Wire.Symbol.Symbols, model.Wire.Symbol.SymBBoxes) sortIndexSymbols
+                                                         let (newWires, newWBB) = List.fold (fun acc wireIndexBB -> multiFunctionWireD acc wireIndexBB) (model.Wire.Wires, model.Wire.wBB) sortIndexWires
+                                                         {model with Undo = List.tail model.Undo;  Restore = List.head model.Undo}, Cmd.ofMsg (Wire <| BusWire.UpdateWires (newWires, newWBB, newSymbols, newSBB))
+        | Nothing  -> model, Cmd.none
+
     //|KeyPress Alt -> printfn "hey"
     //                 model, Cmd.none
+    //|KeyPress AltR -> 
 
     |KeyPress CtrlS -> if model.LastKey = CtrlS then {model with LastKey = Alt}, Cmd.ofMsg (Wire <| BusWire.ToggleSelect model.IsSelecting) else {model with LastKey = CtrlS}, Cmd.none
 
@@ -366,16 +450,16 @@ let init() =
         Wire = model
         IsWiring = (None, None)
         IsSelecting= ([], [])
-        IsDropping= false
-        IsDraggingList = (0, {X=0.;Y=0.})
         MultiSelectBox = (false, {X=0.;Y=0.}, {X=0.;Y=0.})
-        Restore = model 
+        Restore = Nothing 
         LastOp = Move
         ZoomSpaceBox = ({X=0.;Y=0.},{X=0.;Y=0.})
         LastKey = Alt
         Zoom = (1.0, {X=0.;Y=0.})
         LastDragPos={X=0.;Y=0.}
         ZoomSpace = (false, false)
+        Undo = []
+        UndoTemp = Nothing
     }, Cmd.map Wire cmds
 
 
