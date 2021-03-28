@@ -11,7 +11,7 @@ open Elmish.React
 open Helpers
 
 type KeyboardMsg =
-    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | CtrlS | Alt | CtrlPlus | AltU | AltR |CtrlNPlus |CtrlT| AltO
+    | CtrlN | AltC | AltV | AltZ | AltShiftZ | DEL| Ctrl | AltUp |AltDown | CtrlS | Alt | CtrlPlus | AltU | AltR |CtrlNPlus |CtrlT| AltO | CtrlNPlusWidth
 
 type Undo =
     | MoveMultiSelect of ((Symbol.Symbol * int) * (XYPos * XYPos)) list * ((BusWire.Wire * int) * (XYPos*XYPos) list) list 
@@ -32,7 +32,7 @@ type Model = {
     ZoomSpace: bool * bool 
     LastDragPos : XYPos
     Undo : Undo list
-    FavLang: string
+    Comp: string
     }
     
 
@@ -48,7 +48,33 @@ type SelectingBox={
 
 //helper functions
 //let zoom = 1.0
-let stringToComponent comp =
+
+//let inputno = match comp with 
+//              |"not" -> 2
+//              |"and" -> 2
+//              |"or" -> 2
+//              |"xor" -> 2
+//              |"nand" -> 2
+//              |"nor" -> 2
+//              |"xnor" -> 2
+//              |"mux2" -> 3
+//              |"demux2" -> 2
+//              |"nbitsadder" -> 3
+//              |"mergewires" -> 2
+//              |"splitwire" -> 1
+//              |"dff" -> 1
+//              |"dffe" -> 2
+//              |"register" -> 1
+//              |"registere" -> 2
+//              |"rom" -> 1
+//              |"asyncrom" -> 1
+//              |"ram" -> 3
+
+    
+
+
+
+let stringToComponent comp width=
     match comp with
     |"Not" -> CommonTypes.Not
     |"And" -> CommonTypes.And
@@ -64,32 +90,72 @@ let stringToComponent comp =
     //|"SplitWire" -> CommonTypes.SplitWire
     |"DFF" -> CommonTypes.DFF
     |"DFFE" -> CommonTypes.DFFE
-    //|"Register" -> CommonTypes.Register bits
+    |"Register" -> CommonTypes.Register width
     //|"RegisterE" -> CommonTypes.RegisterE bits
     //|"ROM" -> CommonTypes.ROM Memory
     //|"AsyncROM" -> CommonTypes.AsyncROM Memory
     //|"RAM" -> CommonTypes.RAM Memory
     //|"Custom" -> CommonTypes.Custom 
 
-let renderItem component dispatch =
+let renderBusWidth dispatch width model=
     Dropdown.Item.a 
         [ 
             Dropdown.Item.Props
                 [
                     OnClick (fun _ ->
-                        dispatch (Wire (BusWire.NewComponent component))
+                        dispatch (Wire (BusWire.NewComponent (model.Comp, width)))
+                         
                     )
                 ]
         ]
         [ 
-            str (component)
+            str (string (width))
         ]
 
+let renderDropdownInput model dispatch =
+    Dropdown.dropdown [ Dropdown.IsHoverable ]
+        [
+            div [ ]
+                [ 
+                    Button.button [ ]
+                        [ str "choose your input buswidth" ]
+                ]
+            Dropdown.menu [ ]
+                [
+                    Dropdown.content [ ]
+                        [ 
+                            renderBusWidth dispatch 1 model
+                            renderBusWidth dispatch 2 model
+                            renderBusWidth dispatch 3 model
+                            renderBusWidth dispatch 4 model
+                            renderBusWidth dispatch 5 model
+                            renderBusWidth dispatch 6 model
+                            renderBusWidth dispatch 7 model
+                            renderBusWidth dispatch 8 model
+                            renderBusWidth dispatch 9 model
+                            renderBusWidth dispatch 10 model
+                        ]
+                ]
+        ]
+
+let renderItem component dispatch width model=
+        Dropdown.Item.a 
+            [ 
+                Dropdown.Item.Props
+                    [
+                        OnClick (fun _ ->
+                            dispatch (Wire (BusWire.NewComponent (component, width)))
+                             
+                        )
+                    ]
+            ]
+            [ 
+                str (component)
+            ]
+
+
 let renderDropdown model dispatch = 
-    // Here I am using Dropdown.IsHoverable so the dropdown is displayed 
-    // when the mouse hover the dropdown
-    // If you want to display it when the user click in it you will need
-    // to listen click event, create your logic, and use Dropdown.IsActive property
+
     Dropdown.dropdown [ Dropdown.IsHoverable ]
         [
             div [ ]
@@ -101,112 +167,67 @@ let renderDropdown model dispatch =
                 [
                     Dropdown.content [ ]
                         [ 
-                            renderItem "Not" dispatch
-                            renderItem "And" dispatch
-                            renderItem "Or" dispatch
-                            renderItem "Xor" dispatch 
-                            renderItem "Nand" dispatch 
-                            renderItem "Nor" dispatch 
-                            renderItem "Xnor" dispatch 
-                            renderItem "Mux2" dispatch 
-                            renderItem "Demux2" dispatch
+                            renderItem "Not" dispatch 0 model
+                            renderItem "And" dispatch 0 model
+                            renderItem "Or" dispatch 0 model
+                            renderItem "Xor" dispatch 0 model
+                            renderItem "Nand" dispatch 0 model
+                            renderItem "Nor" dispatch 0 model
+                            renderItem "Xnor" dispatch 0 model
+                            renderItem "Mux2" dispatch 0 model
+                            renderItem "Demux2" dispatch 0 model
+                            renderItem "Register" dispatch 0 model
                         ]
                 ]
 
         ]
 
-let renderDropdownInput model dispatch comp =
-    //let inputno = match comp with 
-    //              |"Not" -> 2
-    //              |"And" -> 2
-    //              |"Or" -> 2
-    //              |"Xor" -> 2
-    //              |"Nand" -> 2
-    //              |"Nor" -> 2
-    //              |"Xnor" -> 2
-    //              |"Mux2" -> 3
-    //              |"Demux2" -> 2
-    //              |"NbitsAdder" -> 3
-    //              |"MergeWires" -> 2
-    //              |"SplitWire" -> 1
-    //              |"DFF" -> 1
-    //              |"DFFE" -> 2
-    //              |"Register" -> 1
-    //              |"RegisterE" -> 2
-    //              |"ROM" -> 1
-    //              |"AsyncROM" -> 1
-    //              |"RAM" -> 3
 
+//let renderDropdownOutput model dispatch comp =
+//    //let outputno = match comp with 
+//    //              |"Not" -> 1
+//    //              |"And" -> 1
+//    //              |"Or" -> 1
+//    //              |"Xor" -> 1
+//    //              |"Nand" -> 1
+//    //              |"Nor" -> 1
+//    //              |"Xnor" -> 1
+//    //              |"Mux2" -> 1
+//    //              |"Demux2" -> 2
+//    //              |"NbitsAdder" -> 2
+//    //              |"MergeWires" -> 1
+//    //              |"SplitWire" -> 2
+//    //              |"DFF" -> 1
+//    //              |"DFFE" -> 1
+//    //              |"Register" -> 1
+//    //              |"RegisterE" -> 1
+//    //              |"ROM" -> 1
+//    //              |"AsyncROM" -> 1
+//    //              |"RAM" -> 1
                   
-        Dropdown.dropdown [ Dropdown.IsHoverable ]
-        [
-            div [ ]
-                [ 
-                    Button.button [ ]
-                        [ str "Choose your Input BusWidth" ]
-                ]
-            Dropdown.menu [ ]
-                [
-                    Dropdown.content [ ]
-                        [ 
-                            renderItem "Not" dispatch
-                            renderItem "And" dispatch
-                            renderItem "Or" dispatch
-                            renderItem "Xor" dispatch 
-                            renderItem "Nand" dispatch 
-                            renderItem "Nor" dispatch 
-                            renderItem "Xnor" dispatch 
-                            renderItem "Mux2" dispatch 
-                            renderItem "Demux2" dispatch
-                        ]
-                ]
-        ]
-
-let renderDropdownOutput model dispatch comp =
-    //let outputno = match comp with 
-    //              |"Not" -> 1
-    //              |"And" -> 1
-    //              |"Or" -> 1
-    //              |"Xor" -> 1
-    //              |"Nand" -> 1
-    //              |"Nor" -> 1
-    //              |"Xnor" -> 1
-    //              |"Mux2" -> 1
-    //              |"Demux2" -> 2
-    //              |"NbitsAdder" -> 2
-    //              |"MergeWires" -> 1
-    //              |"SplitWire" -> 2
-    //              |"DFF" -> 1
-    //              |"DFFE" -> 1
-    //              |"Register" -> 1
-    //              |"RegisterE" -> 1
-    //              |"ROM" -> 1
-    //              |"AsyncROM" -> 1
-    //              |"RAM" -> 1
-                  
-        Dropdown.dropdown [ Dropdown.IsHoverable ]
-        [
-            div [ ]
-                [ 
-                    Button.button [ ]
-                        [ str "Choose your Input BusWidth" ]
-                ]
-            Dropdown.menu [ ]
-                [
-                    Dropdown.content [ ]
-                        [ 
-                            renderItem "Not" dispatch
-                            renderItem "And" dispatch
-                            renderItem "Or" dispatch
-                            renderItem "Xor" dispatch 
-                            renderItem "Nand" dispatch 
-                            renderItem "Nor" dispatch 
-                            renderItem "Xnor" dispatch 
-                            renderItem "Mux2" dispatch 
-                            renderItem "Demux2" dispatch
-                        ]
-                ]
-        ]
+//        Dropdown.dropdown [ Dropdown.IsHoverable ]
+//        [
+//            div [ ]
+//                [ 
+//                    Button.button [ ]
+//                        [ str "Choose your Input BusWidth" ]
+//                ]
+//            Dropdown.menu [ ]
+//                [
+//                    Dropdown.content [ ]
+//                        [ 
+//                            renderItem "Not" dispatch
+//                            renderItem "And" dispatch
+//                            renderItem "Or" dispatch
+//                            renderItem "Xor" dispatch 
+//                            renderItem "Nand" dispatch 
+//                            renderItem "Nor" dispatch 
+//                            renderItem "Xnor" dispatch 
+//                            renderItem "Mux2" dispatch 
+//                            renderItem "Demux2" dispatch
+//                        ]
+//                ]
+//        ]
 
 //let renderPreview model =
 //    match model.FavLang with
@@ -268,7 +289,8 @@ let displaySvgWithZoom (zoom:float*XYPos) (svgReact: ReactElement) (dispatch: Di
                        |_ -> svgReact
             ]
 
-    if model.LastKey = CtrlN then
+    match model.LastKey with 
+    |CtrlN -> 
         div [ Style 
                 [ 
                     Height "100vh" 
@@ -282,9 +304,23 @@ let displaySvgWithZoom (zoom:float*XYPos) (svgReact: ReactElement) (dispatch: Di
               ]
               [
                   renderDropdown model dispatch
-              ]                        
-
-    else 
+              ]    
+    |CtrlNPlusWidth -> 
+        div [ Style 
+                [ 
+                    Height "100vh" 
+                    MaxWidth "100vw"
+                    CSSProp.OverflowX OverflowOptions.Auto 
+                    CSSProp.OverflowY OverflowOptions.Auto
+                ] 
+              OnMouseDown (fun ev -> (mouseOp Down ev))
+              OnMouseUp (fun ev -> (mouseOp Up ev))
+              OnMouseMove (fun ev -> mouseOp (if mDown ev then Drag else Move) ev)
+              ]
+              [
+                  renderDropdownInput model dispatch
+              ]   
+    |_ -> 
         div [ Style 
                 [ 
                     Height "100vh" 
@@ -528,9 +564,12 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
                   |(Some port,None) -> {model with LastOp=Move;LastDragPos=mousePos}, Cmd.ofMsg (Wire <| BusWire.Symbol (Symbol.ShowValidPorts (CommonTypes.ShowOutputsOnly, port.Id, mousePos)) )
                   | _ ->  failwithf "Not implemented - Move Sheet Update function ~ 253" 
     
-    | Wire (BusWire.NewComponent comp) ->   printfn "hello"
-                                            let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol ([1;1], [1], stringToComponent comp))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
-                                            {model with Wire = wModel; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlNPlus}, Cmd.map Wire wCmd
+    | Wire (BusWire.NewComponent (comp, width)) ->  match (comp, width) with 
+                                                    |("Register", 0) -> {model with LastKey = CtrlNPlusWidth; Comp = "Register"}, Cmd.none
+                                                    |("Register", _) -> let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol (stringToComponent comp width, width))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
+                                                                        {model with Wire = wModel; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlNPlus; Comp = "nothing"}, Cmd.map Wire wCmd
+                                                    |_ -> let wModel, wCmd = BusWire.update (BusWire.Msg.Symbol (Symbol.AddSymbol (stringToComponent comp 0, width))) model.Wire    // [1], [1] - this needs to be different for different types        Custom {Name="Kurt";InputLabels=[("Udai",1);("Simi",1);("Gabs",1)];OutputLabels=[("Karl",1)]})
+                                                          {model with Wire = wModel; LastDragPos = {X=10.;Y=10.}; LastKey = CtrlNPlus; Comp = "nothing"}, Cmd.map Wire wCmd
 
     |Wire wMsg -> 
         let wModel, wCmd = BusWire.update wMsg model.Wire //send message
@@ -654,7 +693,7 @@ let init() =
         ZoomSpace = (false, false)
         Undo = []
         UndoTemp = Nothing
-        FavLang = "nothing"
+        Comp = "nothing"
     }, Cmd.map Wire cmds
 
 

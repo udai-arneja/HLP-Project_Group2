@@ -67,7 +67,7 @@ type Msg =
     | Dragging of (CommonTypes.ComponentId list * (Wire * int) list) * prevPos: XYPos * currPos: XYPos
     | SnaptoGrid of (CommonTypes.ComponentId list * (Wire * int) list)
     | UpdateWires of Wire list * (XYPos*XYPos) list list * Symbol.Symbol list * (XYPos*XYPos) list
-    | NewComponent of string
+    | NewComponent of string * int
     | RunBusWidthInference
     // | DraggingList of wId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     // | EndDragging of wId : CommonTypes.ComponentId
@@ -458,7 +458,7 @@ let singleWireView =
                     
                     
                     SVGAttr.Stroke props.ColorP //(if props.BusWidth = 1 then props.ColorP elif props.Selected = true then "yellow" else "darkorchid")
-                    SVGAttr.StrokeWidth (if props.BusWidth = 1 then props.StrokeWidthP else "5px")
+                    SVGAttr.StrokeWidth (if props.BusWidth > 1 then props.StrokeWidthP else "5px")
                     SVGAttr.StrokeLinecap "round"  ] []
 
             let busWidthLegend =
@@ -524,6 +524,7 @@ let view (model:Model) (dispatch: Dispatch<Msg>)=
                              | (_, _, true) -> "yellow"
                              | (_, true, false) -> "red"
                              | (1,false, false) -> "black"
+                             | (0, false,false) -> "black"
                              | (_, false, false )-> "darkorchid"
             let props = {
                 key = w.Id

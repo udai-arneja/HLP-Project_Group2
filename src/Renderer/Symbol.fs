@@ -60,7 +60,7 @@ type Msg =
     //| DraggingList of sId : CommonTypes.ComponentId list  * pagePos: XYPos * prevPagePos: XYPos
     //| EndDragging of sId : CommonTypes.ComponentId
     //| EndDraggingList of sId : CommonTypes.ComponentId list *pagePos:XYPos
-    | AddSymbol of inputs: int list * outputs: int list * comp: CommonTypes.ComponentType
+    | AddSymbol of comp: CommonTypes.ComponentType * width: int
     | DeleteSymbol
     | UpdateSymbolModelWithComponent of CommonTypes.Component // Issie interface
     | ToggleSymbol of selectedSymbol:CommonTypes.ComponentId list // usually one thing
@@ -159,24 +159,83 @@ let creditLines x1Pos y1Pos x2Pos y2Pos width = // cheeky bit of kareem abstract
 //-----------------------------Skeleton Model Type for symbols----------------//
 
 
-let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(width:int)(numPorts): CommonTypes.Port =
+let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(width:int)(portno:int): CommonTypes.Port =
     let portPos =
         match comp.Type with
-        // |RAM -> if portType = CommonTypes.Input
-        //sthen {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float(portNumber + 1))*(comp.H/6.))}
-        //            else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/2.))}
-        // |NbitAdder -> if portType = CommonTypes.Input
-        //               then {X=comp.Pos.X-10.;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
-        //               else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/3.))}
-        |_ -> match comp.Rotate with 
-              | false ->  match (portType, numPorts) with
+         |RAM mem -> if portType = CommonTypes.Input
+                     then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float(portNumber + 1))*(comp.H/6.))}
+                     else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/2.))}
+         | NbitsAdder width ->if portType = CommonTypes.Input
+                                 then {X=comp.Pos.X;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+                                 else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/3.))}
+         | DFF ->  if portType = CommonTypes.Input
+                   then {X=comp.Pos.X;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+                   else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+         | DFFE -> if portType = CommonTypes.Input
+                   then {X=comp.Pos.X;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+                   else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+         | Register width ->    if portType = CommonTypes.Input
+                                then {X=comp.Pos.X;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+                                else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+         | RegisterE width -> if portType = CommonTypes.Input
+                                 then {X=comp.Pos.X;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+                                 else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y + ((float (portNumber)) + 1.)*(comp.H/4.))}
+         |_ -> match comp.Rotate with 
+              | false ->  match (portType, portno) with
                           | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.H/2.))}
                           | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.H)/2.) + comp.H/4.)}
                           | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
                           | (_, 1) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ( comp.H/2.) )}
                           | (_, 2) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ((float (portNumber))*2. + 1.)*(comp.H/4.))}  // this one
                           |_ -> failwithf "Error on portlist"
-              |true ->  match (portType, numPorts) with
+              |true ->  match (portType, portno) with
+                          | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.W/2.))}
+                          | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.W)/2.) + comp.W/4.)}
+                          | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
+                          | (_, 1) -> {X=(comp.Pos.X+comp.H);Y=(comp.Pos.Y + ( comp.W/2.) )}
+                          | (_, 2) -> {X=(comp.Pos.X+comp.H);Y=(comp.Pos.Y + ((float (portNumber))*2. + 1.)*(comp.W/4.))}  // this one
+                          |_ -> failwithf "Error on portlist"
+    printfn "portpos %A" portPos
+    {
+        CommonTypes.Port.Id = Helpers.uuid()
+        CommonTypes.Port.PortNumber = Some portNumber
+        CommonTypes.Port.PortType = portType
+        CommonTypes.Port.HostId = string(comp.Id)
+        CommonTypes.Port.PortPos = portPos
+        CommonTypes.Port.BusWidth = width
+        // CommonTypes.Port.PortInUse = false
+    }
+
+let createCustomPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(width:int): CommonTypes.Port =
+    let portPos =
+        match comp.Type with
+         |RAM mem -> if portType = CommonTypes.Input
+                     then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float(portNumber + 1))*(comp.H/6.))}
+                     else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/2.))}
+         | NbitsAdder width ->if portType = CommonTypes.Input
+                                 then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+                                 else {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y+(float (portNumber + 1))*(comp.H/3.))}
+         | DFF ->  if portType = CommonTypes.Input
+                   then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+                   else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+         | DFFE -> if portType = CommonTypes.Input
+                   then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+                   else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+         | Register width -> if portType = CommonTypes.Input
+                                then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+                                else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+         | RegisterE width -> if portType = CommonTypes.Input
+                                 then {X=comp.Pos.X;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+                                 else {X=comp.Pos.X+comp.W;Y=(comp.Pos.Y+ (float (portNumber)) + 1.)*(comp.H/4.)}
+         |_ -> match comp.Rotate with 
+              | false ->  match (portType, portNumber) with
+                          | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.H/2.))}
+                          | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.H)/2.) + comp.H/4.)}
+                          | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
+                          | (_, 1) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ( comp.H/2.) )}
+                          | (_, 2) -> {X=(comp.Pos.X+comp.W);Y=(comp.Pos.Y + ((float (portNumber))*2. + 1.)*(comp.H/4.))}  // this one
+                          |_ -> failwithf "Error on portlist"
+              |true ->  match (portType, portNumber) with
                           | (CommonTypes.Input, 1) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ (float (portNumber + 1))*(comp.W/2.))}
                           | (CommonTypes.Input, 2) -> {X=comp.Pos.X ; Y=(comp.Pos.Y + (((float (portNumber))* comp.W)/2.) + comp.W/4.)}
                           | (CommonTypes.Input, 3) -> {X=comp.Pos.X ;Y=(comp.Pos.Y+ 60.)} //(float (portNumber)) + 1.)*(comp.H/4.)
@@ -227,7 +286,12 @@ let createPortList (comp:Symbol)(portType:CommonTypes.PortType)(portNumber:int)(
 /// Symbol creation: a unique Id is given to the symbol, found from uuid.
 /// The parameters of this function must be enough to specify the symbol completely
 /// in its initial form. This is called by the AddSymbol message and need not be exposed.
-let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) = //could match comp for symbols of different heights and widths
+let createNewSymbol (inputno: int) (outputno: int) (width:int) (comp:CommonTypes.ComponentType) = //could match comp for symbols of different heights and widths
+    let symWidth = 
+        match comp with 
+        |Register bits -> 60.*2.
+        |RegisterE bits -> 60.*2.
+        |_ -> 60.
     let mainSymbol = {
                 LastDragPos = {X=10.;Y=10.}
                 IsDragging = false
@@ -237,16 +301,15 @@ let createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.Com
                 OutputPorts = []
                 Pos = {X=10.;Y=10.}
                 H = 80.
-                W = 60.
+                W = symWidth
                 IsSelected = false
                 IsHighlighted = false
                 PortStatus = Invisible
                 IsSliding = (ShowInputsOnly, "null", 0, {X=0.; Y=0.})
                 Rotate = false
               }
-
-    let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length inputs)) inputs
-    let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length outputs)) outputs
+    let InputPortsList = List.map (fun input -> createPortList mainSymbol CommonTypes.PortType.Input input width inputno) [0..(inputno-1)]
+    let OutputPortsList = List.map (fun output -> createPortList mainSymbol CommonTypes.PortType.Output output width outputno) [0..(outputno-1)]
     {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}
 
 let createCustomSymbol (comp:CommonTypes.CustomComponentType) = 
@@ -255,8 +318,8 @@ let createCustomSymbol (comp:CommonTypes.CustomComponentType) =
                 IsDragging = false
                 Id = CommonTypes.ComponentId (Helpers.uuid())
                 Type = Custom comp
-                InputPorts = []
-                OutputPorts = []
+                InputPorts =  []
+                OutputPorts =  []
                 Pos = {X=10.;Y=10.}
                 H = max (80.) (float (max (List.length comp.InputLabels) (List.length comp.OutputLabels))*40.)
                 W = 60.
@@ -268,12 +331,12 @@ let createCustomSymbol (comp:CommonTypes.CustomComponentType) =
               }  
     let _, inputBusWidths = List.unzip comp.InputLabels
     let _, outputBusWidths = List.unzip comp.OutputLabels
-    let InputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Input index width (List.length comp.InputLabels )) inputBusWidths //comp.InputLabels?
-    let OutputPortsList = List.mapi (fun index width -> createPortList mainSymbol CommonTypes.PortType.Output index width (List.length comp.OutputLabels)) outputBusWidths
+    let InputPortsList = List.mapi (fun index width -> createCustomPortList mainSymbol CommonTypes.PortType.Input index width ) inputBusWidths //comp.InputLabels?
+    let OutputPortsList = List.mapi (fun index width -> createCustomPortList mainSymbol CommonTypes.PortType.Output index width ) outputBusWidths
     {mainSymbol with InputPorts=InputPortsList; OutputPorts=OutputPortsList}            
 
 
-let createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol)=
+let createNewBoundingBox (inputs: int) (outputs: int) (sym: Symbol)=
     ({X=0.;Y=0.},{X=sym.W+20.;Y=sym.H+20.})
 
     // +float(max (List.length inputs) (List.length outputs))*40.;Y=75.+float (max (List.length inputs) (List.length outputs))*40.})
@@ -341,17 +404,32 @@ let init() =
 /// update function which displays symbols
 let update (msg : Msg) (model : Model): Model*Cmd<'a>  =
     match msg with
-    | AddSymbol(inputno, outputno, compType) ->
+    | AddSymbol(compType, width) ->
         //need to have anther sheet input parameter for when custom - this could be an option
         // let customInformation: CustomComponentType= 
         //     {Name="Kurtangle";InputLabels=[("Udai",1);("Simi",1)];OutputLabels=[("Karl",1)]}
+        let (inputno,outputno) = match compType with 
+                                 |CommonTypes.Not -> (1,1)
+                                 |CommonTypes.And -> (2,1)
+                                 |CommonTypes.Or -> (2,1)
+                                 |CommonTypes.Xor -> (2,1)
+                                 |CommonTypes.Nand -> (2,1)
+                                 |CommonTypes.Nor -> (2,1)
+                                 |CommonTypes.Xnor -> (2,1)
+                                 |CommonTypes.Mux2 -> (3,1)
+                                 |CommonTypes.Demux2 -> (2,2)
+                                 |CommonTypes.MergeWires -> (2,1)
+                                 |CommonTypes.DFF -> (1,1)
+                                 |CommonTypes.DFFE -> (2,1)
+                                 |CommonTypes.Register bits -> (1,1)
+
         match compType with
         | CommonTypes.Custom customInformation -> let newSymbol = createCustomSymbol customInformation
                                                   let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
                                                   let newSymbolList = List.rev (newSymbol::model.Symbols)
                                                   let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
                                                   {model with Symbols=newSymbolList; SymBBoxes=newSymbolsBoundingBoxes} , Cmd.none
-        | _ -> let newSymbol = createNewSymbol inputno outputno compType
+        | _ -> let newSymbol = createNewSymbol inputno outputno width compType
                let newBoundingBox = createNewBoundingBox inputno outputno newSymbol
                let newSymbolList = List.rev (newSymbol::model.Symbols)
                let newSymbolsBoundingBoxes = List.rev (newBoundingBox::model.SymBBoxes)
@@ -636,7 +714,7 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
     //                 ]
     //     )
-    | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 -> //| Demux2 | DFF | DFFE | Register bits | RegisterE bits | ROM memorySize | AsyncROM memorySize | RAM memorySize ->
+    | Not | And | Or | Xor | Nand | Nor | Xnor | Mux2 | Demux2 -> //| Demux2 | DFF | DFFE | Register bits | RegisterE bits | ROM memorySize | AsyncROM memorySize | RAM memorySize ->
         FunctionComponent.Of(
             fun (props : RenderSymbolProps) ->
                 // let handleMouseMove =
@@ -848,6 +926,108 @@ let private RenderSymbol (comp: CommonTypes.ComponentType)=
 
 
         )
+
+        | Register bits -> //| RegisterE bits | ROM memorySize | AsyncROM memorySize | RAM memorySize ->
+            FunctionComponent.Of(
+                fun (props : RenderSymbolProps) ->
+                    // let handleMouseMove =
+                    //     Hooks.useRef(fun (ev : Types.Event) ->
+                    //         let ev = ev :?> Types.MouseEvent
+                    //         // x,y coordinates here do not compensate for transform in Sheet
+                    //         // and are wrong unless zoom=1.0 MouseMsg coordinates are correctly compensated.
+                    //         Dragging([props.Symb.Id], (posOf ev.pageX ev.pageY))
+                    //         |> props.Dispatch
+                    //     )
+                    let (portVis, symId, portNum, mousePosition) = props.Symb.IsSliding
+                    let displayPort = 
+                        let outputPorts = List.map (fun (ports:CommonTypes.Port) -> circus ports.PortPos.X  ports.PortPos.Y 5. ) props.Symb.OutputPorts
+                        let inputPorts = List.map (fun (ports:CommonTypes.Port) -> circus ports.PortPos.X  ports.PortPos.Y 5. ) props.Symb.InputPorts
+                        let slideCirc IO portNum (mousePos:XYPos)=
+                            let portList =
+                                if IO = "input" then props.Symb.InputPorts.[portNum].PortPos else props.Symb.OutputPorts.[portNum].PortPos
+                            [
+                                circus mousePos.X  mousePos.Y 5.
+                                line [
+                                    X1 portList.X
+                                    Y1 portList.Y
+                                    X2 mousePos.X
+                                    Y2 mousePos.Y
+                                    SVGAttr.StrokeDasharray "4"
+                                    // Qualify these props to avoid name collision with CSSProp
+                                    SVGAttr.Stroke "black"
+                                    SVGAttr.StrokeWidth 5 ] []
+                            ]
+                    
+                        match props.Symb.PortStatus with
+                        | Visible ->    outputPorts @ inputPorts
+                    
+                        | Invisible ->  []
+                    
+                        | ShowInputsOnly -> if string props.Symb.Id = symId 
+                                            then slideCirc "output" portNum mousePosition 
+                                            else inputPorts
+                    
+                        | ShowOutputsOnly -> if string props.Symb.Id = symId 
+                                             then slideCirc "input" portNum mousePosition 
+                                             else outputPorts
+
+                    let color =
+                        if props.Symb.IsSelected then
+                            "green"
+                        else if props.Symb.IsHighlighted then 
+                            "yellow"
+                        else
+                            "grey"
+
+                    let mainOutline = 
+                            let textSection =   
+                                            match props.Comp with
+
+                                                                       | Register bits -> [homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "Register" (props.Symb.Rotate)] 
+                                                                                          |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Data-in" (props.Symb.Rotate)]
+                                                                                          |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                                                          |> List.append [homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Data-out" (props.Symb.Rotate)]
+                                                                                          |> List.append [creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2]//Mux output
+                                                                                          |> List.append [homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk" (props.Symb.Rotate)]
+                                                                                          |> List.append [creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1] // CLK
+                                                                                          |> List.append [creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1] // CLK   
+
+                                                                       | RegisterE bits -> [homotextual (props.Symb.Pos.X + gateWidth) (props.Symb.Pos.Y + gateHeight/8.) "middle" "middle" "14px" "RegisterE" (props.Symb.Rotate)]
+                                                                                           |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/2.) "start" "middle" "10px" "EN" (props.Symb.Rotate)]
+                                                                                           |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/2.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/2.) 2] 
+                                                                                           |> List.append [homotextual (props.Symb.Pos.X + inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "start" "middle" "10px" "Data-in" (props.Symb.Rotate)]
+                                                                                           |> List.append [creditLines (props.Symb.Pos.X - inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/4.) 2]
+                                                                                           |> List.append [homotextual (props.Symb.Pos.X + gateWidth*2. - inOutLines*0.5) (props.Symb.Pos.Y + gateHeight/4.) "end" "middle" "10px" "Data-out" (props.Symb.Rotate)]
+                                                                                           |> List.append [creditLines (props.Symb.Pos.X + gateWidth*2. + inOutLines) (props.Symb.Pos.Y + gateHeight/4.) (props.Symb.Pos.X + gateWidth*2.) (props.Symb.Pos.Y + gateHeight/4.) 2]//Mux output
+                                                                                           |> List.append [homotextual (props.Symb.Pos.X + inOutLines*1.1) (props.Symb.Pos.Y + gateHeight/(20./17.)) "start" "middle" "9px" "Clk" (props.Symb.Rotate)]
+                                                                                           |> List.append [creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(5./4.)) 1] // CLK
+                                                                                           |> List.append [creditLines (props.Symb.Pos.X + inOutLines) (props.Symb.Pos.Y + gateHeight/(20./17.)) (props.Symb.Pos.X) (props.Symb.Pos.Y + gateHeight/(10./9.)) 1]
+
+                                                                       | _ -> [homotextual 0 0 "" "" "" "" (props.Symb.Rotate)]
+                            textSection @ [rectum props.Symb.Pos.X props.Symb.Pos.Y (gateWidth*2.) gateHeight color props]
+                
+
+                    let finalPortsSymbol = mainOutline @ displayPort 
+
+                    g   [
+                            // OnMouseUp (fun ev ->
+                            //     document.removeEventListener("mousemove", handleMouseMove.current)
+                            //     // EndDragging props.Square.Id
+                            //     // |> props.Dispatch
+                            // )
+                            // OnMouseDown (fun ev ->
+                            //     // See note above re coords wrong if zoom <> 1.0
+                            //     // StartDragging (props.Square.Id, posOf ev.pageX ev.pageY)
+                            //     // |> props.Dispatch
+                            //     document.addEventListener("mousemove", handleMouseMove.current)
+                            // )
+                            match props.Symb.Rotate with
+                            | true ->  SVGAttr.Transform (sprintf "rotate(%A %A %A)" 90 (props.Symb.Pos.X + (props.Symb.W)/2.) (props.Symb.Pos.Y + (props.Symb.H)/2.))
+                            | false -> SVGAttr.Transform (sprintf "rotate(%A)" 0)
+                        ] (finalPortsSymbol)
+
+
+            )
     //| Mux2 | Demux2 ->
     //    FunctionComponent.Of(
     //        fun (props : RenderSymbolProps) ->
