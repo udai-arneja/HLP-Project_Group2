@@ -475,20 +475,7 @@ let singleWireView =
                         ]
                 ] [str <| sprintf "%i" props.BusWidth]
 
-            //let multipleWireCircle =
-                
-            //    circle [
-            //        X legendPos.X
-            //        Y legendPos.Y
-            //        Style [
-            //            FontSize "10px"
-            //            FontWeight "Bold"
-            //            Fill "Black"
-            //            TextAnchor "middle"
-            //            DominantBaseline "hanging"
-            //            ]
-            //    ] [str <| sprintf "%i" props.BusWidth]
-                
+
             let singleSeg = segmentList props.Vertices // takes in the list of vertices that make up a wire and maps these to segments. 
             let segmentsIntoLine = singleSeg |> List.map singularLine 
             (busWidthLegend:: segmentsIntoLine)
@@ -688,7 +675,7 @@ let update (msg : Msg) (model : Model): Model*Cmd<Msg> =
     | DeleteWire ->
         
         let checkWiress (wires,bBoxes)= 
-            let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBoxTest = if wireTest.Selected = true
+            let checkWire (wiresList, bBoxesList) (wireTest:Wire) boundingBoxTest = if wireTest.Selected = false
                                                                                       then (wiresList@[wireTest], bBoxesList@[boundingBoxTest])
                                                                                       else (wiresList, bBoxesList)
             List.fold2 checkWire ([],[]) wires bBoxes
