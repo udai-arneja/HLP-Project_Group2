@@ -176,6 +176,8 @@ let renderDropdown model dispatch =
                             renderItem "Xnor" dispatch 0 model
                             renderItem "Mux2" dispatch 0 model
                             renderItem "Demux2" dispatch 0 model
+                            renderItem "DFF" dispatch 0 model
+                            renderItem "DFFE" dispatch 0 model 
                             renderItem "Register" dispatch 0 model
                         ]
                 ]
