@@ -1,8 +1,12 @@
 # HLP Project Group2 
 
-Add symbol 
+## Add symbol 
+- Creates a symbol with parameters based off of the component type
+- The ports and bounding boxes are also created
+- Each symbol is given a UUID 
 
-Select symbols
+## Select symbols
+- Selects symbols by setting the parameter isSelected to true for the particular symbols
 
 ## Delete symbol
 
@@ -13,14 +17,16 @@ Select symbols
 - Symbols can rotate so that their ports orient vertically with wires in the vertical position.
 - All other features including labels will stay in original orientation. 
 
-Snap to grid
+## Snap to grid
+-
 
 ## Add Wire 
 
 - Creates a wire between a source and target port. 
 - Takes, as an input, the source and target port ID's and finds the port by searching through the list of input/output ports. 
 
-Select wires
+## Select wires
+- selects wires by setting the parameter isSelected to true
 
 ## Delete wire 
 
