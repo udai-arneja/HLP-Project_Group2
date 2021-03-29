@@ -2,32 +2,25 @@
 
 >## Symbol functions
 
-- rect (xPos: 'a) (yPos: 'b) (width: 'c) (height: 'd) (colour: string) (props: 'e) 
-  - makes a rectangle using the arguments provided to assign the dimensions and fill colour.
+- rect (xPos: 'a) (yPos: 'b) (width: 'c) (height: 'd) (colour: string) (props: 'e) - makes a rectangle using the arguments provided to assign the dimensions and fill colour.
 
-- circle (xPos: 'a) (yPos: 'b) (rad: 'c)
-  - makes a circle using the arguments provided to assign the dimensions
+- circle (xPos: 'a) (yPos: 'b) (rad: 'c) - makes a circle using the arguments provided to assign the dimensions
 
-- text (xPos: 'a) (yPos: 'b) (textAnchor: 'c) (domBaseline: 'd) (fontSize: 'e) (displayText: StringFormat<string>) 
-  - makes a text element using the arguments provided to assign the dimensions.
+- text (xPos: 'a) (yPos: 'b) (textAnchor: 'c) (domBaseline: 'd) (fontSize: 'e) (displayText: StringFormat<string>) - makes a text element using the arguments provided to assign the dimensions.
 
-- line (x1Pos: 'a) (y1Pos: 'b) (x2Pos: 'c) (y2Pos: 'd) (width: 'c) 
-  - makes a line using the arguments provided to assign the dimensions.
+- line (x1Pos: 'a) (y1Pos: 'b) (x2Pos: 'c) (y2Pos: 'd) (width: 'c) - makes a line using the arguments provided to assign the dimensions.
 
-- createPortList (comp:Symbol) (portType:CommonTypes.PortType) (portNumber:int) (width:int) (numPorts)
-  - This function creates each of the ports for a symbol, it is mapped over the list of inputs and outputs using the InputPortsList and OutputPortsList functions.
+- createPortList (comp:Symbol) (portType:CommonTypes.PortType) (portNumber:int) (width:int) (numPorts): CommonTypes.Port - This function creates each of the ports for a symbol, it is mapped over the list of inputs and outputs using the InputPortsList and OutputPortsList functions. The individual port positions are set based on the component, port type and port number.  
 
-- createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) 
-  - creates a new variable/record of the type Symbol. 
+- createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) - creates a new variable/record of the type Symbol. Certain factors (width, input/output ports) are set based on the component type. 
 
-- createCustomSymbol (comp:CommonTypes.CustomComponentType) 
-  - this function is called to create the symbol for a custom component, the height of this symbol is set by the number of inputs/outputs. 
+- createCustomSymbol (comp:CommonTypes.CustomComponentType) - this function is called to create the symbol for a custom component, the height of this symbol is set by the number of inputs/outputs. 
 
-- createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol) 
-  - creates a bounding box with dimesions similar to that of the symbol passed in as an argument. 
+- createNewBoundingBox (inputs: int list) (outputs: int list) (sym: Symbol) - creates a bounding box around the symbol using two diagonally opposite vertices. The bounding box is fitted to the symbol.
 
-- portmove (portId:string) (inputYes:PortVisibility) (model:list<Symbol>) 
-  - this function takes in a portId, whether it's an input or output port and the model, it then updates the port positions.  
+- portmove (portId:string) (inputYes:PortVisibility) (model:list<Symbol>) - this function takes in a portId, whether it's an input or output port and the model, it then updates the port positions. <- unsure
+
+- update (msg: Msg) (model: Model) - takes in a Msg and the Model, then returns an updated model with the changes that the Msg stated.  
 
 >## BusWire functions
 
