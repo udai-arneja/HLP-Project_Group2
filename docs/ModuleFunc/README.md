@@ -14,7 +14,7 @@
 - line (x1Pos: 'a) (y1Pos: 'b) (x2Pos: 'c) (y2Pos: 'd) (width: 'c) 
   - makes a line using the arguments provided to assign the dimensions.
 
-- createPortList (comp:Symbol) (portType:CommonTypes.PortType) (portNumber:int) (width:int) (numPorts): CommonTypes.Port 
+- createPortList (comp:Symbol) (portType:CommonTypes.PortType) (portNumber:int) (width:int) (numPorts)
   - This function creates each of the ports for a symbol, it is mapped over the list of inputs and outputs using the InputPortsList and OutputPortsList functions.
 
 - createNewSymbol (inputs: int list) (outputs: int list) (comp:CommonTypes.ComponentType) 
@@ -31,13 +31,13 @@
 
 >## BusWire functions
 
-- wire (wModel: Model)(wId: CommonTypes.ConnectionId): Option<Wire> 
+- wire (wModel: Model)(wId: CommonTypes.ConnectionId) 
   - looks up the wire in the wire model.
 
-- newWireRoute  (targetPort: XYPos) (sourcePort: XYPos) : XYPos list 
+- newWireRoute  (targetPort: XYPos) (sourcePort: XYPos)  
   - newWireRoute calculates the wire route between 2 port positions. It returns a list of XY Positions, which are in the form of vertices, including the source port and target port positions. It calculates how many segments the wire will have. 
 
-- segmentList (vertexList: XYPos list) : (XYPos * XYPos) list 
+- segmentList (vertexList: XYPos list) 
   - A useful function to convert the list of vertices into a list of segments. A list of vertices is an XYPos list, whereas a list of segments is a list in which each element is XYPos*XYPos (to represent start and end points).
 
 - wireBoundingBoxes (verticesList: XYPos list) 
