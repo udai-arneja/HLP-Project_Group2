@@ -8,7 +8,7 @@ The aim of the project is to create an interactive schematic drawing canvas spec
 three modules Symbol, Buswire and Sheet. Symbol's objective was to implement the view function of symbols for all of the Issie components, Buswire's objective was 
 to implement the view function of the wires, lastly, Sheet's objective was to join everything together.     
 
-These have a parent child relationship:
+These modules have a parent child relationship:
 
 `Sheet --> BusWire --> Symbol`
 
@@ -23,6 +23,7 @@ Considering structure of:
 Thus only one endpoint, but faster performance - hence this will be implemented if performance problems found.
 
 >## Symbol 
+- Creation of symbols, ports and bounding boxes
 
 >## BusWire 
 
