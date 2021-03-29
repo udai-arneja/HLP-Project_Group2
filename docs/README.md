@@ -1,16 +1,16 @@
- ##ProjectOverview
+## ProjectOverview
 
 - contains an overview of the project and the individual modules.
 
- ##Functionality 
+## Functionality 
 
 - contains the functionality we have implemented and what it does.
 
- ##ModuleFunc
+## ModuleFunc
 
 - contains the functions of each of the modules and what they do.
 
- ##ModuleInter
+## ModuleInter
 
 - contains the interfaces between the modules and what they do.
 
