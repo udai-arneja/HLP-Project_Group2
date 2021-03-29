@@ -1,42 +1,5 @@
 # Module Interfaces
 
-### BusWire Messages
-
-| AddWire of (string, string)
-- Input port Id then output port Id (the opposite of your source and target)
-- BusWidth will be taken from symbol ports
-- Highlight wire in Ok Red if buswidths don't match and None if anything else 
-
-| ToggleSelect of (string list, string list)
-- Component Id list and wire Id list 
-- Take the second list and toggle IsSelected for all those wires 
-- Send a message onto Symbol with the first id list -> message is ToggleSelect of (ComponentId list)
-- All the selected information is stored with BusWire
-- If you're sent an empty list it means deselect everything (Simi has a defaultlist function to make it all false if you want)
-- Potential to send message ToggleSelect of (ComponentId list, PortId list) to symbol if a wire is selected to highlight the associated ports but this can be done later
-
-| MoveSegment of (string list, int, XYPos)
-- WireId of the moving wire, the index of the segment being moved and the XYPos of the mouse 
-- You are doing the difference calculations for the XYPos just like when symbol moves -> there is a function for it in symbol
-- Only middle 3 segments for 5 segment wires and 1 segment for 3 segment wires move
-- Even index is horizontal segment; odd is vertical segment
-- Need to discuss with symbol about whether the enable port will be on the bottom so it maye be necessary to check the "input"/target port wire but that can be dine later 
-- Horizontal only moves up/down and vertical only moves left/right 
-- Autoroute as you would first then make the adjustments to the final vertices 
-
-| UpdateBBoxes of (string list, string list)
-- (ComponentId list, WireId list)
-- Same function as in symbol and once again you send the same message to symbol but with only the componentID list 
-- When a symbol is being dragged it is likely that there is no wire selected but obviously you will still be autorouting as its position changes
-- On this message update the bounding boxes of the wires for the only time apart from when moving segment  
-
-| Delete
-- No type -> just delete the selected wires
-- when you delete a symbol, you must delete its associated wires by checking the ports around the selected symbols and seeing if the Ids are in any wires (Simi has most of this code in sheet but it needs some tweaking to work for you)
-
-
->## Interfaces
-
 #### Mouse Interface
 
 All mouse interactions will be observed by **Sheet**. **Sheet** will then analyse and propagate the relevant information to **Buswire** and **Symbol**. Mouse information will be sent as type MouseT MouseMsg already defined in **CommonTypes**. In the propagation, the zoom of the canvas will be included - enables **Symbol** and **Buswire** entity movements to be matched with sheet (and mouse) cursor
@@ -113,58 +76,62 @@ DuplicateSymbol
 ```
 DroppingNewSymbol (mousePos:XYPos)
 ```
-- What does it do? undo stores symbol and XYPos and returns symbol to symbol list in same position
+- When a symbol is created it's on the mouse, this message drops the symbol onto the canvas
 
 ### Sheet -> BusWire 
 
 ```
 Symbol (sMsg : Msg)
 ```
-This Msg contains a Msg  
+- This Msg contains a Msg  
 ```
 AddWire (InputPortId : CommonTypes.Port.Id) (OutputPortId: CommonTypes.Port.Id)
 ```
-**BusWire** can interface with **Symbol** to find the XYPos of the Ports
+- Sends 2 port Ids and calls the function createNewWire portId1 portId2 which routes between the 2 port positions
 ```
 DeleteWire
 ```
+- Deletes the selected wires
 ```
 MouseMsg (mMsg : MouseT)
 ```
+Mouse info with coords adjusted from top-level zoom
 ```
 ToggleSelect (symToSel : list<ComponentId>) (wireAndSegList : list<wire * int>) 
 ```
+- Toggles whether the wire is selected.
 ```
 Dragging (((symbolUpdated: list<ComponentId>)*(wireAndSegList : list<wire * int>)*(prevPos : XYPos)*(mousePos : XYPos)) 
 ```
+- If there are Wires within the dragging message, then we manual drag the wire by calling the updateVertices function. If the list of wires sent is empty, then the Symbol dragging list will contain symbols, and the message will be sent to Symbol.
 ```
 SnapToGrid ((symToSel : list<ComponentId>)*(wireAndSegList :  list<wire * int>) 
 ```
+- If there are wires within the SnaptoGrid message, then it will snap the wire selected to the segment selected to the grid. If there are no wires sent in the list, then the Symbol list will contain elements to be snapped to grid, and the message will be sent to Symbol. Snap to Grid works by snapping the top left corner of a symbol to a vertex of the grid, or a segment of a wire to a grid line.
 ```
 UpdateWires ((newWire : list<Wire>) * (newBB : list<list<XYPos * XYPos>>) * (newSymbols : list<Symbol>) * (newsBB : list<XYPos * XYPos>))
 ```
-```
-NewComponent
-```
+- Updates the bounding box of the wires as they are being changed.
 ```
 RunBusWidthInference
 ```
-Further messages will need to be defined when manual routing is implemented. 
-####MoveWire : for manual routing - potentially requiring XYPos/XYPos difference
-
-
-### Symbol -> BusWire
-The Symbol module can be accessed by BusWire. 
-```
-getPortLocation (portId: CommonTypes.Port.Id) : XYPos 
-```
-This interface function allows **BusWire** to pass in a PortId and obtain the XYPos of that Port. This enables BusWire to easily route between the 2 XY positions of the Ports. 
-```
-getBusWidth (portId: CommonTypes.Port.Id) : int
-```
-This function passes in a PortId to **Symbol**, and **Symbol** returns an integer for the number of bits of the given Port. 
+- Calls the function runBusWidthInference which includes bus width inference functionality from issie into our project. Can be seen through the toggle developer tools when running our application.
 
 <!---
 ### Keyboard Interface 
+
+- Ctrl-N 
+  - Opens the drop down menu for symbol selection. 
+- Alt-0
+  - To run BusWidth inference.
+- Alt-Up
+  - To zoom in.
+- Alt-Down 
+  - To zoom out.
+- Ctrl-D
+  - To delete.
+- Ctrl-C 
+  - To duplicate.
+
 
 
