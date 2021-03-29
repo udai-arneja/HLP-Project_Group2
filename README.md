@@ -1,3 +1,15 @@
-Documentation for Team 2 HLP can be found in the Docs folder. 
+# HLP Group 2
+## Documentation 
+Documentation for Team 2 can be found under the docs folder. 
 
-howToDemo.md in this directory shows how to demo our project.
+## Demo Instructions
+The demo instructions can be found in the root directory under the filename howToDemo.md. Link : https://github.com/udai-arneja/HLP-Project_Group2/blob/master/howToDemo.md
+
+## Work done from time of Demo to time of submission:
+- Layout of Mux2 symbol fixed
+- Port positions added on Demux2
+- Deletion of wires fixed to only deletion of selected wires. 
+- Corrected fixed ports added on symbols.
+- Buswidth functionality added : buswidth can be initialised
+- Register sybmol improved
+
