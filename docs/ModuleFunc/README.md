@@ -87,11 +87,13 @@
   - Checks to see if the mouse position is within that of a wire bounding box within the model. Checks segment by segment. If it is then it returns the wire id and the segment index. This is used for manual routing.
 
 - `renderBusWidth (dispatch: Msg -> unit) (width: int) (model: 'a)` 
-
+  - Renders the busWidth of a component
 
 - `renderDropdownInput model dispatch `  
   - Allows user input to edit the buswidth of components.
 
 - `renderItem component dispatch width model`
+  - Create the component with the correct width.
 
 - `renderDropdown model dispatch`
+  - Displays the drop down menu with component options.
