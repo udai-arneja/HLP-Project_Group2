@@ -50,18 +50,6 @@
 
 - A recursive function that works segment by segment to route the wire. 
 
-- Base case: The source port y coordinate is the same as the source port x coordinate and with no symbol bounding boxes in its way. 
-
-- Recursion
- 
-	- If there is a symbol bounding box in the way, it will backtrack it's steps to just before the symbol bounding box. 
-
-	- Switch orientation. E.g horizontal line -> vertical line
-
-	- Reroute to the corner of the bounding box (of the symbol in the way) from which, when the wire rotates again, it will be able to route to the y position of the target port. 
-
-	- If there is another bounding box in the way, repeat. 
-
 ## Manual routing
 
 - Movement in all the segments that are not directly attached to the ports. 

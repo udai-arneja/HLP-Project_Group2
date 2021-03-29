@@ -29,7 +29,7 @@
 
 - runBusWidthInference model
   - Converts all symbols to components and all wires to connections.
-  - If there is an error, highlight the wires
+  - If there is an error, highlight the wires. 
 
 - autoroute (isHorizontal: bool) (nextPort: XYPos) (startPort:XYPos) (endPort: XYPos) (model:Model) (lastPos: XYPos) (count:int)
   - A recursive function that routes the wire segment by segment. 
@@ -70,14 +70,23 @@
 
 >## Sheet functions
 
-- displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model) - 
+- `displaySvgWithZoom (zoom:float) (svgReact: ReactElement) (dispatch: Dispatch<Msg>) (model:Model) `
+  - 
 
-- view (model:Model) (dispatch : Msg -> unit) - 
+- view (model:Model) (dispatch : Msg -> unit) 
+  - The view function takes every connection in the model, and its attributes, and maps this to singleWireView. 
 
-- inSelBox (model: Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list * (BusWire.Wire*int) list) - 
+- inSelBox (model: Model) (sc:XYPos) (ec:XYPos): (CommonTypes.ComponentId list * (BusWire.Wire*int) list) 
+  - This function checks to see which symbols and wires are within the selection box. It is determined by the corners of the wires and the symbols. Finds the symbol and wire Id. Returns a tuple of the lists of the symbols and wires contained. 
 
-- wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) list - 
+- wireToSelectOpt (wModel: BusWire.Model) (pos: XYPos) : (BusWire.Wire * int) list 
+  - Checks to see if the mouse position is within that of a wire bounding box within the model. Checks segment by segment. If it is then it returns the wire id and the segment index. This is used for manual routing.
 
-- renderBusWidth (dispatch: Msg -> unit) (width: int) (model: 'a) -
+- renderBusWidth (dispatch: Msg -> unit) (width: int) (model: 'a) 
+  - 
 
-- update? 
+- renderDropdownInput model dispatch 
+
+- renderItem component dispatch width model
+
+- renderDropdown model dispatch
