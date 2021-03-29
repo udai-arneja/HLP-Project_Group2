@@ -21,9 +21,3 @@ Considering structure of:
 `Sheet --> BusWire --> Symbol` and `Sheet --> Symbol`
 
 Thus only one endpoint, but faster performance - hence this will be implemented if performance problems found.
-
->## Symbol 
-
->## BusWire 
-
->## Sheet 
