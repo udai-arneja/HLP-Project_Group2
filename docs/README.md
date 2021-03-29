@@ -1,6 +1,6 @@
 ## ProjectOverview
 
-- contains an overview of the project and the individual modules.
+- contains an overview of the project.
 
 ## Functionality 
 
