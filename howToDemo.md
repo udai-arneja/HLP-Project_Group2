@@ -3,6 +3,7 @@
 ## 1. Add Symbols
 
 - Ctrl-N -> Open DROP DOWN MENU 
+- Render buswidth
 - Add different components
 - Alter the different buswidths
 - Add a CUSTOM component
@@ -10,7 +11,9 @@
 
 ## 2. Test Copy and Paste (to add more symbols)
 
-
+- Select component
+- Ctrl-C to copy
+- Double click to paste
 
 ## 3. Connect Wire
 
@@ -44,7 +47,7 @@
 
 ## 9. Delete
 
-- DEL
+- Ctrl-D/Cmd-D
 - Multi-select delete
 - Single delete 
 
@@ -58,7 +61,8 @@
 
 ## 11. Zoom
 
-- Alt-Z -> Draw zoom box
+- Alt-Z
+- Draw zoom box
 - Alt-Z again to zoom out of zoom box.
 - Alt-Up -> Zoom in to corner of sheet
 - Alt-Down -> Zoom out of cover of sheet
