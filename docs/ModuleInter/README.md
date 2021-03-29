@@ -117,7 +117,6 @@ RunBusWidthInference
 ```
 - Calls the function runBusWidthInference which includes bus width inference functionality from issie into our project. Can be seen through the toggle developer tools when running our application.
 
-<!---
 ### Keyboard Interface 
 
 - Ctrl-N 
@@ -132,6 +131,7 @@ RunBusWidthInference
   - To delete.
 - Ctrl-C 
   - To duplicate.
+ <!---
 
 
 
