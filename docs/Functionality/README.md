@@ -18,7 +18,9 @@
 - All other features including labels will stay in original orientation. 
 
 ## Snap to grid
--
+
+- Components snap to grid when moved and dropped.
+- Wires snap to grid when manually routed.
 
 ## Add Wire 
 
@@ -54,9 +56,7 @@
  
 	- If there is a symbol bounding box in the way, it will backtrack it's steps to just before the symbol bounding box. 
 
-	- Switch orientation. E.g horizontal line 
-
-- vertical line
+	- Switch orientation. E.g horizontal line -> vertical line
 
 	- Reroute to the corner of the bounding box (of the symbol in the way) from which, when the wire rotates again, it will be able to route to the y position of the target port. 
 
