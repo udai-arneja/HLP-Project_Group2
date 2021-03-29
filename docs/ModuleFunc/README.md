@@ -2,7 +2,7 @@
 
 >## Symbol functions
 
-- rect (xPos: 'a) (yPos: 'b) (width: 'c) (height: 'd) (colour: string) (props: 'e) - makes a rectangle using the arguments provided to assign the dimensions and fill colour.
+- `rect (xPos: 'a) (yPos: 'b) (width: 'c) (height: 'd) (colour: string) (props: 'e)` - makes a rectangle using the arguments provided to assign the dimensions and fill colour.
 
 - circle (xPos: 'a) (yPos: 'b) (rad: 'c) - makes a circle using the arguments provided to assign the dimensions
 
