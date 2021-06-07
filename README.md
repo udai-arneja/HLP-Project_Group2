@@ -1,4 +1,6 @@
 # HLP Group 2
+Group 2's contribution to ISSIE (circuit schematic drawer and designer) during the High Level Programming module in Third Year.
+
 ## Documentation 
 Documentation for Team 2 can be found under the docs folder. 
 
